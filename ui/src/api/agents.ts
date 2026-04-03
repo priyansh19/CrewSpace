@@ -9,6 +9,7 @@ import type {
   AgentRuntimeState,
   AgentTaskSession,
   HeartbeatRun,
+  HeartbeatRunEvent,
   Approval,
   AgentConfigRevision,
 } from "@paperclipai/shared";
@@ -194,6 +195,52 @@ export const agentsApi = {
     api.post<ClaudeLoginResult>(agentPath(id, companyId, "/claude-login"), {}),
   availableSkills: () =>
     api.get<{ skills: AvailableSkill[] }>("/skills/available"),
+  heartbeatRun: (runId: string) =>
+    api.get<HeartbeatRun>(`/heartbeat-runs/${runId}`),
+  heartbeatRunEvents: (runId: string, afterSeq = 0) =>
+    api.get<HeartbeatRunEvent[]>(`/heartbeat-runs/${runId}/events?afterSeq=${afterSeq}`),
+  /**
+   * Streaming chat — returns an async generator that yields text chunks.
+   * The server responds with SSE: data: {"t":"..."} ... data: [DONE]
+   */
+  chatStream: async function* (
+    id: string,
+    messages: Array<{ role: "user" | "assistant"; content: string }>,
+    companyId?: string,
+    signal?: AbortSignal,
+  ): AsyncGenerator<string> {
+    const res = await fetch(`/api${agentPath(id, companyId, "/chat")}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ messages }),
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (raw === "[DONE]") return;
+        try {
+          const msg = JSON.parse(raw) as { t?: string; err?: string };
+          if (msg.err) throw new Error(msg.err);
+          if (msg.t) yield msg.t;
+        } catch { /* ignore malformed SSE lines */ }
+      }
+    }
+  },
 };
 
 export interface AvailableSkill {

@@ -1,5 +1,6 @@
 import { Router, type Request } from "express";
 import { generateKeyPairSync, randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import type { Db } from "@paperclipai/db";
 import { agents as agentsTable, companies, heartbeatRuns } from "@paperclipai/db";
@@ -2345,6 +2346,101 @@ export function agentRoutes(db: Db) {
       agentName: agent.name,
       adapterType: agent.adapterType,
     });
+  });
+
+  // ── Streaming agent chat (SSE) ───────────────────────────────────────────────
+  // Streams tokens from claude stdout as Server-Sent Events so the UI can
+  // display them progressively — first token appears in ~1-2s instead of
+  // waiting for the full response.
+  // Body:    { messages: [{role:"user"|"assistant", content:string}] }
+  // Returns: text/event-stream  →  data: {"t":"<chunk>"}\n\n  …  data: [DONE]\n\n
+  router.post("/agents/:id/chat", async (req, res) => {
+    const id = req.params.id as string;
+    const body = req.body as { messages?: Array<{ role: string; content: string }> };
+
+    if (!Array.isArray(body.messages) || body.messages.length === 0) {
+      res.status(400).json({ error: "messages array required" });
+      return;
+    }
+
+    const agent = await svc.getById(id);
+    if (!agent) { res.status(404).json({ error: "Agent not found" }); return; }
+    assertCompanyAccess(req, agent.companyId);
+
+    // Build system prompt
+    let systemPrompt = "";
+    try {
+      const bundle = await instructions.getBundle(agent);
+      if (bundle.resolvedEntryPath) {
+        const file = await instructions.readFile(agent, bundle.entryFile);
+        if (file.content) systemPrompt = file.content;
+      }
+    } catch { /* fallback below */ }
+    if (!systemPrompt) {
+      const cfg = agent.adapterConfig as Record<string, unknown> | null;
+      if (typeof cfg?.promptTemplate === "string") systemPrompt = cfg.promptTemplate;
+    }
+    if (!systemPrompt) {
+      systemPrompt = `You are ${agent.name}, ${agent.title ?? agent.role}. Be helpful and concise.`;
+    }
+
+    // Build prompt (last 12 messages for context)
+    const history = body.messages.slice(-12);
+    const latest = history[history.length - 1]!.content;
+    const prior = history.slice(0, -1);
+    const historyBlock = prior.length > 0
+      ? "\n\nConversation so far:\n" +
+        prior.map((m) => `${m.role === "user" ? "User" : agent.name}: ${m.content}`).join("\n")
+      : "";
+    const fullPrompt =
+      `[System]\n${systemPrompt}` + historyBlock +
+      `\n\n[User message]\n${latest}\n\nPlease respond as ${agent.name} in a direct, conversational way.`;
+
+    const cfg = agent.adapterConfig as Record<string, unknown> | null;
+    const claudeCmd = typeof cfg?.command === "string" && cfg.command ? cfg.command : "claude";
+    const homeDir = process.env.PAPERCLIP_HOME ?? "/paperclip";
+
+    // Open SSE stream immediately so the browser doesn't wait
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // disable nginx buffering if present
+    res.flushHeaders();
+
+    const proc = spawn(
+      claudeCmd,
+      ["--print", "-", "--output-format", "text", "--dangerously-skip-permissions"],
+      { env: { ...process.env, HOME: homeDir } },
+    );
+
+    proc.stdin.write(fullPrompt);
+    proc.stdin.end();
+
+    let stderr = "";
+    proc.stdout.on("data", (chunk: Buffer) => {
+      // Stream each chunk as an SSE event immediately
+      res.write(`data: ${JSON.stringify({ t: chunk.toString() })}\n\n`);
+    });
+    proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        console.warn(`[agent-chat] claude exited ${code}. stderr: ${stderr.substring(0, 300)}`);
+        res.write(`data: ${JSON.stringify({ err: "Agent unavailable — check adapter config." })}\n\n`);
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+    });
+
+    proc.on("error", (err) => {
+      console.error(`[agent-chat] spawn error: ${err.message}`);
+      res.write(`data: ${JSON.stringify({ err: "LLM could not be reached." })}\n\n`);
+      res.write("data: [DONE]\n\n");
+      res.end();
+    });
+
+    // Kill the process if client disconnects
+    req.on("close", () => { proc.kill(); });
   });
 
   return router;

@@ -1,0 +1,85 @@
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+
+const MAX_SESSIONS = 50;
+import type { Agent } from "@paperclipai/shared";
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "agent";
+  agentId?: string;
+  content: string;
+  ts: Date;
+}
+
+export interface ChatSession {
+  id: string;
+  primaryAgentId: string;
+  participants: Agent[];
+  messages: ChatMessage[];
+  updatedAt: Date;
+}
+
+interface ChatContextValue {
+  sessions: ChatSession[];
+  activeSessionId: string | null;
+  setActiveSessionId: (id: string | null) => void;
+  openChatWithAgent: (agent: Agent) => void;
+  updateSession: (id: string, messages: ChatMessage[], participants: Agent[]) => void;
+}
+
+const ChatContext = createContext<ChatContextValue | null>(null);
+
+export function ChatProvider({ children }: { children: ReactNode }) {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  const openChatWithAgent = useCallback((agent: Agent) => {
+    setSessions((prev) => {
+      const existing = prev.find(
+        (s) => s.primaryAgentId === agent.id && s.participants.length === 1,
+      );
+      if (existing) {
+        setActiveSessionId(existing.id);
+        return prev;
+      }
+      const newSession: ChatSession = {
+        id: `session-${Date.now()}`,
+        primaryAgentId: agent.id,
+        participants: [agent],
+        messages: [],
+        updatedAt: new Date(),
+      };
+      setActiveSessionId(newSession.id);
+      const next = [...prev, newSession];
+      // Evict oldest sessions beyond the cap
+      return next.length > MAX_SESSIONS
+        ? next.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, MAX_SESSIONS)
+        : next;
+    });
+  }, []);
+
+  const updateSession = useCallback(
+    (id: string, messages: ChatMessage[], participants: Agent[]) => {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === id ? { ...s, messages, participants, updatedAt: new Date() } : s,
+        ),
+      );
+    },
+    [],
+  );
+
+  return (
+    <ChatContext.Provider
+      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, updateSession }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
+}
+
+export function useChat() {
+  const ctx = useContext(ChatContext);
+  if (!ctx) throw new Error("useChat must be used within ChatProvider");
+  return ctx;
+}

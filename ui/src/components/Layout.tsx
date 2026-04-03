@@ -16,6 +16,8 @@ import { ToastViewport } from "./ToastViewport";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { WorktreeBanner } from "./WorktreeBanner";
 import { DevRestartBanner } from "./DevRestartBanner";
+import { ChatSidebar } from "./ChatSidebar";
+import { ChatProvider } from "../context/ChatContext";
 import { useDialog } from "../context/DialogContext";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
@@ -259,6 +261,7 @@ export function Layout() {
   }, [location.hash, location.pathname, location.search]);
 
   return (
+    <ChatProvider>
     <div
       className={cn(
         "bg-background text-foreground pt-[env(safe-area-inset-top)]",
@@ -426,6 +429,7 @@ export function Layout() {
               )}
             </main>
             <PropertiesPanel />
+            {!isMobile && <ChatSidebar />}
           </div>
         </div>
       </div>
@@ -437,5 +441,6 @@ export function Layout() {
       <NewAgentDialog />
       <ToastViewport />
     </div>
+    </ChatProvider>
   );
 }

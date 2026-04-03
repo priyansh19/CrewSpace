@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { agentsApi, type OrgNode } from "../api/agents";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { useChat } from "../context/ChatContext";
 import { queryKeys } from "../lib/queryKeys";
 import { agentUrl } from "../lib/utils";
 import { Button } from "@/components/ui/button";
@@ -145,6 +146,8 @@ export function OrgChart() {
   const { setBreadcrumbs } = useBreadcrumbs();
   const navigate = useNavigate();
 
+  const { openChatWithAgent } = useChat();
+
   const { data: orgTree, isLoading } = useQuery({
     queryKey: queryKeys.org(selectedCompanyId!),
     queryFn: () => agentsApi.org(selectedCompanyId!),
@@ -164,7 +167,7 @@ export function OrgChart() {
   }, [agents]);
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Org Chart" }]);
+    setBreadcrumbs([{ label: "Interact with Agents" }]);
   }, [setBreadcrumbs]);
 
   // Layout computation
@@ -270,19 +273,22 @@ export function OrgChart() {
 
   return (
     <div className="flex flex-col h-full">
-    <div className="mb-2 flex items-center justify-start gap-2 shrink-0">
-      <Link to="/company/import">
-        <Button variant="outline" size="sm">
-          <Upload className="mr-1.5 h-3.5 w-3.5" />
-          Import company
-        </Button>
-      </Link>
-      <Link to="/company/export">
-        <Button variant="outline" size="sm">
-          <Download className="mr-1.5 h-3.5 w-3.5" />
-          Export company
-        </Button>
-      </Link>
+    <div className="mb-2 flex items-center justify-between shrink-0">
+      <div className="flex items-center gap-2">
+        <Link to="/company/import">
+          <Button variant="outline" size="sm">
+            <Upload className="mr-1.5 h-3.5 w-3.5" />
+            Import company
+          </Button>
+        </Link>
+        <Link to="/company/export">
+          <Button variant="outline" size="sm">
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Export company
+          </Button>
+        </Link>
+      </div>
+
     </div>
     <div
       ref={containerRef}
@@ -380,6 +386,15 @@ export function OrgChart() {
         </g>
       </svg>
 
+      {/* Canvas hint */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+        <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-xs">
+          <span className="text-[11px] text-muted-foreground/70 select-none">
+            Click an agent card to view details · Click the status dot to chat
+          </span>
+        </div>
+      </div>
+
       {/* Card layer */}
       <div
         className="absolute inset-0"
@@ -405,16 +420,47 @@ export function OrgChart() {
               }}
               onClick={() => navigate(agent ? agentUrl(agent) : `/agents/${node.id}`)}
             >
+              {/* Corner status dot — click to open chat */}
+              {agent && (
+                <button
+                  data-org-card
+                  title={`Chat with ${node.name}`}
+                  className="absolute -top-1.5 -right-1.5 z-10 group/dot"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openChatWithAgent(agent);
+                  }}
+                >
+                  {/* Outer glow ring */}
+                  <span
+                    className="absolute inset-0 rounded-full opacity-40 group-hover/dot:opacity-70 transition-opacity"
+                    style={{
+                      backgroundColor: dotColor,
+                      filter: "blur(3px)",
+                      transform: "scale(1.6)",
+                    }}
+                  />
+                  {/* Pulse ring for running/active */}
+                  {(node.status === "running" || node.status === "active") && (
+                    <span
+                      className="absolute inset-0 rounded-full animate-ping opacity-60"
+                      style={{ backgroundColor: dotColor }}
+                    />
+                  )}
+                  {/* Solid dot */}
+                  <span
+                    className="relative block h-3.5 w-3.5 rounded-full border-2 border-card transition-transform group-hover/dot:scale-125"
+                    style={{ backgroundColor: dotColor }}
+                  />
+                </button>
+              )}
+
               <div className="flex items-center px-4 py-3 gap-3">
-                {/* Agent icon + status dot */}
+                {/* Agent icon */}
                 <div className="relative shrink-0">
                   <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
                     <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
                   </div>
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
-                    style={{ backgroundColor: dotColor }}
-                  />
                 </div>
                 {/* Name + role + adapter type */}
                 <div className="flex flex-col items-start min-w-0 flex-1">
@@ -441,6 +487,7 @@ export function OrgChart() {
         })}
       </div>
     </div>
+
     </div>
   );
 }
