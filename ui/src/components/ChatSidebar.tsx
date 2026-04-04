@@ -8,6 +8,9 @@ import {
   MessageCircle,
   AlertCircle,
   Users,
+  CircleDot,
+  Brain,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,9 +18,12 @@ import { AgentIcon } from "./AgentIconPicker";
 import { cn } from "@/lib/utils";
 import { useChat, type ChatSession } from "../context/ChatContext";
 import { useCompany } from "../context/CompanyContext";
-import { agentsApi } from "../api/agents";
+import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../lib/queryKeys";
+import { useDialog } from "../context/DialogContext";
+import { agentsApi } from "../api/agents";
 import { agentDotColor, formatChatTime, streamAgentChat } from "../lib/agentChat";
+import { agentMemoriesApi } from "../api/agentMemories";
 import type { ChatMessage } from "../context/ChatContext";
 import type { Agent } from "@paperclipai/shared";
 
@@ -280,6 +286,8 @@ function ChatArea({
   onUpdate: (messages: ChatMessage[], participants: Agent[]) => void;
   onClose: () => void;
 }) {
+  const { openNewIssue } = useDialog();
+  const queryClient = useQueryClient();
   const isMountedRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -290,23 +298,30 @@ function ChatArea({
     };
   }, []);
 
-  const [participants, setParticipants] = useState<Agent[]>(session.participants);
-  const [messages, setMessages] = useState<ChatMessage[]>(
-    session.messages.length > 0
-      ? session.messages
-      : [
-          {
-            id: "welcome",
-            role: "agent",
-            agentId: session.primaryAgentId,
-            content: `Hi! I'm ${session.participants[0]?.name ?? "here"}. How can I help?`,
-            ts: new Date(),
-          },
-        ],
-  );
+  const [participants, setParticipants] = useState<Agent[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Sync session data when session changes
+  useEffect(() => {
+    setParticipants(session.participants);
+    if (session.messages.length > 0) {
+      setMessages(session.messages);
+    } else {
+      setMessages([
+        {
+          id: "welcome",
+          role: "agent",
+          agentId: session.primaryAgentId,
+          content: `Hi! I'm ${session.participants[0]?.name ?? "here"}. How can I help?`,
+          ts: new Date(),
+        },
+      ]);
+    }
+  }, [session.id, session.participants, session.messages]);
   const [input, setInput] = useState("");
   const [typingAgentId, setTypingAgentId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [savingMemory, setSavingMemory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -359,6 +374,7 @@ function ChatArea({
         { id: streamingId, role: "agent", agentId: agent.id, content: "", ts: new Date() },
       ]);
 
+      let finalContent = "";
       await streamAgentChat(
         agent,
         fullHistory,
@@ -366,14 +382,70 @@ function ChatArea({
         abortRef.current.signal,
         (partial) => {
           if (!isMountedRef.current) return;
+          finalContent = partial;
           setMessages((prev) =>
             prev.map((m) => (m.id === streamingId ? { ...m, content: partial } : m)),
           );
         },
       );
 
-      if (!isMountedRef.current) break;
       setTypingAgentId(null);
+
+      // Save agent response as memory + task solution (non-blocking)
+      if (finalContent.trim() && companyId && isMountedRef.current) {
+        setSavingMemory(true);
+        // Fire and forget - don't await
+        (async () => {
+          try {
+            const sentences = finalContent
+              .split(/[.!?]+/)
+              .map((s) => s.trim())
+              .filter((s) => s.length > 10 && s.length < 200);
+            const title = sentences.length > 0 ? sentences[0].slice(0, 120) : finalContent.slice(0, 100);
+
+            // Save as general memory
+            const memoryRes = await fetch(`/api/companies/${companyId}/memories`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title,
+                content: finalContent,
+                memoryType: "fact",
+                agentIds: [agent.id],
+              }),
+            });
+
+            // Also save as task solution if response looks like a solution/approach
+            if (
+              finalContent.toLowerCase().includes("step") ||
+              finalContent.toLowerCase().includes("approach") ||
+              finalContent.toLowerCase().includes("solution") ||
+              finalContent.toLowerCase().includes("process") ||
+              finalContent.length > 200
+            ) {
+              const lastUserMsg = messages.filter((m) => m.role === "user").pop();
+              const taskTitle = lastUserMsg
+                ? lastUserMsg.content.slice(0, 80)
+                : title;
+
+              await agentMemoriesApi.saveTaskSolution(companyId, {
+                agentId: agent.id,
+                taskTitle,
+                approach: finalContent,
+                outcome: "Completed",
+              });
+            }
+
+            if (memoryRes.ok) {
+              queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(companyId) });
+            }
+          } catch (e) {
+            console.error("Failed to save memory:", e);
+          } finally {
+            setSavingMemory(false);
+          }
+        })();
+      }
     }
   }, [input, messages, participants, companyId, typingAgentId]);
 
@@ -404,6 +476,19 @@ function ChatArea({
   };
 
   const agentById = (id: string) => participants.find((p) => p.id === id);
+
+  const handleCreateIssue = useCallback(() => {
+    const recent = messages
+      .filter((m) => m.content.trim())
+      .slice(-8)
+      .map((m) => {
+        if (m.role === "user") return `**You:** ${m.content}`;
+        const sender = m.agentId ? agentById(m.agentId) : null;
+        return `**${sender?.name ?? "Agent"}:** ${m.content}`;
+      })
+      .join("\n\n");
+    openNewIssue({ description: recent ? `*From chat discussion:*\n\n${recent}` : undefined });
+  }, [messages, participants, openNewIssue]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -544,10 +629,27 @@ function ChatArea({
             <span className="text-[11px] text-destructive leading-snug">{sendError}</span>
           </div>
         )}
+        {savingMemory && (
+          <div className="flex items-center gap-2 px-1 text-[10px] text-muted-foreground/60">
+            <Brain className="h-3 w-3 animate-pulse shrink-0" />
+            <span>Saving to memory graph…</span>
+          </div>
+        )}
+      </div>
+
+      {/* Create Issue */}
+      <div className="px-2.5 pt-2 shrink-0">
+        <button
+          onClick={handleCreateIssue}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-dashed border-border text-[11px] font-medium text-muted-foreground hover:border-foreground/40 hover:text-foreground hover:bg-accent/40 transition-colors"
+        >
+          <CircleDot className="h-3.5 w-3.5" />
+          Create issue from this chat
+        </button>
       </div>
 
       {/* Input */}
-      <div className="border-t border-border px-2.5 py-2 shrink-0 bg-card/50">
+      <div className="border-t border-border px-2.5 py-2 shrink-0 bg-card/50 mt-2">
         <div className="flex gap-1.5 items-end">
           <Textarea
             ref={inputRef}
@@ -582,7 +684,7 @@ function ChatArea({
 
 // ── Main ChatSidebar ──────────────────────────────────────────────────────────
 
-export function ChatSidebar() {
+export function ChatSidebar({ onClose }: { onClose?: () => void }) {
   const { sessions, activeSessionId, setActiveSessionId, openChatWithAgent, updateSession } =
     useChat();
   const { selectedCompanyId } = useCompany();
@@ -616,7 +718,7 @@ export function ChatSidebar() {
   const handleCloseChat = useCallback(() => setActiveSessionId(null), [setActiveSessionId]);
 
   return (
-    <aside className="w-[280px] shrink-0 h-full border-l border-border bg-background flex flex-col">
+    <aside className="w-full h-full border-l border-border bg-background flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 h-12 shrink-0 border-b border-border">
         <div className="flex items-center gap-2">
@@ -628,7 +730,14 @@ export function ChatSidebar() {
             </span>
           )}
         </div>
-        <NewChatMenu allAgents={allAgents} onStart={openChatWithAgent} />
+        <div className="flex items-center gap-1">
+          <NewChatMenu allAgents={allAgents} onStart={openChatWithAgent} />
+          {onClose && (
+            <Button variant="ghost" size="icon-sm" onClick={onClose} className="text-muted-foreground">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Session list */}

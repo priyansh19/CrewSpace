@@ -474,6 +474,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       onLog,
     });
 
+    // Log process result for debugging
+    if (proc.exitCode !== 0 || proc.signal) {
+      await onLog("stderr", `[paperclip-debug] Process exit: code=${proc.exitCode}, signal=${proc.signal}, timedOut=${proc.timedOut}\n`);
+    }
+    if (proc.stderr && proc.exitCode !== 0) {
+      await onLog("stderr", `[paperclip-debug] Captured stderr:\n${proc.stderr}\n`);
+    }
+
     const parsedStream = parseClaudeStreamJson(proc.stdout);
     const parsed = parsedStream.resultJson ?? parseJson(proc.stdout);
     return { proc, parsedStream, parsed };

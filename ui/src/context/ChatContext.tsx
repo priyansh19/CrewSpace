@@ -25,6 +25,8 @@ interface ChatContextValue {
   setActiveSessionId: (id: string | null) => void;
   openChatWithAgent: (agent: Agent) => void;
   updateSession: (id: string, messages: ChatMessage[], participants: Agent[]) => void;
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -32,8 +34,10 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const openChatWithAgent = useCallback((agent: Agent) => {
+    setIsChatOpen(true);
     setSessions((prev) => {
       const existing = prev.find(
         (s) => s.primaryAgentId === agent.id && s.participants.length === 1,
@@ -71,7 +75,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   return (
     <ChatContext.Provider
-      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, updateSession }}
+      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, updateSession, isChatOpen, setIsChatOpen }}
     >
       {children}
     </ChatContext.Provider>

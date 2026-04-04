@@ -17,7 +17,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { WorktreeBanner } from "./WorktreeBanner";
 import { DevRestartBanner } from "./DevRestartBanner";
 import { ChatSidebar } from "./ChatSidebar";
-import { ChatProvider } from "../context/ChatContext";
+import { ChatProvider, useChat } from "../context/ChatContext";
 import { useDialog } from "../context/DialogContext";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
@@ -46,6 +46,28 @@ function readRememberedInstanceSettingsPath(): string {
   } catch {
     return DEFAULT_INSTANCE_SETTINGS_PATH;
   }
+}
+
+function ChatOverlay() {
+  const { isChatOpen, setIsChatOpen } = useChat();
+  return (
+    <>
+      {isChatOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30"
+          onClick={() => setIsChatOpen(false)}
+        />
+      )}
+      <div
+        className={cn(
+          "fixed top-0 right-0 z-50 h-full w-[300px] shadow-2xl transition-transform duration-300 ease-in-out",
+          isChatOpen ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        <ChatSidebar onClose={() => setIsChatOpen(false)} />
+      </div>
+    </>
+  );
 }
 
 export function Layout() {
@@ -429,11 +451,11 @@ export function Layout() {
               )}
             </main>
             <PropertiesPanel />
-            {!isMobile && <ChatSidebar />}
           </div>
         </div>
       </div>
       {isMobile && <MobileBottomNav visible={mobileNavVisible} />}
+      <ChatOverlay />
       <CommandPalette />
       <NewIssueDialog />
       <NewProjectDialog />

@@ -1894,6 +1894,15 @@ export function heartbeatService(db: Db) {
       const baseMessage = run.processPid
         ? `Process lost -- child pid ${run.processPid} is no longer running`
         : "Process lost -- server may have restarted";
+      logger.warn({
+        runId: run.id,
+        agentId: run.agentId,
+        processPid: run.processPid,
+        adapterType,
+        tracksLocalChild,
+        status: run.status,
+        updatedAt: run.updatedAt,
+      }, `detected orphaned process: ${baseMessage}`);
 
       let finalizedRun = await setRunStatus(run.id, "failed", {
         error: shouldRetry ? `${baseMessage}; retrying once` : baseMessage,
@@ -2654,6 +2663,7 @@ export function heartbeatService(db: Db) {
           "local agent jwt secret missing or invalid; running without injected PAPERCLIP_API_KEY",
         );
       }
+      logger.info({ runId: run.id, agentId: agent.id }, "invoking adapter");
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
@@ -2667,6 +2677,14 @@ export function heartbeatService(db: Db) {
         },
         authToken: authToken ?? undefined,
       });
+      logger.info({
+        runId: run.id,
+        agentId: agent.id,
+        exitCode: adapterResult.exitCode,
+        timedOut: adapterResult.timedOut,
+        errorMessage: adapterResult.errorMessage,
+        hasErrorMessage: !!adapterResult.errorMessage,
+      }, "adapter execution completed");
       const adapterManagedRuntimeServices = adapterResult.runtimeServices
         ? await persistAdapterManagedRuntimeServices({
             db,
@@ -2783,6 +2801,12 @@ export function heartbeatService(db: Db) {
             } as Record<string, unknown>)
           : null;
 
+      logger.info({
+        runId: run.id,
+        agentId: agent.id,
+        status,
+        outcome,
+      }, "setting run status after adapter completion");
       await setRunStatus(run.id, status, {
         finishedAt: new Date(),
         error:
