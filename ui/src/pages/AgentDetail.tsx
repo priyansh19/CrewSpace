@@ -70,6 +70,11 @@ import {
   ArrowLeft,
   HelpCircle,
   FolderOpen,
+  Shield,
+  FolderLock,
+  Globe,
+  Wrench,
+  X as XIcon,
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -222,7 +227,7 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "dashboard" | "instructions" | "configuration" | "skills" | "runs" | "budget";
+type AgentDetailView = "dashboard" | "instructions" | "configuration" | "skills" | "runs" | "budget" | "access";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "instructions" || value === "prompts") return "instructions";
@@ -230,6 +235,7 @@ function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "skills") return "skills";
   if (value === "budget") return "budget";
   if (value === "runs") return value;
+  if (value === "access") return "access";
   return "dashboard";
 }
 
@@ -651,6 +657,8 @@ export function AgentDetail() {
               ? "runs"
               : activeView === "budget"
                 ? "budget"
+              : activeView === "access"
+                ? "access"
               : "dashboard";
     if (routeAgentRef !== canonicalAgentRef || urlTab !== canonicalTab) {
       navigate(`/agents/${canonicalAgentRef}/${canonicalTab}`, { replace: true });
@@ -774,6 +782,8 @@ export function AgentDetail() {
         crumbs.push({ label: "Runs" });
       } else if (activeView === "budget") {
         crumbs.push({ label: "Budget" });
+      } else if (activeView === "access") {
+        crumbs.push({ label: "Access" });
       } else {
         crumbs.push({ label: "Dashboard" });
       }
@@ -912,6 +922,7 @@ export function AgentDetail() {
               { value: "instructions", label: "Instructions" },
               { value: "skills", label: "Skills" },
               { value: "configuration", label: "Configuration" },
+              { value: "access", label: "Access" },
               { value: "runs", label: "Runs" },
               { value: "budget", label: "Budget" },
             ]}
@@ -1038,6 +1049,14 @@ export function AgentDetail() {
         />
       )}
 
+      {activeView === "access" && (
+        <AgentAccessTab
+          agent={agent}
+          companyId={resolvedCompanyId ?? undefined}
+          updatePermissions={updatePermissions}
+        />
+      )}
+
       {activeView === "budget" && resolvedCompanyId ? (
         <div className="max-w-3xl">
           <BudgetPolicyCard
@@ -1048,6 +1067,232 @@ export function AgentDetail() {
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/* ---- Access Tab ---- */
+
+function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={onChange}
+      className={cn(
+        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-50",
+        checked ? "bg-green-600" : "bg-muted",
+      )}
+    >
+      <span className={cn("inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform", checked ? "translate-x-4.5" : "translate-x-0.5")} />
+    </button>
+  );
+}
+
+function AccessSection({ icon: Icon, title, description, children }: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-muted/30 rounded-t-lg">
+        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-foreground">{title}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <div className="px-4 py-3 space-y-4">{children}</div>
+    </div>
+  );
+}
+
+function PermissionRow({ label, description, checked, onChange, disabled, hint }: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <div className="space-y-0.5">
+        <p className="text-sm text-foreground">{label}</p>
+        {(description || hint) && (
+          <p className="text-xs text-muted-foreground">{hint ?? description}</p>
+        )}
+      </div>
+      <Toggle checked={checked} onChange={onChange} disabled={disabled} />
+    </div>
+  );
+}
+
+function PathListEditor({ paths, onChange, placeholder }: {
+  paths: string[];
+  onChange: (paths: string[]) => void;
+  placeholder: string;
+}) {
+  const [input, setInput] = useState("");
+
+  const add = () => {
+    const v = input.trim();
+    if (!v || paths.includes(v)) return;
+    onChange([...paths, v]);
+    setInput("");
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder={placeholder}
+          className="flex-1 text-xs bg-muted/40 border border-border rounded-md px-3 py-1.5 outline-none focus:ring-1 focus:ring-primary font-mono placeholder:text-muted-foreground/50"
+        />
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={add}>Add</Button>
+      </div>
+      {paths.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {paths.map((p) => (
+            <span key={p} className="flex items-center gap-1 text-[11px] font-mono bg-muted/60 border border-border rounded px-2 py-0.5">
+              {p}
+              <button onClick={() => onChange(paths.filter((x) => x !== p))} className="text-muted-foreground hover:text-destructive ml-0.5">
+                <XIcon className="h-2.5 w-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgentAccessTab({
+  agent,
+  companyId,
+  updatePermissions,
+}: {
+  agent: AgentDetailRecord;
+  companyId?: string;
+  updatePermissions: { mutate: (p: AgentPermissionUpdate) => void; isPending: boolean };
+}) {
+  const queryClient = useQueryClient();
+
+  // Current permission state
+  const canCreateAgents = Boolean(agent.permissions?.canCreateAgents);
+  const canAssignTasks = Boolean(agent.access?.canAssignTasks);
+  const taskAssignSource = agent.access?.taskAssignSource ?? "none";
+  const taskAssignLocked = agent.role === "ceo" || canCreateAgents;
+  const taskAssignHint =
+    taskAssignSource === "ceo_role" ? "Enabled automatically for CEO agents."
+    : taskAssignSource === "agent_creator" ? "Enabled automatically while this agent can create agents."
+    : taskAssignSource === "explicit_grant" ? "Enabled via explicit permission grant."
+    : "Disabled unless explicitly granted.";
+
+  // Local access control state (stored in agent metadata)
+  const meta = (agent.metadata ?? {}) as Record<string, unknown>;
+  const [allowedPaths, setAllowedPaths] = useState<string[]>((meta.allowedPaths as string[]) ?? []);
+  const [blockedPaths, setBlockedPaths] = useState<string[]>((meta.blockedPaths as string[]) ?? []);
+  const [allowedDomains, setAllowedDomains] = useState<string[]>((meta.allowedDomains as string[]) ?? []);
+  const [toolPerms, setToolPerms] = useState({
+    canReadFiles: Boolean((meta.canReadFiles as boolean | undefined) ?? true),
+    canWriteFiles: Boolean((meta.canWriteFiles as boolean | undefined) ?? true),
+    canRunCode: Boolean((meta.canRunCode as boolean | undefined) ?? true),
+    canUseNetwork: Boolean((meta.canUseNetwork as boolean | undefined) ?? true),
+    canUseShell: Boolean((meta.canUseShell as boolean | undefined) ?? false),
+    canAccessSecrets: Boolean((meta.canAccessSecrets as boolean | undefined) ?? false),
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const saveMetadata = async () => {
+    setSaving(true);
+    try {
+      await agentsApi.update(agent.id, {
+        metadata: {
+          ...meta,
+          allowedPaths,
+          blockedPaths,
+          allowedDomains,
+          ...toolPerms,
+        },
+      }, companyId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      {/* Platform Permissions */}
+      <AccessSection icon={Shield} title="Platform Permissions" description="Controls what this agent can do within Paperclip">
+        <PermissionRow
+          label="Can create new agents"
+          description="Lets this agent create or hire agents and implicitly assign tasks."
+          checked={canCreateAgents}
+          onChange={() => updatePermissions.mutate({ canCreateAgents: !canCreateAgents, canAssignTasks: !canCreateAgents ? true : canAssignTasks })}
+          disabled={updatePermissions.isPending}
+        />
+        <PermissionRow
+          label="Can assign tasks"
+          hint={taskAssignHint}
+          checked={canAssignTasks}
+          onChange={() => updatePermissions.mutate({ canCreateAgents, canAssignTasks: !canAssignTasks })}
+          disabled={updatePermissions.isPending || taskAssignLocked}
+        />
+      </AccessSection>
+
+      {/* Tool Permissions */}
+      <AccessSection icon={Wrench} title="Tool Permissions" description="Controls which tools and capabilities this agent can use">
+        <PermissionRow label="Read files" description="Can read files from the workspace or file system." checked={toolPerms.canReadFiles} onChange={() => setToolPerms((p) => ({ ...p, canReadFiles: !p.canReadFiles }))} />
+        <PermissionRow label="Write files" description="Can create or modify files." checked={toolPerms.canWriteFiles} onChange={() => setToolPerms((p) => ({ ...p, canWriteFiles: !p.canWriteFiles }))} />
+        <PermissionRow label="Execute code" description="Can run code in a sandbox or shell." checked={toolPerms.canRunCode} onChange={() => setToolPerms((p) => ({ ...p, canRunCode: !p.canRunCode }))} />
+        <PermissionRow label="Network access" description="Can make outbound HTTP requests." checked={toolPerms.canUseNetwork} onChange={() => setToolPerms((p) => ({ ...p, canUseNetwork: !p.canUseNetwork }))} />
+        <PermissionRow label="Shell access" description="Can run arbitrary shell commands." checked={toolPerms.canUseShell} onChange={() => setToolPerms((p) => ({ ...p, canUseShell: !p.canUseShell }))} />
+        <PermissionRow label="Access secrets" description="Can read secrets and API keys stored in the vault." checked={toolPerms.canAccessSecrets} onChange={() => setToolPerms((p) => ({ ...p, canAccessSecrets: !p.canAccessSecrets }))} />
+      </AccessSection>
+
+      {/* File System Access */}
+      <AccessSection icon={FolderLock} title="File System Access" description="Restrict which file paths this agent can access">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-foreground">Allowed paths</p>
+          <p className="text-xs text-muted-foreground">Leave empty to allow all paths. Add paths to restrict access.</p>
+          <PathListEditor paths={allowedPaths} onChange={setAllowedPaths} placeholder="/workspace/src" />
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-foreground">Blocked paths</p>
+          <p className="text-xs text-muted-foreground">Paths the agent is explicitly denied access to.</p>
+          <PathListEditor paths={blockedPaths} onChange={setBlockedPaths} placeholder="/etc/secrets" />
+        </div>
+      </AccessSection>
+
+      {/* Network Access */}
+      <AccessSection icon={Globe} title="Network Access" description="Control which external domains this agent can reach">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-foreground">Allowed domains</p>
+          <p className="text-xs text-muted-foreground">Leave empty to allow all domains. Add domains to allowlist.</p>
+          <PathListEditor paths={allowedDomains} onChange={setAllowedDomains} placeholder="api.github.com" />
+        </div>
+      </AccessSection>
+
+      {/* Save */}
+      <div className="flex items-center gap-3">
+        <Button onClick={saveMetadata} disabled={saving} size="sm">
+          {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+          {saving ? "Saving…" : saved ? "Saved!" : "Save Access Settings"}
+        </Button>
+        {saved && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Saved</span>}
+      </div>
     </div>
   );
 }

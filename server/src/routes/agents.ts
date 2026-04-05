@@ -2102,7 +2102,45 @@ export function agentRoutes(db: Db) {
     const limitParam = req.query.limit as string | undefined;
     const limit = limitParam ? Math.max(1, Math.min(1000, parseInt(limitParam, 10) || 200)) : undefined;
     const runs = await heartbeat.list(companyId, agentId, limit);
-    res.json(runs);
+
+    // Enrich with agentName by joining against agents list
+    const agentIds = [...new Set(runs.map((r) => r.agentId))];
+    const agentMap = new Map<string, string>();
+    if (agentIds.length > 0) {
+      const agentRows = await db
+        .select({ id: agentsTable.id, name: agentsTable.name })
+        .from(agentsTable)
+        .where(inArray(agentsTable.id, agentIds));
+      for (const a of agentRows) agentMap.set(a.id, a.name);
+    }
+
+    res.json(runs.map((r) => ({ ...r, agentName: agentMap.get(r.agentId) ?? null })));
+  });
+
+  // Dedicated blockers endpoint: blocked issues + failed runs in one response
+  router.get("/companies/:companyId/blockers", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+
+    // Failed runs (last 50)
+    const allRuns = await heartbeat.list(companyId, undefined, 200);
+    const FAILED_STATUSES = new Set(["failed", "error", "terminated", "timed_out"]);
+    const failedRuns = allRuns.filter((r) => FAILED_STATUSES.has(r.status)).slice(0, 50);
+
+    // Enrich with agentName
+    const agentIds = [...new Set(failedRuns.map((r) => r.agentId))];
+    const agentMap = new Map<string, string>();
+    if (agentIds.length > 0) {
+      const agentRows = await db
+        .select({ id: agentsTable.id, name: agentsTable.name })
+        .from(agentsTable)
+        .where(inArray(agentsTable.id, agentIds));
+      for (const a of agentRows) agentMap.set(a.id, a.name);
+    }
+
+    res.json({
+      failedRuns: failedRuns.map((r) => ({ ...r, agentName: agentMap.get(r.agentId) ?? null })),
+    });
   });
 
   router.get("/companies/:companyId/live-runs", async (req, res) => {

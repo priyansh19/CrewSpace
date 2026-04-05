@@ -247,6 +247,38 @@ export function issueRoutes(db: Db, storage: StorageService) {
     }
   });
 
+  // Taskboard: all issues grouped by status in a single call
+  router.get("/companies/:companyId/taskboard", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const includeRoutines = req.query.includeRoutineExecutions === "true";
+    const statuses = ["backlog", "todo", "in_progress", "done"];
+
+    const results = await Promise.all(
+      statuses.map((status) =>
+        svc.list(companyId, {
+          status,
+          includeRoutineExecutions: includeRoutines,
+        }),
+      ),
+    );
+
+    const board: Record<string, unknown[]> = {};
+    statuses.forEach((status, i) => {
+      board[status] = results[i] ?? [];
+    });
+
+    res.json({ columns: statuses, board });
+  });
+
+  // Blockers: blocked issues for the company (shorthand for ?status=blocked)
+  router.get("/companies/:companyId/blocked-issues", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const result = await svc.list(companyId, { status: "blocked" });
+    res.json(result);
+  });
+
   // Common malformed path when companyId is empty in "/api/companies/{companyId}/issues".
   router.get("/issues", (_req, res) => {
     res.status(400).json({

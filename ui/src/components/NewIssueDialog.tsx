@@ -313,6 +313,17 @@ export function NewIssueDialog() {
     enabled: !!effectiveCompanyId && newIssueOpen,
   });
 
+  const ceoAgent = useMemo(
+    () => (agents ?? []).find((a) => a.role === "ceo") ?? null,
+    [agents],
+  );
+
+  // If agents load after dialog opens and no assignee is set yet, default to CEO
+  useEffect(() => {
+    if (!newIssueOpen || !ceoAgent) return;
+    setAssigneeValue((current) => current || assigneeValueFromSelection({ assigneeAgentId: ceoAgent.id }));
+  }, [ceoAgent, newIssueOpen]);
+
   const { data: projects } = useQuery({
     queryKey: queryKeys.projects.list(effectiveCompanyId!),
     queryFn: () => projectsApi.list(effectiveCompanyId!),
@@ -517,7 +528,7 @@ export function NewIssueDialog() {
       const defaultProject = orderedProjects.find((project) => project.id === defaultProjectId);
       setProjectId(defaultProjectId);
       setProjectWorkspaceId(defaultProjectWorkspaceIdForProject(defaultProject));
-      setAssigneeValue(assigneeValueFromSelection(newIssueDefaults));
+      setAssigneeValue(assigneeValueFromSelection(newIssueDefaults) || (ceoAgent ? assigneeValueFromSelection({ assigneeAgentId: ceoAgent.id }) : ""));
       setAssigneeModelOverride("");
       setAssigneeThinkingEffort("");
       setAssigneeChrome(false);
@@ -534,7 +545,7 @@ export function NewIssueDialog() {
       setAssigneeValue(
         newIssueDefaults.assigneeAgentId || newIssueDefaults.assigneeUserId
           ? assigneeValueFromSelection(newIssueDefaults)
-          : (draft.assigneeValue ?? draft.assigneeId ?? ""),
+          : (draft.assigneeValue || draft.assigneeId || (ceoAgent ? assigneeValueFromSelection({ assigneeAgentId: ceoAgent.id }) : "")),
       );
       setProjectId(restoredProjectId);
       setProjectWorkspaceId(draft.projectWorkspaceId ?? defaultProjectWorkspaceIdForProject(restoredProject));
@@ -554,7 +565,7 @@ export function NewIssueDialog() {
       setPriority(newIssueDefaults.priority ?? "");
       setProjectId(defaultProjectId);
       setProjectWorkspaceId(defaultProjectWorkspaceIdForProject(defaultProject));
-      setAssigneeValue(assigneeValueFromSelection(newIssueDefaults));
+      setAssigneeValue(assigneeValueFromSelection(newIssueDefaults) || (ceoAgent ? assigneeValueFromSelection({ assigneeAgentId: ceoAgent.id }) : ""));
       setAssigneeModelOverride("");
       setAssigneeThinkingEffort("");
       setAssigneeChrome(false);

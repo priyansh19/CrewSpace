@@ -337,6 +337,19 @@ export function ensurePathInEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...env, PATH: defaultPathForPlatform() };
 }
 
+/**
+ * If `cwd` looks like a Windows absolute path (e.g. "C:\Users\...") and we are
+ * running on a non-Windows OS, it cannot be used — return `fallback` instead.
+ */
+export function sanitizeCwd(cwd: string, fallback: string = process.cwd()): string {
+  if (!cwd) return fallback;
+  // Windows drive letter path: C:\ or C:/
+  if (process.platform !== "win32" && /^[A-Za-z]:[/\\]/.test(cwd)) {
+    return fallback;
+  }
+  return cwd;
+}
+
 export async function ensureAbsoluteDirectory(
   cwd: string,
   opts: { createIfMissing?: boolean } = {},

@@ -24,6 +24,7 @@ interface ChatContextValue {
   activeSessionId: string | null;
   setActiveSessionId: (id: string | null) => void;
   openChatWithAgent: (agent: Agent) => void;
+  openChatWithAgents: (agents: Agent[]) => void;
   updateSession: (id: string, messages: ChatMessage[], participants: Agent[]) => void;
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
@@ -55,12 +56,31 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       };
       setActiveSessionId(newSession.id);
       const next = [...prev, newSession];
-      // Evict oldest sessions beyond the cap
       return next.length > MAX_SESSIONS
         ? next.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, MAX_SESSIONS)
         : next;
     });
   }, []);
+
+  const openChatWithAgents = useCallback((agents: Agent[]) => {
+    if (agents.length === 0) return;
+    if (agents.length === 1) { openChatWithAgent(agents[0]); return; }
+    setIsChatOpen(true);
+    setSessions((prev) => {
+      const newSession: ChatSession = {
+        id: `session-${Date.now()}`,
+        primaryAgentId: agents[0].id,
+        participants: agents,
+        messages: [],
+        updatedAt: new Date(),
+      };
+      setActiveSessionId(newSession.id);
+      const next = [...prev, newSession];
+      return next.length > MAX_SESSIONS
+        ? next.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, MAX_SESSIONS)
+        : next;
+    });
+  }, [openChatWithAgent]);
 
   const updateSession = useCallback(
     (id: string, messages: ChatMessage[], participants: Agent[]) => {
@@ -75,7 +95,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   return (
     <ChatContext.Provider
-      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, updateSession, isChatOpen, setIsChatOpen }}
+      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, updateSession, isChatOpen, setIsChatOpen }}
     >
       {children}
     </ChatContext.Provider>

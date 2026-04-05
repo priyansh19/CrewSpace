@@ -13,6 +13,10 @@ import {
   Settings,
   MessageCircle,
   Brain,
+  ShieldAlert,
+  KanbanSquare,
+  Zap,
+  ChevronRight,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -27,6 +31,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { useInboxBadge } from "../hooks/useInboxBadge";
 import { Button } from "@/components/ui/button";
 import { PluginSlotOutlet } from "@/plugins/slots";
+import { cn } from "@/lib/utils";
 
 export function Sidebar() {
   const { openNewIssue } = useDialog();
@@ -52,38 +57,56 @@ export function Sidebar() {
 
   return (
     <aside className="w-60 h-full min-h-0 border-r border-border bg-background flex flex-col">
-      {/* Top bar: Company name (bold) + Search — aligned with top sections (no visible border) */}
-      <div className="flex items-center gap-1 px-3 h-12 shrink-0">
-        {selectedCompany?.brandColor && (
-          <div
-            className="w-4 h-4 rounded-sm shrink-0 ml-1"
-            style={{ backgroundColor: selectedCompany.brandColor }}
-          />
-        )}
-        <span className="flex-1 text-sm font-bold text-foreground truncate pl-1">
-          {selectedCompany?.name ?? "Select company"}
-        </span>
+      {/* Brand header */}
+      <div className="flex items-center gap-2 px-4 h-13 shrink-0 border-b border-border/50">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Nexus logo mark */}
+          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
+            <Zap className="h-3.5 w-3.5 text-primary-foreground" fill="currentColor" />
+          </div>
+          <span className="text-sm font-bold text-foreground tracking-tight">Nexus</span>
+          {selectedCompany?.brandColor && (
+            <div
+              className="w-1.5 h-1.5 rounded-full shrink-0 ml-0.5"
+              style={{ backgroundColor: selectedCompany.brandColor }}
+            />
+          )}
+          {selectedCompany && (
+            <span className="text-xs text-muted-foreground truncate font-normal">
+              {selectedCompany.name}
+            </span>
+          )}
+        </div>
         <Button
           variant="ghost"
           size="icon-sm"
           className="text-muted-foreground shrink-0"
           onClick={openSearch}
         >
-          <Search className="h-4 w-4" />
+          <Search className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-4 px-3 py-2">
+      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-3 px-3 py-3">
+        {/* Quick actions */}
         <div className="flex flex-col gap-0.5">
-          {/* New Issue button aligned with nav items */}
           <button
             onClick={() => openNewIssue()}
-            className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/15 transition-colors"
           >
-            <SquarePen className="h-4 w-4 shrink-0" />
-            <span className="truncate">New Issue</span>
+            <SquarePen className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">New Task</span>
           </button>
-          <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
+        </div>
+
+        {/* Home */}
+        <div className="flex flex-col gap-0.5">
+          <SidebarNavItem
+            to="/dashboard"
+            label="Dashboard"
+            icon={LayoutDashboard}
+            liveCount={liveRunCount}
+          />
           <SidebarNavItem
             to="/inbox"
             label="Inbox"
@@ -101,8 +124,11 @@ export function Sidebar() {
           />
         </div>
 
+        {/* Work */}
         <SidebarSection label="Work">
           <SidebarNavItem to="/issues" label="Issues" icon={CircleDot} />
+          <SidebarNavItem to="/taskboard" label="Board" icon={KanbanSquare} />
+          <SidebarNavItem to="/blockers" label="Alerts" icon={ShieldAlert} />
           <SidebarNavItem to="/routines" label="Routines" icon={Repeat} textBadge="Beta" textBadgeTone="amber" />
           <SidebarNavItem to="/goals" label="Goals" icon={Target} />
         </SidebarSection>
@@ -111,25 +137,35 @@ export function Sidebar() {
 
         <SidebarAgents />
 
-        <SidebarSection label="Company">
-          <SidebarNavItem to="/org" label="Interact with Agents" icon={Network} />
-          <SidebarNavItem to="/memory" label="Agent Memory Graph" icon={Brain} />
-          <SidebarNavItem to="/skills" label="Skills" icon={Boxes} />
-          <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
-          <SidebarNavItem to="/activity" label="Activity" icon={History} />
-          <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
+        {/* Intelligence */}
+        <SidebarSection label="Intelligence">
+          <SidebarNavItem to="/org" label="Org Chart" icon={Network} />
+          <SidebarNavItem to="/memory" label="Memory Graph" icon={Brain} />
           <button
             onClick={() => setIsChatOpen(!isChatOpen)}
-            className={`flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors w-full text-left ${isChatOpen ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"}`}
+            className={cn(
+              "flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors w-full text-left rounded-sm",
+              isChatOpen
+                ? "bg-accent text-foreground"
+                : "text-foreground/80 hover:bg-accent/50 hover:text-foreground",
+            )}
           >
             <MessageCircle className="h-4 w-4 shrink-0" />
-            <span className="truncate flex-1">Chat with Agents</span>
+            <span className="truncate flex-1">Agent Chat</span>
             {sessions.length > 0 && (
               <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 leading-none tabular-nums">
                 {sessions.length}
               </span>
             )}
           </button>
+        </SidebarSection>
+
+        {/* System */}
+        <SidebarSection label="System">
+          <SidebarNavItem to="/skills" label="Skills" icon={Boxes} />
+          <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
+          <SidebarNavItem to="/activity" label="Activity" icon={History} />
+          <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
         </SidebarSection>
 
         <PluginSlotOutlet

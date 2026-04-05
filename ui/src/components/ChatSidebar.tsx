@@ -11,6 +11,8 @@ import {
   CircleDot,
   Brain,
   Check,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,16 +46,17 @@ function NewChatMenu({
   onStart,
 }: {
   allAgents: Agent[];
-  onStart: (agent: Agent) => void;
+  onStart: (agents: Agent[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      if (!ref.current?.contains(e.target as Node)) { setOpen(false); setSelected(new Set()); }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -62,6 +65,23 @@ function NewChatMenu({
   const filtered = allAgents.filter((a) =>
     a.name.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleStart = () => {
+    const agents = allAgents.filter((a) => selected.has(a.id));
+    if (agents.length === 0) return;
+    onStart(agents);
+    setOpen(false);
+    setSearch("");
+    setSelected(new Set());
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -76,7 +96,7 @@ function NewChatMenu({
       </Button>
 
       {open && (
-        <div className="absolute top-7 right-0 z-50 w-52 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute top-7 right-0 z-50 w-56 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input
@@ -91,34 +111,52 @@ function NewChatMenu({
             {filtered.length === 0 ? (
               <p className="text-xs text-muted-foreground px-3 py-2">No agents found</p>
             ) : (
-              filtered.map((agent) => (
-                <button
-                  key={agent.id}
-                  onClick={() => {
-                    onStart(agent);
-                    setOpen(false);
-                    setSearch("");
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent/50 transition-colors text-left"
-                >
-                  <div className="relative shrink-0">
-                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                      <AgentIcon icon={(agent as any).icon} className="h-3 w-3 text-foreground/60" />
+              filtered.map((agent) => {
+                const isSelected = selected.has(agent.id);
+                return (
+                  <button
+                    key={agent.id}
+                    onClick={() => toggle(agent.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent/50 transition-colors text-left",
+                      isSelected && "bg-accent/30",
+                    )}
+                  >
+                    <div className={cn(
+                      "w-3.5 h-3.5 rounded border shrink-0 flex items-center justify-center transition-colors",
+                      isSelected ? "bg-primary border-primary" : "border-border",
+                    )}>
+                      {isSelected && <Check className="h-2 w-2 text-primary-foreground" />}
                     </div>
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-popover"
-                      style={{ backgroundColor: agentDotColor(agent.status) }}
-                    />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium text-foreground truncate">{agent.name}</span>
-                    <span className="text-[10px] text-muted-foreground truncate">
-                      {(agent as any).title ?? agent.role}
-                    </span>
-                  </div>
-                </button>
-              ))
+                    <div className="relative shrink-0">
+                      <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                        <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/60" />
+                      </div>
+                      <span
+                        className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-popover"
+                        style={{ backgroundColor: agentDotColor(agent.status) }}
+                      />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-medium text-foreground truncate">{agent.name}</span>
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        {(agent as any).title ?? agent.role}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
             )}
+          </div>
+          <div className="px-3 py-2 border-t border-border">
+            <Button
+              size="sm"
+              className="w-full h-7 text-xs"
+              disabled={selected.size === 0}
+              onClick={handleStart}
+            >
+              Start Chat {selected.size > 0 && `(${selected.size} agent${selected.size > 1 ? "s" : ""})`}
+            </Button>
           </div>
         </div>
       )}
@@ -188,8 +226,7 @@ function AddParticipantMenu({
                   key={agent.id}
                   onClick={() => {
                     onAdd(agent);
-                    setOpen(false);
-                    setSearch("");
+                    // keep menu open so user can add more agents
                   }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent/50 transition-colors text-left"
                 >
@@ -301,7 +338,7 @@ function ChatArea({
   const [participants, setParticipants] = useState<Agent[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  // Sync session data when session changes
+  // Sync session data only when switching to a different session (not on every content change)
   useEffect(() => {
     setParticipants(session.participants);
     if (session.messages.length > 0) {
@@ -317,7 +354,8 @@ function ChatArea({
         },
       ]);
     }
-  }, [session.id, session.participants, session.messages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
   const [input, setInput] = useState("");
   const [typingAgentId, setTypingAgentId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -375,7 +413,7 @@ function ChatArea({
       ]);
 
       let finalContent = "";
-      await streamAgentChat(
+      const streamResult = await streamAgentChat(
         agent,
         fullHistory,
         companyId,
@@ -388,6 +426,14 @@ function ChatArea({
           );
         },
       );
+
+      // If onChunk was never called (e.g. stream errored before first chunk), use the return value
+      if (!finalContent && streamResult) {
+        finalContent = streamResult;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamingId ? { ...m, content: streamResult } : m)),
+        );
+      }
 
       setTypingAgentId(null);
 
@@ -538,6 +584,9 @@ function ChatArea({
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
         {messages.map((msg) => {
+          // Hide empty agent messages while typing indicator is showing
+          if (msg.role === "agent" && !msg.content && typingAgentId) return null;
+
           if (msg.role === "user") {
             return (
               <div key={msg.id} className="flex justify-end">
@@ -685,7 +734,7 @@ function ChatArea({
 // ── Main ChatSidebar ──────────────────────────────────────────────────────────
 
 export function ChatSidebar({ onClose }: { onClose?: () => void }) {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgent, updateSession } =
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, updateSession } =
     useChat();
   const { selectedCompanyId } = useCompany();
 
@@ -731,7 +780,7 @@ export function ChatSidebar({ onClose }: { onClose?: () => void }) {
           )}
         </div>
         <div className="flex items-center gap-1">
-          <NewChatMenu allAgents={allAgents} onStart={openChatWithAgent} />
+          <NewChatMenu allAgents={allAgents} onStart={openChatWithAgents} />
           {onClose && (
             <Button variant="ghost" size="icon-sm" onClick={onClose} className="text-muted-foreground">
               <X className="h-4 w-4" />
