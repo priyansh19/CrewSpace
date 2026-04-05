@@ -39,6 +39,11 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 
 const INSTANCE_SETTINGS_MEMORY_KEY = "paperclip.lastInstanceSettingsPath";
 
+/** Pages that need full height with no padding — they manage their own layout */
+function isFullPageRoute(pathname: string): boolean {
+  return /\/(memory|agent-chat)$/.test(pathname);
+}
+
 function readRememberedInstanceSettingsPath(): string {
   if (typeof window === "undefined") return DEFAULT_INSTANCE_SETTINGS_PATH;
   try {
@@ -437,8 +442,10 @@ export function Layout() {
               id="main-content"
               tabIndex={-1}
               className={cn(
-                "flex-1 p-4 md:p-6",
-                isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto",
+                "flex-1",
+                isFullPageRoute(location.pathname)
+                  ? "overflow-hidden"
+                  : cn("p-4 md:p-6", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
               )}
             >
               {hasUnknownCompanyPrefix ? (

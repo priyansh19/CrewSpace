@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 export function Sidebar() {
   const { openNewIssue } = useDialog();
   const { selectedCompanyId, selectedCompany } = useCompany();
-  const { isChatOpen, setIsChatOpen, sessions } = useChat();
+  const { sessions } = useChat();
   const inboxBadge = useInboxBadge(selectedCompanyId);
   const { data: liveRuns } = useQuery({
     queryKey: queryKeys.liveRuns(selectedCompanyId!),
@@ -141,23 +141,12 @@ export function Sidebar() {
         <SidebarSection label="Intelligence">
           <SidebarNavItem to="/org" label="Org Chart" icon={Network} />
           <SidebarNavItem to="/memory" label="Memory Graph" icon={Brain} />
-          <button
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className={cn(
-              "flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors w-full text-left rounded-sm",
-              isChatOpen
-                ? "bg-accent text-foreground"
-                : "text-foreground/80 hover:bg-accent/50 hover:text-foreground",
-            )}
-          >
-            <MessageCircle className="h-4 w-4 shrink-0" />
-            <span className="truncate flex-1">Agent Chat</span>
-            {sessions.length > 0 && (
-              <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 leading-none tabular-nums">
-                {sessions.length}
-              </span>
-            )}
-          </button>
+          <SidebarNavItem
+            to="/agent-chat"
+            label="Agent Chat"
+            icon={MessageCircle}
+            badge={sessions.length > 0 ? sessions.length : undefined}
+          />
         </SidebarSection>
 
         {/* System */}

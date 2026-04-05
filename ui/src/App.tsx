@@ -38,6 +38,7 @@ import { PluginPage } from "./pages/PluginPage";
 import { RunTranscriptUxLab } from "./pages/RunTranscriptUxLab";
 import { OrgChart } from "./pages/OrgChart";
 import { MemoryGraph } from "./pages/MemoryGraph";
+import { AgentChat } from "./pages/AgentChat";
 import { Blockers } from "./pages/Blockers";
 import { Taskboard } from "./pages/Taskboard";
 import { NewAgent } from "./pages/NewAgent";
@@ -135,6 +136,7 @@ function boardRoutes() {
       <Route path="plugins/:pluginId" element={<PluginPage />} />
       <Route path="org" element={<OrgChart />} />
       <Route path="memory" element={<MemoryGraph />} />
+      <Route path="agent-chat" element={<AgentChat />} />
       <Route path="blockers" element={<Blockers />} />
       <Route path="taskboard" element={<Taskboard />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />
@@ -342,6 +344,7 @@ export function App() {
           <Route path="agents/:agentId/:tab" element={<UnprefixedBoardRedirect />} />
           <Route path="agents/:agentId/runs/:runId" element={<UnprefixedBoardRedirect />} />
           <Route path="memory" element={<UnprefixedBoardRedirect />} />
+          <Route path="agent-chat" element={<UnprefixedBoardRedirect />} />
           <Route path="org" element={<UnprefixedBoardRedirect />} />
           <Route path="taskboard" element={<UnprefixedBoardRedirect />} />
           <Route path="blockers" element={<UnprefixedBoardRedirect />} />

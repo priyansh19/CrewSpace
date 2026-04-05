@@ -49,6 +49,7 @@ import { assertBoard, assertCompanyAccess, assertInstanceAdmin, getActorInfo } f
 import { findServerAdapter, listAdapterModels, detectAdapterModel } from "../adapters/index.js";
 import { redactEventPayload } from "../redaction.js";
 import { redactCurrentUserValue } from "../log-redaction.js";
+import { extractAndStoreMemories, getMemoryContext } from "../services/memoryExtractor.js";
 import { renderOrgChartSvg, renderOrgChartPng, type OrgNode, type OrgChartStyle, ORG_CHART_STYLES } from "./org-chart-svg.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { runClaudeLogin } from "@paperclipai/adapter-claude-local/server";
@@ -2422,6 +2423,12 @@ export function agentRoutes(db: Db) {
       systemPrompt = `You are ${agent.name}, ${agent.title ?? agent.role}. Be helpful and concise.`;
     }
 
+    // Inject RAG memory context into system prompt
+    const memoryContext = await getMemoryContext(db, {
+      companyId: agent.companyId,
+      agentId: id,
+    });
+
     // Build prompt (last 12 messages for context)
     const history = body.messages.slice(-12);
     const latest = history[history.length - 1]!.content;
@@ -2431,7 +2438,7 @@ export function agentRoutes(db: Db) {
         prior.map((m) => `${m.role === "user" ? "User" : agent.name}: ${m.content}`).join("\n")
       : "";
     const fullPrompt =
-      `[System]\n${systemPrompt}` + historyBlock +
+      `[System]\n${systemPrompt}` + memoryContext + historyBlock +
       `\n\n[User message]\n${latest}\n\nPlease respond as ${agent.name} in a direct, conversational way.`;
 
     const cfg = agent.adapterConfig as Record<string, unknown> | null;
@@ -2455,9 +2462,12 @@ export function agentRoutes(db: Db) {
     proc.stdin.end();
 
     let stderr = "";
+    let fullResponse = "";
     proc.stdout.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      fullResponse += text;
       // Stream each chunk as an SSE event immediately
-      res.write(`data: ${JSON.stringify({ t: chunk.toString() })}\n\n`);
+      res.write(`data: ${JSON.stringify({ t: text })}\n\n`);
     });
     proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
 
@@ -2465,6 +2475,23 @@ export function agentRoutes(db: Db) {
       if (code !== 0) {
         console.warn(`[agent-chat] claude exited ${code}. stderr: ${stderr.substring(0, 300)}`);
         res.write(`data: ${JSON.stringify({ err: "Agent unavailable — check adapter config." })}\n\n`);
+      } else if (fullResponse) {
+        // Fire-and-forget: extract memories from this conversation
+        const allMessages = [
+          ...history.map((m) => ({
+            role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+            content: m.content,
+          })),
+          { role: "assistant" as const, content: fullResponse },
+        ];
+        extractAndStoreMemories(db, {
+          companyId: agent.companyId,
+          agentId: id,
+          agentName: agent.name,
+          claudeCmd,
+          homeDir,
+          messages: allMessages,
+        }).catch(() => { /* silenced — non-critical */ });
       }
       res.write("data: [DONE]\n\n");
       res.end();

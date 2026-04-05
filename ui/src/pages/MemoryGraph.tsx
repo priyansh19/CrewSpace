@@ -1,258 +1,256 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Link2, Trash2, Brain, ChevronRight, Filter } from "lucide-react";
+import { Plus, X, Link2, Trash2, Search, Brain, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCompany } from "../context/CompanyContext";
 import { agentMemoriesApi, type AgentMemory, type AgentMemoryLink } from "../api/agentMemories";
 import { queryKeys } from "../lib/queryKeys";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Palette ───────────────────────────────────────────────────────────────────
 
+const AGENT_COLORS = [
+  "#f59e0b", "#818cf8", "#34d399", "#f472b6",
+  "#38bdf8", "#fb923c", "#a78bfa", "#4ade80",
+];
 const MEMORY_TYPE_COLORS: Record<string, string> = {
-  fact: "#6366f1",
-  insight: "#8b5cf6",
-  decision: "#ec4899",
-  pattern: "#f59e0b",
-  task: "#10b981",
-  observation: "#3b82f6",
-  learning: "#06b6d4",
+  fact: "#6366f1", insight: "#8b5cf6", decision: "#ec4899",
+  pattern: "#f59e0b", task: "#10b981", observation: "#3b82f6", learning: "#06b6d4",
 };
-
-function typeColor(type: string) {
-  return MEMORY_TYPE_COLORS[type] ?? "#94a3b8";
-}
-
+function typeColor(t: string) { return MEMORY_TYPE_COLORS[t] ?? "#94a3b8"; }
 const MEMORY_TYPES = ["fact", "insight", "decision", "pattern", "task", "observation", "learning"];
 
-// ── 2D Force Simulation ───────────────────────────────────────────────────────
+// ── 3-D Math ─────────────────────────────────────────────────────────────────
 
-interface Node2D {
+type Vec3 = [number, number, number];
+
+function rotY([x, y, z]: Vec3, a: number): Vec3 {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [x * c + z * s, y, -x * s + z * c];
+}
+function rotX([x, y, z]: Vec3, a: number): Vec3 {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [x, y * c - z * s, y * s + z * c];
+}
+
+/** Perspective projection — camera at (0,0,-dist), looking at origin */
+function project(v: Vec3, dist: number, cx: number, cy: number) {
+  const z = v[2] + dist;
+  const scale = dist / Math.max(z, 1);
+  return { sx: cx + v[0] * scale, sy: cy + v[1] * scale, scale, depth: v[2] };
+}
+
+/** Fibonacci sphere — evenly distributes n points on unit sphere */
+function fibSphere(n: number): Vec3[] {
+  const phi = Math.PI * (Math.sqrt(5) - 1);
+  return Array.from({ length: n }, (_, i) => {
+    const y = 1 - (i / Math.max(n - 1, 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const t = phi * i;
+    return [r * Math.cos(t), y, r * Math.sin(t)] as Vec3;
+  });
+}
+
+/** Cross product */
+function cross([ax, ay, az]: Vec3, [bx, by, bz]: Vec3): Vec3 {
+  return [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+}
+function normalize([x, y, z]: Vec3): Vec3 {
+  const l = Math.sqrt(x * x + y * y + z * z) || 1;
+  return [x / l, y / l, z / l];
+}
+function scale([x, y, z]: Vec3, s: number): Vec3 { return [x * s, y * s, z * s]; }
+function add([ax, ay, az]: Vec3, [bx, by, bz]: Vec3): Vec3 { return [ax + bx, ay + by, az + bz]; }
+
+/** Orbit a point around a center normal in 3D */
+function orbitAround(center: Vec3, normal: Vec3, radius: number, angle: number): Vec3 {
+  const up: Vec3 = Math.abs(normal[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  const t1 = normalize(cross(normal, up));
+  const t2 = normalize(cross(normal, t1));
+  return add(center, add(scale(t1, radius * Math.cos(angle)), scale(t2, radius * Math.sin(angle))));
+}
+
+// ── Node data ─────────────────────────────────────────────────────────────────
+
+interface Agent3D {
   id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  name: string;
+  color: string;
+  memCount: number;
+  pos: Vec3;       // unit-sphere position (pre-rotation base)
+  r: number;       // visual radius
 }
 
-function use2DSimulation(
-  memories: AgentMemory[],
-  allLinks: Array<{ sourceId: string; targetId: string }>,
-) {
-  const nodesRef = useRef<Map<string, Node2D>>(new Map());
-  const frameRef = useRef<number>(0);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (memories.length === 0) return;
-
-    const spread = Math.sqrt(memories.length) * 60;
-
-    // Seed new nodes
-    for (const m of memories) {
-      if (!nodesRef.current.has(m.id)) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = Math.random() * spread;
-        nodesRef.current.set(m.id, {
-          id: m.id,
-          x: Math.cos(angle) * r,
-          y: Math.sin(angle) * r,
-          vx: 0,
-          vy: 0,
-        });
-      }
-    }
-    for (const id of nodesRef.current.keys()) {
-      if (!memories.find((m) => m.id === id)) nodesRef.current.delete(id);
-    }
-
-    const k = Math.sqrt((spread * spread * 2) / Math.max(memories.length, 1)) * 1.8;
-    let temp = 30;
-    let frame = 0;
-
-    const simulate = () => {
-      const nodes = [...nodesRef.current.values()];
-      const step = Math.min(temp, 12);
-
-      // Repulsion between all pairs
-      for (let i = 0; i < nodes.length; i++) {
-        let fx = 0, fy = 0;
-        for (let j = 0; j < nodes.length; j++) {
-          if (i === j) continue;
-          const dx = nodes[i].x - nodes[j].x;
-          const dy = nodes[i].y - nodes[j].y;
-          const d = Math.max(Math.sqrt(dx * dx + dy * dy), 0.5);
-          const f = (k * k) / d;
-          fx += (dx / d) * f;
-          fy += (dy / d) * f;
-        }
-        // Center gravity — strong enough to counteract repulsion
-        fx -= nodes[i].x * 0.06;
-        fy -= nodes[i].y * 0.06;
-
-        nodes[i].vx = (nodes[i].vx + fx) * 0.55;
-        nodes[i].vy = (nodes[i].vy + fy) * 0.55;
-      }
-
-      // Link attraction (spring)
-      for (const link of allLinks) {
-        const a = nodesRef.current.get(link.sourceId);
-        const b = nodesRef.current.get(link.targetId);
-        if (!a || !b) continue;
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const d = Math.max(Math.sqrt(dx * dx + dy * dy), 0.5);
-        const f = (d * d) / k * 0.5;
-        const fx = (dx / d) * f;
-        const fy = (dy / d) * f;
-        a.vx += fx; a.vy += fy;
-        b.vx -= fx; b.vy -= fy;
-      }
-
-      // Integrate
-      for (const n of nodes) {
-        n.x += Math.max(-step, Math.min(step, n.vx));
-        n.y += Math.max(-step, Math.min(step, n.vy));
-      }
-
-      temp = Math.max(temp * 0.975, 0.05);
-      frame++;
-      setTick((t) => t + 1);
-
-      // Keep animating until settled, then slow down
-      if (temp > 0.05) {
-        frameRef.current = requestAnimationFrame(simulate);
-      } else {
-        // Slow heartbeat redraws
-        frameRef.current = setTimeout(() => {
-          frameRef.current = requestAnimationFrame(simulate);
-          temp = 0.5; // small nudge to keep responsive
-        }, 2000) as unknown as number;
-      }
-    };
-
-    frameRef.current = requestAnimationFrame(simulate);
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      clearTimeout(frameRef.current);
-    };
-  }, [memories, allLinks]);
-
-  return { nodes: nodesRef.current, tick };
+interface Mem3D {
+  id: string;
+  title: string;
+  content: string;
+  memoryType: string;
+  agentId: string | null;
+  agentColor: string;
+  orbitNormal: Vec3;
+  orbitRadius: number;
+  orbitOffset: number;  // phase offset
+  orbitSpeed: number;
+  agentPos: Vec3;
+  r: number;
+  raw: AgentMemory;
 }
 
-// ── Obsidian-style 2D Graph Canvas ───────────────────────────────────────────
+interface GraphData {
+  agents: Agent3D[];
+  mems: Mem3D[];
+  agentEdges: Array<[number, number]>; // indices
+}
 
-function GraphCanvas({
-  memories,
-  links,
+function buildGraph3D(memories: AgentMemory[], links: AgentMemoryLink[]): GraphData {
+  const agentInfo = new Map<string, { name: string; count: number; colorIdx: number }>();
+  let colorIdx = 0;
+  for (const m of memories) {
+    for (const a of m.agents) {
+      if (!agentInfo.has(a.agentId)) {
+        agentInfo.set(a.agentId, { name: a.agentName ?? "Agent", count: 0, colorIdx: colorIdx++ });
+      }
+      agentInfo.get(a.agentId)!.count++;
+    }
+  }
+
+  const agentIds = [...agentInfo.keys()];
+  const spherePositions = fibSphere(Math.max(agentIds.length, 1));
+
+  const agents: Agent3D[] = agentIds.map((id, i) => {
+    const info = agentInfo.get(id)!;
+    return {
+      id, name: info.name,
+      color: AGENT_COLORS[info.colorIdx % AGENT_COLORS.length],
+      memCount: info.count,
+      pos: spherePositions[i],
+      r: 18 + Math.min(info.count * 1.5, 10),
+    };
+  });
+
+  const agentById = new Map(agents.map((a) => [a.id, a]));
+
+  // Memory nodes grouped by agent
+  const byAgent = new Map<string, AgentMemory[]>();
+  const orphans: AgentMemory[] = [];
+  for (const m of memories) {
+    const owner = m.agents.find((a) => a.isOwner) ?? m.agents[0];
+    if (owner) {
+      const list = byAgent.get(owner.agentId) ?? [];
+      list.push(m);
+      byAgent.set(owner.agentId, list);
+    } else {
+      orphans.push(m);
+    }
+  }
+
+  const mems: Mem3D[] = [];
+  for (const agent of agents) {
+    const agentMems = byAgent.get(agent.id) ?? [];
+    const count = agentMems.length;
+    const orbitR = agent.r * 0.09 + 0.12; // in sphere-space units
+    agentMems.forEach((m, j) => {
+      mems.push({
+        id: m.id, title: m.title, content: m.content ?? "",
+        memoryType: m.memoryType, agentId: agent.id, agentColor: agent.color,
+        orbitNormal: agent.pos,
+        orbitRadius: orbitR,
+        orbitOffset: (2 * Math.PI * j) / Math.max(count, 1),
+        orbitSpeed: 0.2 + Math.random() * 0.15,
+        agentPos: agent.pos,
+        r: 6 + Math.min((m.content?.length ?? 0) / 80, 4),
+        raw: m,
+      });
+    });
+  }
+
+  // Agent-to-agent edges from memory links
+  const agentEdgeSet = new Set<string>();
+  const agentEdges: Array<[number, number]> = [];
+  for (const link of links) {
+    const sm = mems.find((n) => n.id === link.sourceMemoryId);
+    const tm = mems.find((n) => n.id === link.targetMemoryId);
+    if (!sm?.agentId || !tm?.agentId || sm.agentId === tm.agentId) continue;
+    const ai = agents.findIndex((a) => a.id === sm.agentId);
+    const bi = agents.findIndex((a) => a.id === tm.agentId);
+    if (ai < 0 || bi < 0) continue;
+    const key = [ai, bi].sort().join(":");
+    if (!agentEdgeSet.has(key)) { agentEdgeSet.add(key); agentEdges.push([ai, bi]); }
+  }
+
+  return { agents, mems, agentEdges };
+}
+
+// ── Hex helpers ───────────────────────────────────────────────────────────────
+
+function hexRgb(hex: string) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r},${g},${b}`;
+}
+function rgba(hex: string, a: number) { return `rgba(${hexRgb(hex)},${a})`; }
+
+// ── 3D Canvas Renderer ────────────────────────────────────────────────────────
+
+const SPHERE_R = 220;   // px radius of agent sphere at zoom=1
+const CAM_DIST = 700;   // camera distance
+
+function use3DRenderer({
+  graph,
   selectedId,
-  filterType,
+  hoveredId,
+  filterAgentId,
+  search,
   onSelect,
-  containerRef,
+  onHover,
 }: {
-  memories: AgentMemory[];
-  links: AgentMemoryLink[];
+  graph: GraphData;
   selectedId: string | null;
-  filterType: string | null;
+  hoveredId: string | null;
+  filterAgentId: string | null;
+  search: string;
   onSelect: (id: string | null) => void;
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  onHover: (id: string | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
-  const panRef = useRef({ x: 0, y: 0 });
-  const zoomRef = useRef(1);
-  const isDraggingRef = useRef(false);
-  const hasDraggedRef = useRef(false);
-  const lastMouseRef = useRef({ x: 0, y: 0 });
-  const rafRef = useRef<number>(0);
-  const hoveredRef = useRef<string | null>(null);
 
-  // Measure container
+  // Rotation state
+  const rotYRef = useRef(0);
+  const rotXRef = useRef(-0.25);
+  const zoomRef = useRef(1.0);
+  const timeRef = useRef(0);
+  const rafRef = useRef(0);
+
+  // Drag
+  const dragging = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
+  const hasDragged = useRef(false);
+
+  // Refs for live values
+  const selectedRef = useRef(selectedId);
+  const hoveredRef = useRef(hoveredId);
+  const filterRef = useRef(filterAgentId);
+  const searchRef = useRef(search);
+  selectedRef.current = selectedId;
+  hoveredRef.current = hoveredId;
+  filterRef.current = filterAgentId;
+  searchRef.current = search;
+
+  // Resize
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
-      const { width, height } = e.contentRect;
-      setSize({ w: width, h: height });
+      setSize({ w: e.contentRect.width, h: e.contentRect.height });
     });
     ro.observe(el);
     setSize({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
-  }, [containerRef]);
-
-  // Agent-based links (memories sharing same agent)
-  const agentLinks = useMemo(() => {
-    const explicitPairs = new Set(
-      links.flatMap((l) => [
-        `${l.sourceMemoryId}:${l.targetMemoryId}`,
-        `${l.targetMemoryId}:${l.sourceMemoryId}`,
-      ]),
-    );
-    const byAgent = new Map<string, string[]>();
-    for (const m of memories) {
-      for (const a of m.agents) {
-        const list = byAgent.get(a.agentId) ?? [];
-        list.push(m.id);
-        byAgent.set(a.agentId, list);
-      }
-    }
-    const result: Array<{ sourceId: string; targetId: string; isAgent: boolean }> = [];
-    for (const ids of byAgent.values()) {
-      if (ids.length < 2) continue;
-      for (let i = 0; i < ids.length - 1; i++) {
-        const key = `${ids[i]}:${ids[i + 1]}`;
-        if (!explicitPairs.has(key)) {
-          result.push({ sourceId: ids[i], targetId: ids[i + 1], isAgent: true });
-        }
-      }
-    }
-    return result;
-  }, [memories, links]);
-
-  const allLinks = useMemo(
-    () => [
-      ...links.map((l) => ({ sourceId: l.sourceMemoryId, targetId: l.targetMemoryId, isAgent: false })),
-      ...agentLinks,
-    ],
-    [links, agentLinks],
-  );
-
-  const { nodes } = use2DSimulation(memories, allLinks);
-
-  const visibleIds = useMemo(() => {
-    const ids = filterType
-      ? memories.filter((m) => m.memoryType === filterType).map((m) => m.id)
-      : memories.map((m) => m.id);
-    return new Set(ids);
-  }, [memories, filterType]);
-
-  const connectionCount = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const l of allLinks) {
-      counts.set(l.sourceId, (counts.get(l.sourceId) ?? 0) + 1);
-      counts.set(l.targetId, (counts.get(l.targetId) ?? 0) + 1);
-    }
-    return counts;
-  }, [allLinks]);
-
-  // World → screen
-  const toScreen = useCallback(
-    (wx: number, wy: number) => ({
-      sx: size.w / 2 + (wx + panRef.current.x) * zoomRef.current,
-      sy: size.h / 2 + (wy + panRef.current.y) * zoomRef.current,
-    }),
-    [size],
-  );
-
-  // Screen → world
-  const toWorld = useCallback(
-    (sx: number, sy: number) => ({
-      wx: (sx - size.w / 2) / zoomRef.current - panRef.current.x,
-      wy: (sy - size.h / 2) / zoomRef.current - panRef.current.y,
-    }),
-    [size],
-  );
+  }, []);
 
   // Render loop
   useEffect(() => {
@@ -261,143 +259,373 @@ function GraphCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const render = () => {
-      const { w, h } = size;
+    const { agents, mems, agentEdges } = graph;
+    const { w, h } = size;
+    const cx = w / 2, cy = h / 2;
+    const zoom = zoomRef.current;
+
+    const draw = () => {
+      timeRef.current += 0.008;
+      const t = timeRef.current;
+      const rY = rotYRef.current;
+      const rX = rotXRef.current;
+      const z = zoomRef.current;
+      const dist = CAM_DIST / z;
+      const r = SPHERE_R * z;
+      const sel = selectedRef.current;
+      const hov = hoveredRef.current;
+      const fAgent = filterRef.current;
+      const q = searchRef.current.toLowerCase();
+      const activeId = hov ?? sel;
+
       ctx.clearRect(0, 0, w, h);
 
-      // Obsidian-style dark background
-      ctx.fillStyle = "#0f0f12";
+      // Dark deep-space background
+      const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.8);
+      bg.addColorStop(0, "#10121a");
+      bg.addColorStop(0.5, "#0b0d14");
+      bg.addColorStop(1, "#06080e");
+      ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
 
-      const z = zoomRef.current;
-      const px = panRef.current.x;
-      const py = panRef.current.y;
+      // ── Compute all projected positions ──
+      type Projected = { id: string; sx: number; sy: number; scale: number; depth: number; type: "agent" | "mem"; idx: number };
+      const projected: Projected[] = [];
 
-      // Helper: world to screen
-      const ws = (wx: number, wy: number) => ({
-        sx: w / 2 + (wx + px) * z,
-        sy: h / 2 + (wy + py) * z,
+      // Project agent positions
+      const agentProj: Array<{ sx: number; sy: number; scale: number; depth: number }> = agents.map((a) => {
+        let v: Vec3 = scale(a.pos, r);
+        v = rotY(v, rY + t * 0.15);
+        v = rotX(v, rX);
+        const p = project(v, dist, cx, cy);
+        projected.push({ id: a.id, sx: p.sx, sy: p.sy, scale: p.scale, depth: p.depth, type: "agent", idx: agents.indexOf(a) });
+        return p;
       });
 
-      // Build projected node map
-      const projected = new Map<string, { sx: number; sy: number; r: number; memory: AgentMemory }>();
-      for (const memory of memories) {
-        if (!visibleIds.has(memory.id)) continue;
-        const n = nodes.get(memory.id);
-        if (!n) continue;
-        const { sx, sy } = ws(n.x, n.y);
-        const conns = connectionCount.get(memory.id) ?? 0;
-        const r = Math.max(3.5, 3.5 + Math.min(conns * 1.2, 6)) * Math.max(0.5, z * 0.7 + 0.3);
-        projected.set(memory.id, { sx, sy, r, memory });
-      }
+      // Project memory positions (orbiting their agents)
+      const memProj: Array<{ sx: number; sy: number; scale: number; depth: number }> = mems.map((m) => {
+        const angle = m.orbitOffset + t * m.orbitSpeed;
+        // orbit in 3D around agent pos on sphere
+        let agentV: Vec3 = scale(m.agentPos, r);
+        const orbitPt = orbitAround(agentV, m.orbitNormal, r * m.orbitRadius * 1.6, angle);
+        let v: Vec3 = orbitPt;
+        v = rotY(v, rY + t * 0.15);
+        v = rotX(v, rX);
+        const p = project(v, dist, cx, cy);
+        projected.push({ id: m.id, sx: p.sx, sy: p.sy, scale: p.scale, depth: p.depth, type: "mem", idx: mems.indexOf(m) });
+        return p;
+      });
 
-      // Draw edges
-      for (const link of allLinks) {
-        const src = projected.get(link.sourceId);
-        const tgt = projected.get(link.targetId);
-        if (!src || !tgt) continue;
-        const isHighlighted =
-          selectedId === link.sourceId || selectedId === link.targetId ||
-          hoveredRef.current === link.sourceId || hoveredRef.current === link.targetId;
+      // ── Wireframe sphere ──
+      const wireAlpha = 0.06;
+      ctx.strokeStyle = `rgba(150,170,220,${wireAlpha})`;
+      ctx.lineWidth = 0.5;
 
+      // Latitude circles
+      const latCount = 5;
+      for (let li = 1; li < latCount; li++) {
+        const phi = (Math.PI * li) / latCount;
+        const circleR = Math.sin(phi) * r;
+        const circleY = Math.cos(phi) * r;
+        const segs = 64;
         ctx.beginPath();
-        ctx.moveTo(src.sx, src.sy);
-        ctx.lineTo(tgt.sx, tgt.sy);
-
-        if (link.isAgent) {
-          ctx.setLineDash([3, 5]);
-          ctx.strokeStyle = isHighlighted ? "rgba(139,92,246,0.55)" : "rgba(255,255,255,0.09)";
-          ctx.lineWidth = isHighlighted ? 1.2 : 0.7;
-        } else {
-          ctx.setLineDash([]);
-          ctx.strokeStyle = isHighlighted ? "rgba(99,102,241,0.75)" : "rgba(255,255,255,0.14)";
-          ctx.lineWidth = isHighlighted ? 1.5 : 0.9;
+        for (let si = 0; si <= segs; si++) {
+          const theta = (2 * Math.PI * si) / segs;
+          let v: Vec3 = [circleR * Math.cos(theta), circleY, circleR * Math.sin(theta)];
+          v = rotY(v, rY + t * 0.15);
+          v = rotX(v, rX);
+          const p = project(v, dist, cx, cy);
+          if (si === 0) ctx.moveTo(p.sx, p.sy);
+          else ctx.lineTo(p.sx, p.sy);
         }
         ctx.stroke();
-        ctx.setLineDash([]);
       }
 
-      // Draw nodes
-      for (const [id, p] of projected) {
-        const { sx, sy, r, memory } = p;
-        const isSelected = selectedId === id;
-        const isHovered = hoveredRef.current === id;
-        const color = typeColor(memory.memoryType);
-        const conns = connectionCount.get(id) ?? 0;
+      // Longitude lines
+      const lonCount = 6;
+      for (let li = 0; li < lonCount; li++) {
+        const theta = (Math.PI * li) / lonCount;
+        const segs = 64;
+        ctx.beginPath();
+        for (let si = 0; si <= segs; si++) {
+          const phi = (Math.PI * si) / segs;
+          let v: Vec3 = [Math.sin(phi) * Math.cos(theta) * r, Math.cos(phi) * r, Math.sin(phi) * Math.sin(theta) * r];
+          v = rotY(v, rY + t * 0.15);
+          v = rotX(v, rX);
+          const p = project(v, dist, cx, cy);
+          if (si === 0) ctx.moveTo(p.sx, p.sy);
+          else ctx.lineTo(p.sx, p.sy);
+        }
+        ctx.stroke();
+      }
 
-        // Subtle glow for connected/selected nodes
-        if (isSelected || isHovered || conns > 0) {
-          const glowR = r * (isSelected ? 4 : 2.5);
-          const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR);
-          const hexR = parseInt(color.slice(1, 3), 16);
-          const hexG = parseInt(color.slice(3, 5), 16);
-          const hexB = parseInt(color.slice(5, 7), 16);
-          const glowAlpha = isSelected ? 0.35 : isHovered ? 0.2 : 0.1;
-          glow.addColorStop(0, `rgba(${hexR},${hexG},${hexB},${glowAlpha})`);
-          glow.addColorStop(1, `rgba(${hexR},${hexG},${hexB},0)`);
+      // Center gravity glow
+      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.25);
+      cg.addColorStop(0, "rgba(99,102,241,0.15)");
+      cg.addColorStop(0.5, "rgba(99,102,241,0.05)");
+      cg.addColorStop(1, "rgba(99,102,241,0)");
+      ctx.fillStyle = cg;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Center dot
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(99,102,241,0.6)";
+      ctx.fill();
+
+      // ── Draw agent-to-agent edges ──
+      for (const [ai, bi] of agentEdges) {
+        const ap = agentProj[ai], bp = agentProj[bi];
+        if (!ap || !bp) continue;
+        const depthFade = Math.min(1, (ap.scale + bp.scale) / 2);
+        const isActive = agents[ai].id === activeId || agents[bi].id === activeId;
+        ctx.beginPath();
+        ctx.moveTo(ap.sx, ap.sy);
+        ctx.lineTo(bp.sx, bp.sy);
+        ctx.strokeStyle = `rgba(148,163,184,${isActive ? 0.5 * depthFade : 0.15 * depthFade})`;
+        ctx.lineWidth = isActive ? 1.5 : 0.7;
+        ctx.setLineDash([]);
+        ctx.stroke();
+      }
+
+      // ── Draw mem-to-agent edges ──
+      ctx.setLineDash([3, 4]);
+      for (let i = 0; i < mems.length; i++) {
+        const m = mems[i];
+        const agentIdx = agents.findIndex((a) => a.id === m.agentId);
+        if (agentIdx < 0) continue;
+        const ap = agentProj[agentIdx];
+        const mp = memProj[i];
+        if (!ap || !mp) continue;
+        const visFilter = !fAgent || m.agentId === fAgent;
+        const visSearch = !q || m.title.toLowerCase().includes(q);
+        const vis = visFilter && visSearch;
+        const isActive = m.id === activeId || m.agentId === activeId;
+        const depthFade = Math.min(1, (ap.scale + mp.scale) / 2);
+        ctx.beginPath();
+        ctx.moveTo(ap.sx, ap.sy);
+        ctx.lineTo(mp.sx, mp.sy);
+        ctx.strokeStyle = rgba(m.agentColor, vis ? (isActive ? 0.6 * depthFade : 0.18 * depthFade) : 0.04);
+        ctx.lineWidth = isActive ? 1 : 0.4;
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // ── Sort all for Z-order draw ──
+      const sorted = [...projected].sort((a, b) => a.depth - b.depth);
+
+      for (const node of sorted) {
+        if (node.type === "agent") {
+          const a = agents[node.idx];
+          const p = agentProj[node.idx];
+          const isSel = sel === a.id;
+          const isHov = hov === a.id;
+          const memHov = hov ? mems.find((m) => m.id === hov)?.agentId === a.id : false;
+          const isDimmed = !!activeId && !isSel && !isHov && !memHov && !(mems.find((m) => m.id === activeId)?.agentId === a.id);
+          const nodeR = a.r * p.scale * z;
+          const depthAlpha = 0.4 + 0.6 * p.scale;
+          ctx.globalAlpha = isDimmed ? 0.15 : depthAlpha;
+
+          // Outer pulse ring
+          const pulseR = nodeR * (1.55 + Math.sin(t * 2.5 + node.idx) * 0.08);
           ctx.beginPath();
-          ctx.arc(sx, sy, glowR, 0, Math.PI * 2);
+          ctx.arc(p.sx, p.sy, pulseR, 0, Math.PI * 2);
+          ctx.strokeStyle = rgba(a.color, 0.22);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Dashed orbit ring
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, nodeR * 1.28, 0, Math.PI * 2);
+          ctx.strokeStyle = rgba(a.color, 0.35);
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Glow halo
+          const glow = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, nodeR * 2.2);
+          glow.addColorStop(0, rgba(a.color, 0.22));
+          glow.addColorStop(1, rgba(a.color, 0));
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, nodeR * 2.2, 0, Math.PI * 2);
           ctx.fillStyle = glow;
           ctx.fill();
-        }
 
-        // Node circle
-        ctx.beginPath();
-        ctx.arc(sx, sy, r, 0, Math.PI * 2);
-        if (isSelected || isHovered) {
-          ctx.fillStyle = color;
-        } else {
-          // Un-selected: slightly desaturated, like Obsidian
-          ctx.fillStyle = conns > 0 ? color : "rgba(120,120,140,0.9)";
-        }
-        ctx.fill();
-
-        // Selected ring
-        if (isSelected) {
+          // Main sphere gradient
+          const sphere = ctx.createRadialGradient(p.sx - nodeR * 0.3, p.sy - nodeR * 0.3, 0, p.sx, p.sy, nodeR);
+          sphere.addColorStop(0, rgba(a.color, 0.95));
+          sphere.addColorStop(0.7, rgba(a.color, 0.55));
+          sphere.addColorStop(1, rgba(a.color, 0.2));
           ctx.beginPath();
-          ctx.arc(sx, sy, r + 2.5, 0, Math.PI * 2);
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 1.5;
+          ctx.arc(p.sx, p.sy, nodeR, 0, Math.PI * 2);
+          ctx.fillStyle = sphere;
+          ctx.fill();
+          ctx.strokeStyle = rgba(a.color, isSel ? 1 : 0.7);
+          ctx.lineWidth = isSel ? 2 : 1.2;
           ctx.stroke();
-        }
 
-        // Label — shown when zoomed in enough or always for selected/hovered
-        const showLabel = z > 0.55 || isSelected || isHovered;
-        if (showLabel) {
-          const fontSize = Math.max(9, Math.min(13, 11 * z));
-          ctx.font = `${isSelected || isHovered ? 500 : 400} ${fontSize}px Inter, system-ui, sans-serif`;
-          const label = memory.title.length > 28 ? memory.title.slice(0, 28) + "…" : memory.title;
-          const alpha = isSelected || isHovered ? 0.95 : Math.min(1, (z - 0.4) * 4);
-          ctx.fillStyle = `rgba(220,220,235,${alpha})`;
+          // Inner bright dot
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, nodeR * 0.28, 0, Math.PI * 2);
+          ctx.fillStyle = rgba(a.color, 0.95);
+          ctx.fill();
+
+          ctx.globalAlpha = isDimmed ? 0.1 : depthAlpha;
+
+          // Name label
+          const fontSize = Math.max(9, Math.min(13, 11 * p.scale * z));
+          ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+          ctx.fillStyle = rgba(a.color, isSel || isHov ? 1 : 0.85);
+          ctx.textAlign = "center";
+          ctx.fillText(a.name, p.sx, p.sy + nodeR + fontSize + 2);
+
+          ctx.font = `400 ${Math.max(7, fontSize - 2)}px 'JetBrains Mono', monospace`;
+          ctx.fillStyle = rgba(a.color, 0.4);
+          ctx.fillText(`${a.memCount} mem`, p.sx, p.sy + nodeR + fontSize * 2 + 3);
+
+          ctx.globalAlpha = 1;
           ctx.textAlign = "left";
-          ctx.fillText(label, sx + r + 5, sy + fontSize * 0.36);
+
+        } else {
+          // Memory node
+          const m = mems[node.idx];
+          const p = memProj[node.idx];
+          const visFilter = !fAgent || m.agentId === fAgent;
+          const visSearch = !q || m.title.toLowerCase().includes(q);
+          const vis = visFilter && visSearch;
+          const isHov = hov === m.id;
+          const isSel = sel === m.id;
+          const isDimmed = !vis || (!!activeId && activeId !== m.id && activeId !== m.agentId);
+          const nodeR = m.r * p.scale * z;
+          const depthAlpha = 0.35 + 0.65 * p.scale;
+          ctx.globalAlpha = isDimmed ? 0.08 : depthAlpha;
+
+          if (isHov || isSel) {
+            const g = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, nodeR * 3);
+            g.addColorStop(0, rgba(m.agentColor, 0.3));
+            g.addColorStop(1, rgba(m.agentColor, 0));
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, nodeR * 3, 0, Math.PI * 2);
+            ctx.fillStyle = g;
+            ctx.fill();
+          }
+
+          // Outer ring
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, nodeR, 0, Math.PI * 2);
+          ctx.fillStyle = rgba(m.agentColor, 0.12);
+          ctx.fill();
+          ctx.strokeStyle = rgba(m.agentColor, isSel ? 0.95 : isHov ? 0.8 : 0.5);
+          ctx.lineWidth = isSel ? 1.5 : 1;
+          ctx.stroke();
+
+          // Inner dot
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, nodeR * 0.45, 0, Math.PI * 2);
+          ctx.fillStyle = rgba(m.agentColor, isSel || isHov ? 1 : 0.9);
+          ctx.fill();
+
+          ctx.globalAlpha = isDimmed ? 0.06 : depthAlpha;
+
+          // Hover/select label
+          if (isHov || isSel) {
+            const label = m.title.length > 26 ? m.title.slice(0, 26) + "…" : m.title;
+            const fontSize = Math.max(9, 10 * p.scale * z);
+            ctx.font = `500 ${fontSize}px Inter, system-ui, sans-serif`;
+            const tw = ctx.measureText(label).width;
+            const lx = p.sx - tw / 2;
+            const ly = p.sy - nodeR - 8;
+            ctx.fillStyle = "rgba(12,14,22,0.88)";
+            ctx.beginPath();
+            (ctx as any).roundRect(lx - 5, ly - fontSize, tw + 10, fontSize + 6, 3);
+            ctx.fill();
+            ctx.fillStyle = m.agentColor;
+            ctx.textAlign = "center";
+            ctx.fillText(label, p.sx, ly);
+            ctx.textAlign = "left";
+          }
+
+          ctx.globalAlpha = 1;
         }
       }
 
-      rafRef.current = requestAnimationFrame(render);
+      rafRef.current = requestAnimationFrame(draw);
     };
 
-    rafRef.current = requestAnimationFrame(render);
+    rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [memories, links, nodes, visibleIds, allLinks, connectionCount, selectedId, size]);
+  }, [graph, size]);
 
-  // Mouse events — pan
+  // ── Hit testing ──────────────────────────────────────────────────────────────
+
+  const hitTest = useCallback((canvasX: number, canvasY: number): string | null => {
+    const { agents, mems } = graph;
+    const r = SPHERE_R * zoomRef.current;
+    const rY = rotYRef.current;
+    const rX = rotXRef.current;
+    const t = timeRef.current;
+    const dist = CAM_DIST / zoomRef.current;
+    const { w, h } = size;
+    const cx = w / 2, cy = h / 2;
+    const z = zoomRef.current;
+
+    let best: { id: string; distSq: number } | null = null;
+
+    // Check agents
+    for (const a of agents) {
+      let v: Vec3 = scale(a.pos, r);
+      v = rotY(v, rY + t * 0.15);
+      v = rotX(v, rX);
+      const p = project(v, dist, cx, cy);
+      const nodeR = a.r * p.scale * z;
+      const dx = canvasX - p.sx, dy = canvasY - p.sy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= (nodeR + 4) * (nodeR + 4)) {
+        if (!best || d2 < best.distSq) best = { id: a.id, distSq: d2 };
+      }
+    }
+
+    // Check memories
+    for (let i = 0; i < mems.length; i++) {
+      const m = mems[i];
+      const angle = m.orbitOffset + t * m.orbitSpeed;
+      let agentV: Vec3 = scale(m.agentPos, r);
+      const orbitPt = orbitAround(agentV, m.orbitNormal, r * m.orbitRadius * 1.6, angle);
+      let v: Vec3 = orbitPt;
+      v = rotY(v, rY + t * 0.15);
+      v = rotX(v, rX);
+      const p = project(v, dist, cx, cy);
+      const nodeR = m.r * p.scale * z;
+      const dx = canvasX - p.sx, dy = canvasY - p.sy;
+      const d2 = dx * dx + dy * dy;
+      const hitR = Math.max(nodeR + 6, 12);
+      if (d2 <= hitR * hitR) {
+        if (!best || d2 < best.distSq) best = { id: m.id, distSq: d2 };
+      }
+    }
+
+    return best?.id ?? null;
+  }, [graph, size]);
+
+  // ── Mouse events ─────────────────────────────────────────────────────────────
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    hasDraggedRef.current = false;
-    isDraggingRef.current = true;
-    lastMouseRef.current = { x: e.clientX, y: e.clientY };
-
+    dragging.current = true;
+    hasDragged.current = false;
+    lastMouse.current = { x: e.clientX, y: e.clientY };
     const onMove = (ev: MouseEvent) => {
-      if (!isDraggingRef.current) return;
-      const dx = ev.clientX - lastMouseRef.current.x;
-      const dy = ev.clientY - lastMouseRef.current.y;
-      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDraggedRef.current = true;
-      panRef.current.x += dx / zoomRef.current;
-      panRef.current.y += dy / zoomRef.current;
-      lastMouseRef.current = { x: ev.clientX, y: ev.clientY };
+      const dx = ev.clientX - lastMouse.current.x;
+      const dy = ev.clientY - lastMouse.current.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged.current = true;
+      rotYRef.current += dx * 0.006;
+      rotXRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotXRef.current + dy * 0.006));
+      lastMouse.current = { x: ev.clientX, y: ev.clientY };
     };
     const onUp = () => {
-      isDraggingRef.current = false;
+      dragging.current = false;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -405,138 +633,203 @@ function GraphCanvas({
     window.addEventListener("mouseup", onUp);
   }, []);
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (hasDraggedRef.current) return;
-      const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const { wx, wy } = toWorld(mx, my);
+  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (hasDragged.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+    onSelect(hit === selectedId ? null : hit);
+  }, [hitTest, onSelect, selectedId]);
 
-      let hit: string | null = null;
-      let bestD = Infinity;
-      for (const memory of memories) {
-        if (!visibleIds.has(memory.id)) continue;
-        const n = nodes.get(memory.id);
-        if (!n) continue;
-        const conns = connectionCount.get(memory.id) ?? 0;
-        const r = (Math.max(3.5, 3.5 + Math.min(conns * 1.2, 6)) + 6) / Math.max(0.5, zoomRef.current * 0.7 + 0.3);
-        const dx = wx - n.x, dy = wy - n.y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d <= r && d < bestD) { hit = memory.id; bestD = d; }
-      }
-      onSelect(hit === selectedId ? null : hit);
-    },
-    [memories, visibleIds, nodes, connectionCount, toWorld, selectedId, onSelect],
-  );
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (dragging.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+    onHover(hit);
+    e.currentTarget.style.cursor = hit ? "pointer" : "grab";
+  }, [hitTest, onHover]);
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const { wx, wy } = toWorld(mx, my);
-
-      let hit: string | null = null;
-      for (const memory of memories) {
-        if (!visibleIds.has(memory.id)) continue;
-        const n = nodes.get(memory.id);
-        if (!n) continue;
-        const conns = connectionCount.get(memory.id) ?? 0;
-        const r = (Math.max(3.5, 3.5 + Math.min(conns * 1.2, 6)) + 8) / Math.max(0.5, zoomRef.current * 0.7 + 0.3);
-        const dx = wx - n.x, dy = wy - n.y;
-        if (Math.sqrt(dx * dx + dy * dy) <= r) { hit = memory.id; break; }
-      }
-      hoveredRef.current = hit;
-      (e.target as HTMLCanvasElement).style.cursor = hit ? "pointer" : isDraggingRef.current ? "grabbing" : "grab";
-    },
-    [memories, visibleIds, nodes, connectionCount, toWorld],
-  );
+  const handleMouseLeave = useCallback(() => { onHover(null); }, [onHover]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.1 : 0.91;
+    zoomRef.current = Math.max(0.3, Math.min(3, zoomRef.current * factor));
+  }, []);
 
-    // Zoom toward cursor
-    const factor = e.deltaY < 0 ? 1.12 : 0.89;
-    const newZoom = Math.max(0.15, Math.min(4, zoomRef.current * factor));
-    const ratio = newZoom / zoomRef.current;
+  const resetView = useCallback(() => {
+    rotYRef.current = 0;
+    rotXRef.current = -0.25;
+    zoomRef.current = 1.0;
+  }, []);
 
-    // Adjust pan so the point under cursor stays fixed
-    panRef.current.x = (panRef.current.x + (mx - size.w / 2) / zoomRef.current) - (mx - size.w / 2) / newZoom;
-    panRef.current.y = (panRef.current.y + (my - size.h / 2) / zoomRef.current) - (my - size.h / 2) / newZoom;
-
-    zoomRef.current = newZoom;
-  }, [size]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={size.w}
-      height={size.h}
-      className="absolute inset-0 w-full h-full cursor-grab"
-      onMouseDown={handleMouseDown}
-      onClick={handleClick}
-      onMouseMove={handleMouseMove}
-      onWheel={handleWheel}
-    />
-  );
+  return { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView };
 }
 
-// ── Add Memory Modal ─────────────────────────────────────────────────────────
+// ── Detail Panel ──────────────────────────────────────────────────────────────
 
-function AddMemoryModal({
-  onClose,
-  onAdd,
-}: {
+function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, onLink, onSelectNode }: {
+  nodeId: string;
+  graph: GraphData;
+  allMemories: AgentMemory[];
+  allLinks: AgentMemoryLink[];
   onClose: () => void;
-  onAdd: (data: { title: string; content: string; memoryType: string }) => void;
+  onDelete: (id: string) => void;
+  onLink: (id: string) => void;
+  onSelectNode: (id: string | null) => void;
+}) {
+  const agent = graph.agents.find((a) => a.id === nodeId);
+  const mem = graph.mems.find((m) => m.id === nodeId);
+
+  if (agent) {
+    const mems = graph.mems.filter((m) => m.agentId === agent.id);
+    return (
+      <aside className="w-72 shrink-0 border-l border-border flex flex-col bg-background/95 backdrop-blur">
+        <header className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: agent.color }} />
+          <span className="text-sm font-semibold flex-1 truncate">{agent.name}</span>
+          <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+        </header>
+        <div className="px-4 py-3 border-b border-border">
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+            <p className="text-xl font-bold" style={{ color: agent.color }}>{agent.memCount}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Memories</p>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Memory Clusters</p>
+          <div className="flex flex-col gap-1">
+            {mems.map((m) => (
+              <button key={m.id} onClick={() => onSelectNode(m.id)}
+                className="flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs hover:bg-accent transition-colors">
+                <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: typeColor(m.memoryType) }} />
+                <span className="flex-1 truncate text-foreground/80">{m.title}</span>
+                <span className="text-[10px] capitalize rounded-full px-1.5 py-0.5"
+                  style={{ color: typeColor(m.memoryType), background: `${typeColor(m.memoryType)}18` }}>
+                  {m.memoryType}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mt-2">Activity</p>
+          <div className="flex items-end gap-0.5 h-10">
+            {Array.from({ length: 14 }, (_, i) => {
+              const h = 18 + Math.sin(i * 1.3 + agent.id.length) * 12;
+              return <div key={i} className="flex-1 rounded-t-sm"
+                style={{ height: `${h}px`, background: agent.color, opacity: 0.25 + (i / 14) * 0.55 }} />;
+            })}
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  if (mem) {
+    const ownerAgent = graph.agents.find((a) => a.id === mem.agentId);
+    const connected = allLinks
+      .filter((l) => l.sourceMemoryId === mem.id || l.targetMemoryId === mem.id)
+      .map((l) => {
+        const id = l.sourceMemoryId === mem.id ? l.targetMemoryId : l.sourceMemoryId;
+        return allMemories.find((m) => m.id === id);
+      }).filter(Boolean) as AgentMemory[];
+
+    return (
+      <aside className="w-72 shrink-0 border-l border-border flex flex-col bg-background/95 backdrop-blur">
+        <header className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: typeColor(mem.memoryType) }} />
+          <span className="text-sm font-semibold flex-1 truncate">{mem.title}</span>
+          <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+        </header>
+        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="rounded-full px-2.5 py-1 text-[10px] font-medium capitalize text-white"
+              style={{ background: typeColor(mem.memoryType) }}>{mem.memoryType}</span>
+            {ownerAgent && (
+              <button onClick={() => onSelectNode(ownerAgent.id)}
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium hover:opacity-80 transition-opacity"
+                style={{ background: `${ownerAgent.color}18`, border: `1px solid ${ownerAgent.color}35`, color: ownerAgent.color }}>
+                <div className="h-1.5 w-1.5 rounded-full" style={{ background: ownerAgent.color }} />
+                {ownerAgent.name}
+              </button>
+            )}
+          </div>
+          {mem.content && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Content</p>
+              <p className="text-foreground/75 leading-relaxed whitespace-pre-wrap">{mem.content}</p>
+            </div>
+          )}
+          <div className="rounded-lg border border-border bg-muted/30 p-3 font-mono text-[10px] leading-relaxed whitespace-pre">
+            <span className="text-muted-foreground/40">// </span>
+            {ownerAgent && <span style={{ color: ownerAgent.color }}>@{ownerAgent.name}</span>}
+            {"\n"}
+            <span className="text-muted-foreground/60">type: </span>
+            <span style={{ color: typeColor(mem.memoryType) }}>"{mem.memoryType}"</span>
+            {"\n"}
+            <span className="text-muted-foreground/60">active: </span>
+            <span className="text-emerald-500">true</span>
+          </div>
+          {connected.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Linked ({connected.length})</p>
+              <div className="flex flex-col gap-1">
+                {connected.map((c) => (
+                  <button key={c.id} onClick={() => onSelectNode(c.id)}
+                    className="flex items-center gap-2 rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors text-left">
+                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: typeColor(c.memoryType) }} />
+                    <span className="truncate text-foreground/70">{c.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <footer className="px-4 py-3 border-t border-border flex gap-2">
+          <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={() => onLink(mem.id)}>
+            <Link2 className="h-3 w-3 mr-1.5" />Link
+          </Button>
+          <Button size="sm" variant="outline"
+            className="h-7 text-xs text-destructive border-destructive/20 hover:border-destructive/40"
+            onClick={() => onDelete(mem.id)}>
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </footer>
+      </aside>
+    );
+  }
+
+  return null;
+}
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+
+function AddMemoryModal({ onClose, onAdd }: {
+  onClose: () => void;
+  onAdd: (d: { title: string; content: string; memoryType: string }) => void;
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [memoryType, setMemoryType] = useState("fact");
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div
-        className="bg-background border border-border rounded-xl shadow-2xl w-[480px] p-5 flex flex-col gap-4"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="bg-background border border-border rounded-xl shadow-2xl w-[480px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Add Memory Node</h2>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}><X className="h-4 w-4" /></Button>
+          <h2 className="text-sm font-semibold">Add Memory Node</h2>
+          <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Title *</label>
-            <input
-              autoFocus value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Users prefer dark mode"
-              className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Type</label>
-            <div className="flex flex-wrap gap-1.5">
-              {MEMORY_TYPES.map((t) => (
-                <button key={t} onClick={() => setMemoryType(t)}
-                  className={cn("px-2.5 py-1 text-[11px] font-medium rounded-full border transition-colors capitalize",
-                    memoryType === t ? "text-white border-transparent" : "border-border text-muted-foreground hover:border-foreground/30")}
-                  style={memoryType === t ? { backgroundColor: typeColor(t), borderColor: typeColor(t) } : {}}
-                >{t}</button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Details</label>
-            <textarea value={content} onChange={(e) => setContent(e.target.value)}
-              placeholder="Optional: additional context…" rows={4}
-              className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-primary resize-none placeholder:text-muted-foreground/50"
-            />
-          </div>
+        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title *"
+          className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/40" />
+        <div className="flex flex-wrap gap-1.5">
+          {MEMORY_TYPES.map((t) => (
+            <button key={t} onClick={() => setMemoryType(t)}
+              className={cn("px-2.5 py-1 text-[11px] font-medium rounded-full border capitalize transition-colors",
+                memoryType === t ? "text-white border-transparent" : "border-border text-muted-foreground hover:border-foreground/30")}
+              style={memoryType === t ? { background: typeColor(t) } : {}}>{t}</button>
+          ))}
         </div>
+        <textarea value={content} onChange={(e) => setContent(e.target.value)}
+          placeholder="Details (optional)…" rows={3}
+          className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-primary resize-none placeholder:text-muted-foreground/40" />
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={!title.trim()} onClick={() => onAdd({ title: title.trim(), content, memoryType })}>Add Memory</Button>
@@ -546,138 +839,30 @@ function AddMemoryModal({
   );
 }
 
-// ── Link Modal ───────────────────────────────────────────────────────────────
-
-function LinkModal({
-  sourceMemory, memories, onClose, onLink,
-}: {
+function LinkModal({ sourceMemory, memories, onClose, onLink }: {
   sourceMemory: AgentMemory; memories: AgentMemory[];
-  onClose: () => void;
-  onLink: (targetId: string, relationshipType: string, label: string) => void;
+  onClose: () => void; onLink: (targetId: string, rel: string, label: string) => void;
 }) {
-  const [targetId, setTargetId] = useState("");
-  const [relType, setRelType] = useState("related_to");
-  const [label, setLabel] = useState("");
-  const others = memories.filter((m) => m.id !== sourceMemory.id);
-
+  const [targetId, setTargetId] = useState(""); const [relType, setRelType] = useState("related_to"); const [label, setLabel] = useState("");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-background border border-border rounded-xl shadow-2xl w-[420px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Link Memory</h2>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}><X className="h-4 w-4" /></Button>
+          <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
         <p className="text-xs text-muted-foreground">Linking from: <span className="font-medium text-foreground">{sourceMemory.title}</span></p>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Target memory *</label>
-            <select value={targetId} onChange={(e) => setTargetId(e.target.value)}
-              className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none">
-              <option value="">Select a memory…</option>
-              {others.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Relationship</label>
-            <select value={relType} onChange={(e) => setRelType(e.target.value)}
-              className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none">
-              {["related_to", "supports", "contradicts", "precedes", "derived_from", "example_of"].map((r) =>
-                <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Label (optional)</label>
-            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. strongly"
-              className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none" />
-          </div>
-        </div>
+        <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none">
+          <option value="">Select a memory…</option>
+          {memories.filter((m) => m.id !== sourceMemory.id).map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
+        </select>
+        <select value={relType} onChange={(e) => setRelType(e.target.value)} className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none">
+          {["related_to","supports","contradicts","precedes","derived_from","example_of"].map((r) => <option key={r} value={r}>{r.replace(/_/g," ")}</option>)}
+        </select>
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={!targetId} onClick={() => onLink(targetId, relType, label)}>Create Link</Button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Detail Panel ─────────────────────────────────────────────────────────────
-
-function DetailPanel({
-  memory, links, allMemories, onClose, onDelete, onLink,
-}: {
-  memory: AgentMemory; links: AgentMemoryLink[]; allMemories: AgentMemory[];
-  onClose: () => void; onDelete: () => void; onLink: () => void;
-}) {
-  const connected = useMemo(() => {
-    const ids = new Set<string>();
-    for (const l of links) {
-      if (l.sourceMemoryId === memory.id) ids.add(l.targetMemoryId);
-      if (l.targetMemoryId === memory.id) ids.add(l.sourceMemoryId);
-    }
-    return [...ids].map((id) => allMemories.find((m) => m.id === id)).filter(Boolean) as AgentMemory[];
-  }, [memory.id, links, allMemories]);
-
-  return (
-    <div className="w-72 shrink-0 border-l border-border flex flex-col bg-background/95 backdrop-blur">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: typeColor(memory.memoryType) }} />
-        <span className="text-xs font-semibold text-foreground flex-1 truncate">{memory.title}</span>
-        <button onClick={onClose} className="text-muted-foreground/40 hover:text-foreground shrink-0">
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-full text-white text-[10px] font-medium capitalize"
-            style={{ backgroundColor: typeColor(memory.memoryType) }}>{memory.memoryType}</span>
-          <span className="text-muted-foreground">{new Date(memory.createdAt).toLocaleDateString()}</span>
-        </div>
-        {memory.content && (
-          <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Content</p>
-            <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap text-[11px]">{memory.content}</p>
-          </div>
-        )}
-        {memory.agents.length > 0 && (
-          <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Agents</p>
-            <div className="flex flex-col gap-1">
-              {memory.agents.map((a) => (
-                <div key={a.agentId} className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Brain className="h-2 w-2 text-primary" />
-                  </div>
-                  <span className="text-foreground/80">{a.agentName ?? a.agentId}</span>
-                  {a.isOwner && <span className="text-[9px] text-primary/70 ml-auto">owner</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {connected.length > 0 && (
-          <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-              Linked Memories ({connected.length})
-            </p>
-            <div className="flex flex-col gap-1">
-              {connected.map((m) => (
-                <div key={m.id} className="flex items-center gap-2 py-1">
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: typeColor(m.memoryType) }} />
-                  <span className="text-foreground/70 truncate">{m.title}</span>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0 ml-auto" />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="px-4 py-3 border-t border-border flex gap-2">
-        <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={onLink}>
-          <Link2 className="h-3 w-3 mr-1.5" /> Link
-        </Button>
-        <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive border-destructive/20 hover:border-destructive/40" onClick={onDelete}>
-          <Trash2 className="h-3 w-3" />
-        </Button>
       </div>
     </div>
   );
@@ -690,10 +875,11 @@ export function MemoryGraph() {
   const queryClient = useQueryClient();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [filterAgentId, setFilterAgentId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [filterType, setFilterType] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [linkSourceId, setLinkSourceId] = useState<string | null>(null);
 
   const { data: graph, isLoading } = useQuery({
     queryKey: queryKeys.memories.graph(selectedCompanyId!),
@@ -705,197 +891,152 @@ export function MemoryGraph() {
   const memories = graph?.memories ?? [];
   const links = graph?.links ?? [];
 
-  const selectedMemory = useMemo(
-    () => memories.find((m) => m.id === selectedId) ?? null,
-    [memories, selectedId],
-  );
+  const graphData = useMemo(() => buildGraph3D(memories, links), [memories, links]);
+
+  const { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView } =
+    use3DRenderer({ graph: graphData, selectedId, hoveredId, filterAgentId, search, onSelect: setSelectedId, onHover: setHoveredId });
 
   const addMutation = useMutation({
-    mutationFn: (data: { title: string; content: string; memoryType: string }) =>
-      agentMemoriesApi.create(selectedCompanyId!, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(selectedCompanyId!) });
-      setShowAddModal(false);
-    },
+    mutationFn: (d: { title: string; content: string; memoryType: string }) => agentMemoriesApi.create(selectedCompanyId!, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(selectedCompanyId!) }); setShowAddModal(false); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => agentMemoriesApi.remove(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(selectedCompanyId!) });
-      setSelectedId(null);
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(selectedCompanyId!) }); setSelectedId(null); },
   });
 
   const linkMutation = useMutation({
-    mutationFn: (data: { targetId: string; relationshipType: string; label: string }) =>
+    mutationFn: (d: { targetId: string; rel: string; label: string }) =>
       agentMemoriesApi.createLink(selectedCompanyId!, {
-        sourceMemoryId: selectedId!,
-        targetMemoryId: data.targetId,
-        relationshipType: data.relationshipType,
-        label: data.label || undefined,
+        sourceMemoryId: linkSourceId!, targetMemoryId: d.targetId, relationshipType: d.rel, label: d.label || undefined,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(selectedCompanyId!) });
-      setShowLinkModal(false);
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(selectedCompanyId!) }); setLinkSourceId(null); },
   });
 
-  const typeCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const m of memories) counts.set(m.memoryType, (counts.get(m.memoryType) ?? 0) + 1);
-    return counts;
-  }, [memories]);
-
-  const usedTypes = [...typeCounts.keys()];
-
-  const uniqueAgents = useMemo(() => {
-    const seen = new Set<string>();
-    const agents: typeof memories[0]["agents"] = [];
-    for (const m of memories) {
-      for (const a of m.agents) {
-        if (!seen.has(a.agentId)) { seen.add(a.agentId); agents.push(a); }
-      }
-    }
-    return agents;
-  }, [memories]);
+  const linkSourceMemory = linkSourceId ? memories.find((m) => m.id === linkSourceId) ?? null : null;
+  const { agents } = graphData;
+  const showPanel = selectedId && (agents.some((a) => a.id === selectedId) || graphData.mems.some((m) => m.id === selectedId));
 
   return (
-    <div className="flex h-full min-h-0 bg-[#0f0f12]">
-      {/* Graph area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/5 shrink-0 bg-[#0f0f12]/95 backdrop-blur z-10">
-          <div className="flex items-center gap-2">
-            <Brain className="h-4 w-4 text-indigo-400" />
-            <span className="text-sm font-semibold text-white/90">Memory Graph</span>
-            {memories.length > 0 && (
-              <span className="text-[10px] text-white/30 bg-white/5 rounded-full px-2 py-0.5 tabular-nums">
-                {memories.length} nodes · {links.length} links
-              </span>
-            )}
-          </div>
-
-          {/* Agent legend */}
-          {uniqueAgents.length > 0 && (
-            <div className="flex items-center gap-2.5 border-r border-white/10 pr-3">
-              <span className="text-[10px] font-medium text-white/30 uppercase tracking-wider">Agents</span>
-              {uniqueAgents.map((agent, idx) => (
-                <div key={agent.agentId} className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: typeColor(MEMORY_TYPES[idx % MEMORY_TYPES.length]) }} />
-                  <span className="text-[10px] text-white/50">{agent.agentName ?? "Agent"}</span>
-                </div>
-              ))}
-            </div>
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      {/* Toolbar */}
+      <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <Brain className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">Memory Graph</span>
+          {memories.length > 0 && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums">
+              {agents.length} agents · {memories.length} nodes
+            </span>
           )}
+        </div>
 
-          <div className="flex-1" />
-
-          {/* Type filters */}
-          {usedTypes.length > 0 && (
+        {memories.length > 0 && (
+          <>
+            <div className="relative max-w-48">
+              <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search memories…"
+                className="w-full rounded-md border border-border bg-muted/40 pl-7 pr-3 py-1.5 text-xs outline-none placeholder:text-muted-foreground/40 focus:border-primary/50" />
+            </div>
             <div className="flex items-center gap-1">
-              <Filter className="h-3 w-3 text-white/30" />
-              <button
-                onClick={() => setFilterType(null)}
-                className={cn("px-2 py-0.5 text-[10px] font-medium rounded-full border transition-colors",
-                  !filterType ? "bg-white text-black border-transparent" : "border-white/10 text-white/40 hover:border-white/20")}
-              >
+              <button onClick={() => setFilterAgentId(null)}
+                className={cn("rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border",
+                  !filterAgentId ? "bg-foreground text-background border-transparent" : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground")}>
                 All
               </button>
-              {usedTypes.map((t) => (
-                <button key={t} onClick={() => setFilterType(filterType === t ? null : t)}
-                  className={cn("px-2 py-0.5 text-[10px] font-medium rounded-full border transition-colors capitalize",
-                    filterType === t ? "text-white border-transparent" : "border-white/10 text-white/40 hover:border-white/20")}
-                  style={filterType === t ? { backgroundColor: typeColor(t), borderColor: typeColor(t) } : {}}>
-                  {t} <span className="opacity-50">({typeCounts.get(t)})</span>
+              {agents.map((a) => (
+                <button key={a.id} onClick={() => setFilterAgentId(filterAgentId === a.id ? null : a.id)}
+                  className="rounded-full px-2.5 py-1 text-[11px] font-medium border transition-colors"
+                  style={filterAgentId === a.id
+                    ? { color: a.color, background: `${a.color}18`, borderColor: `${a.color}50` }
+                    : { color: "hsl(var(--muted-foreground))", background: "transparent", borderColor: "hsl(var(--border))" }}>
+                  {a.name.split(" ")[0]}
                 </button>
               ))}
             </div>
-          )}
+          </>
+        )}
 
-          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white border-0" onClick={() => setShowAddModal(true)}>
+        <div className="ml-auto flex items-center gap-2">
+          {memories.length > 0 && (
+            <button onClick={resetView} title="Reset view"
+              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+              <RotateCcw className="h-3 w-3" />Reset
+            </button>
+          )}
+          <Button size="sm" onClick={() => setShowAddModal(true)}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />Add Memory
           </Button>
         </div>
+      </div>
 
-        {/* Graph canvas */}
-        <div ref={containerRef} className="flex-1 relative min-h-0 overflow-hidden bg-[#0f0f12]">
+      {/* Body */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div ref={containerRef} className="relative flex-1 min-w-0 overflow-hidden">
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-3">
-                <Brain className="h-8 w-8 text-indigo-400/40 animate-pulse" />
-                <p className="text-sm text-white/30">Loading memory graph…</p>
-              </div>
+              <Brain className="h-8 w-8 animate-pulse text-primary/40" />
             </div>
           ) : memories.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-4 text-center max-w-xs">
-                <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center">
-                  <Brain className="h-8 w-8 text-indigo-400/50" />
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                  <Brain className="h-7 w-7 text-muted-foreground/50" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white/70">No memories yet</p>
-                  <p className="text-xs text-white/30 mt-1 leading-relaxed">Agents learn and store knowledge here.</p>
+                  <p className="text-sm font-semibold">No memories yet</p>
+                  <p className="mt-1 text-xs text-muted-foreground max-w-56">Agents learn and grow their knowledge graph as they work.</p>
                 </div>
-                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white border-0" onClick={() => setShowAddModal(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />Add First Memory
-                </Button>
+                <Button size="sm" onClick={() => setShowAddModal(true)}><Plus className="h-3.5 w-3.5 mr-1.5" />Add First Memory</Button>
               </div>
             </div>
           ) : (
-            <GraphCanvas
-              memories={memories}
-              links={links}
-              selectedId={selectedId}
-              filterType={filterType}
-              onSelect={setSelectedId}
-              containerRef={containerRef}
+            <canvas ref={canvasRef} width={size.w} height={size.h}
+              className="absolute inset-0 cursor-grab active:cursor-grabbing"
+              onMouseDown={handleMouseDown}
+              onClick={handleClick}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onWheel={handleWheel}
             />
           )}
 
           {memories.length > 0 && (
-            <div className="absolute bottom-3 left-3 text-[10px] text-white/20 select-none pointer-events-none">
-              Drag to pan · Scroll to zoom · Click node for details
-            </div>
-          )}
-
-          {/* Type legend */}
-          {memories.length > 0 && (
-            <div className="absolute bottom-3 right-3 flex flex-col gap-1 pointer-events-none">
-              {MEMORY_TYPES.filter((t) => typeCounts.has(t)).map((t) => (
-                <div key={t} className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: typeColor(t) }} />
-                  <span className="text-[9px] text-white/25 capitalize">{t}</span>
+            <>
+              <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-lg border border-border bg-background/90 px-3 py-2.5 text-[10px] backdrop-blur">
+                <p className="font-semibold text-foreground/70 mb-0.5">Legend</p>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="h-3 w-3 rounded-full border border-amber-400 bg-amber-400/20" /><span>Agent Node</span>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="h-2 w-2 rounded-full border border-indigo-400 bg-indigo-400/20" /><span>Memory Node</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-4 border-t border-dashed border-muted-foreground/40" /><span>Orbit link</span>
+                </div>
+              </div>
+              <p className="pointer-events-none absolute bottom-3 right-3 text-[10px] text-muted-foreground/40">
+                Drag to rotate · Scroll to zoom · Click to inspect
+              </p>
+            </>
           )}
         </div>
+
+        {showPanel && selectedId && (
+          <DetailPanel nodeId={selectedId} graph={graphData} allMemories={memories} allLinks={links}
+            onClose={() => setSelectedId(null)}
+            onDelete={(id) => deleteMutation.mutate(id)}
+            onLink={(id) => { setLinkSourceId(id); setSelectedId(null); }}
+            onSelectNode={setSelectedId} />
+        )}
       </div>
 
-      {/* Detail panel */}
-      {selectedMemory && (
-        <DetailPanel
-          memory={selectedMemory}
-          links={links}
-          allMemories={memories}
-          onClose={() => setSelectedId(null)}
-          onDelete={() => deleteMutation.mutate(selectedMemory.id)}
-          onLink={() => setShowLinkModal(true)}
-        />
-      )}
-
-      {/* Modals */}
-      {showAddModal && (
-        <AddMemoryModal onClose={() => setShowAddModal(false)} onAdd={(data) => addMutation.mutate(data)} />
-      )}
-      {showLinkModal && selectedMemory && (
-        <LinkModal
-          sourceMemory={selectedMemory}
-          memories={memories}
-          onClose={() => setShowLinkModal(false)}
-          onLink={(targetId, relationshipType, label) => linkMutation.mutate({ targetId, relationshipType, label })}
-        />
+      {showAddModal && <AddMemoryModal onClose={() => setShowAddModal(false)} onAdd={(d) => addMutation.mutate(d)} />}
+      {linkSourceMemory && (
+        <LinkModal sourceMemory={linkSourceMemory} memories={memories}
+          onClose={() => setLinkSourceId(null)}
+          onLink={(targetId, rel, label) => linkMutation.mutate({ targetId, rel, label })} />
       )}
     </div>
   );
