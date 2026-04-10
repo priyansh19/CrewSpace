@@ -17,6 +17,7 @@ import {
   KanbanSquare,
   Zap,
   ChevronRight,
+  Building2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -147,6 +148,7 @@ export function Sidebar() {
             icon={MessageCircle}
             badge={sessions.length > 0 ? sessions.length : undefined}
           />
+          <SidebarNavItem to="/office" label="3D Office" icon={Building2} />
         </SidebarSection>
 
         {/* System */}

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/lib/router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { dashboardApi } from "../api/dashboard";
 import { activityApi } from "../api/activity";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
 import { projectsApi } from "../api/projects";
 import { heartbeatsApi } from "../api/heartbeats";
+import { approvalsApi } from "../api/approvals";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -19,16 +20,206 @@ import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
 import { cn, formatCents } from "../lib/utils";
-import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle } from "lucide-react";
+import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, CheckCircle2, XCircle, Clock, GitBranch, Zap, User } from "lucide-react";
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
-import type { Agent, Issue } from "@paperclipai/shared";
+import type { Agent, Issue, Approval, HeartbeatRun } from "@paperclipai/shared";
 import { PluginSlotOutlet } from "@/plugins/slots";
 
 function getRecentIssues(issues: Issue[]): Issue[] {
   return [...issues]
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+const APPROVAL_TYPE_LABELS: Record<string, string> = {
+  hire_agent: "Hire Agent",
+  approve_ceo_strategy: "CEO Strategy",
+  budget_override_required: "Budget Override",
+};
+
+const RUN_STATUS_COLORS: Record<string, string> = {
+  running: "#3b82f6",
+  succeeded: "#22c55e",
+  failed: "#ef4444",
+  cancelled: "#94a3b8",
+  timed_out: "#f59e0b",
+  queued: "#8b5cf6",
+};
+
+/** Build workflow execution timeline data from runs */
+function buildWorkflowTimeline(runs: HeartbeatRun[], agents: Agent[]) {
+  const now = Date.now();
+  const windowMs = 24 * 60 * 60 * 1000; // last 24h
+  const windowStart = now - windowMs;
+
+  const agentMap = new Map(agents.map((a) => [a.id, a]));
+  const agentOrder = [...new Set(runs.map((r) => r.agentId))];
+
+  const filtered = runs.filter((r) => {
+    const start = r.startedAt ? new Date(r.startedAt).getTime() : new Date(r.createdAt).getTime();
+    return start >= windowStart;
+  });
+
+  return { filtered, agentOrder, agentMap, windowStart, windowEnd: now };
+}
+
+/** Canvas-drawn workflow execution graph */
+function WorkflowGraph({ runs, agents }: { runs: HeartbeatRun[]; agents: Agent[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 800, h: 200 });
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; run: HeartbeatRun; agentName: string } | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }));
+    ro.observe(el);
+    setSize({ w: el.clientWidth, h: el.clientHeight });
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const { w, h } = size;
+    const { filtered, agentOrder, agentMap, windowStart, windowEnd } = buildWorkflowTimeline(runs, agents);
+
+    ctx.clearRect(0, 0, w, h);
+
+    const PAD_LEFT = 110, PAD_RIGHT = 16, PAD_TOP = 24, PAD_BOTTOM = 28;
+    const plotW = w - PAD_LEFT - PAD_RIGHT;
+    const plotH = h - PAD_TOP - PAD_BOTTOM;
+    const rowH = agentOrder.length > 0 ? Math.min(28, plotH / agentOrder.length) : 28;
+    const barH = Math.max(6, rowH * 0.55);
+
+    const isDark = document.documentElement.classList.contains("dark");
+    const textColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)";
+    const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+    const labelColor = isDark ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.7)";
+
+    const timeToX = (ts: number) => PAD_LEFT + ((ts - windowStart) / (windowEnd - windowStart)) * plotW;
+
+    // Time axis labels (6h intervals)
+    ctx.font = "10px system-ui, sans-serif";
+    ctx.fillStyle = textColor;
+    for (let i = 0; i <= 4; i++) {
+      const ts = windowStart + (i / 4) * (windowEnd - windowStart);
+      const x = timeToX(ts);
+      const label = i === 4 ? "now" : `-${Math.round((4 - i) * 6)}h`;
+      ctx.fillText(label, x - (i === 4 ? 12 : 8), h - 8);
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, PAD_TOP);
+      ctx.lineTo(x, PAD_TOP + plotH);
+      ctx.stroke();
+    }
+
+    // Draw rows
+    agentOrder.forEach((agentId, rowIdx) => {
+      const y = PAD_TOP + rowIdx * rowH;
+      const agent = agentMap.get(agentId);
+      const name = agent?.name ?? agentId.slice(0, 8);
+
+      // Row label
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.fillStyle = labelColor;
+      ctx.fillText(name.length > 12 ? name.slice(0, 11) + "…" : name, 4, y + rowH / 2 + 4);
+
+      // Row background
+      ctx.fillStyle = isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)";
+      ctx.fillRect(PAD_LEFT, y + 2, plotW, rowH - 4);
+
+      // Run bars
+      filtered.filter((r) => r.agentId === agentId).forEach((run) => {
+        const start = run.startedAt ? new Date(run.startedAt).getTime() : new Date(run.createdAt).getTime();
+        const end = run.finishedAt ? new Date(run.finishedAt).getTime() : windowEnd;
+        const x1 = Math.max(timeToX(start), PAD_LEFT);
+        const x2 = Math.min(timeToX(end), PAD_LEFT + plotW);
+        const bw = Math.max(x2 - x1, 3);
+        const by = y + (rowH - barH) / 2;
+
+        const color = RUN_STATUS_COLORS[run.status] ?? "#94a3b8";
+        ctx.fillStyle = color;
+        ctx.globalAlpha = run.status === "running" ? 0.9 : 0.65;
+        ctx.beginPath();
+        ctx.roundRect(x1, by, bw, barH, 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+    });
+  }, [runs, agents, size]);
+
+  // Tooltip hit-test on mouse move
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const { w, h } = size;
+    const { filtered, agentOrder, agentMap, windowStart, windowEnd } = buildWorkflowTimeline(runs, agents);
+    const PAD_LEFT = 110, PAD_TOP = 24, PAD_BOTTOM = 28;
+    const plotW = w - PAD_LEFT - 16;
+    const plotH = h - PAD_TOP - PAD_BOTTOM;
+    const rowH = agentOrder.length > 0 ? Math.min(28, plotH / agentOrder.length) : 28;
+    const barH = Math.max(6, rowH * 0.55);
+    const timeToX = (ts: number) => PAD_LEFT + ((ts - windowStart) / (windowEnd - windowStart)) * plotW;
+
+    for (let rowIdx = 0; rowIdx < agentOrder.length; rowIdx++) {
+      const agentId = agentOrder[rowIdx];
+      const y = PAD_TOP + rowIdx * rowH;
+      const by = y + (rowH - barH) / 2;
+      if (my < by || my > by + barH) continue;
+      for (const run of filtered.filter((r) => r.agentId === agentId)) {
+        const start = run.startedAt ? new Date(run.startedAt).getTime() : new Date(run.createdAt).getTime();
+        const end = run.finishedAt ? new Date(run.finishedAt).getTime() : windowEnd;
+        const x1 = Math.max(timeToX(start), PAD_LEFT);
+        const x2 = Math.min(timeToX(end), PAD_LEFT + plotW);
+        if (mx >= x1 && mx <= Math.max(x2, x1 + 6)) {
+          setTooltip({ x: mx, y: by, run, agentName: agentMap.get(agentId)?.name ?? agentId.slice(0, 8) });
+          return;
+        }
+      }
+    }
+    setTooltip(null);
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full" style={{ height: Math.max(120, Math.min(runs.length > 0 ? buildWorkflowTimeline(runs, agents).agentOrder.length * 32 + 52 : 120, 260)) }}>
+      <canvas
+        ref={canvasRef}
+        width={size.w}
+        height={size.h}
+        className="absolute inset-0 w-full h-full"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setTooltip(null)}
+      />
+      {tooltip && (
+        <div
+          className="absolute z-10 pointer-events-none bg-popover border border-border text-popover-foreground text-xs rounded shadow-lg px-2.5 py-1.5 max-w-[220px]"
+          style={{ left: Math.min(tooltip.x + 8, size.w - 230), top: Math.max(4, tooltip.y - 44) }}
+        >
+          <div className="font-medium truncate">{tooltip.agentName}</div>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span
+              className="inline-block w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: RUN_STATUS_COLORS[tooltip.run.status] ?? "#94a3b8" }}
+            />
+            <span className="capitalize">{tooltip.run.status}</span>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">{tooltip.run.invocationSource}</span>
+          </div>
+          {tooltip.run.startedAt && (
+            <div className="text-muted-foreground mt-0.5">{timeAgo(tooltip.run.startedAt)}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Dashboard() {
@@ -78,6 +269,32 @@ export function Dashboard() {
     queryKey: queryKeys.heartbeats(selectedCompanyId!),
     queryFn: () => heartbeatsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
+    refetchInterval: 15_000,
+  });
+
+  const { data: pendingApprovals } = useQuery({
+    queryKey: queryKeys.approvals.list(selectedCompanyId!, "pending"),
+    queryFn: () => approvalsApi.list(selectedCompanyId!, "pending"),
+    enabled: !!selectedCompanyId,
+    refetchInterval: 15_000,
+  });
+
+  const queryClient = useQueryClient();
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => approvalsApi.approve(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.list(selectedCompanyId!, "pending") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(selectedCompanyId!) });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => approvalsApi.reject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.list(selectedCompanyId!, "pending") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(selectedCompanyId!) });
+    },
   });
 
   const recentIssues = issues ? getRecentIssues(issues) : [];
@@ -297,6 +514,136 @@ export function Dashboard() {
               <SuccessRateChart runs={runs ?? []} />
             </ChartCard>
           </div>
+
+          {/* ── Workflow Execution Graph ── */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <GitBranch className="h-3.5 w-3.5" />
+                Workflow Executions
+                <span className="text-xs font-normal normal-case text-muted-foreground/60">· last 24h</span>
+              </h3>
+              {(runs ?? []).filter((r) => r.status === "running").length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-blue-500 font-medium">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  {(runs ?? []).filter((r) => r.status === "running").length} live
+                </span>
+              )}
+            </div>
+            <div className="border border-border rounded-lg p-3 bg-card">
+              {runs && runs.length > 0 && agents && agents.length > 0 ? (
+                <WorkflowGraph runs={runs} agents={agents} />
+              ) : (
+                <div className="h-[80px] flex items-center justify-center text-sm text-muted-foreground">
+                  No executions in the last 24 hours
+                </div>
+              )}
+              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50 flex-wrap">
+                {(["running", "succeeded", "failed", "queued", "cancelled", "timed_out"] as const).map((s) => (
+                  <span key={s} className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: RUN_STATUS_COLORS[s] }} />
+                    <span className="capitalize">{s.replace("_", " ")}</span>
+                    <span className="text-muted-foreground/50">
+                      ({(runs ?? []).filter((r) => r.status === s).length})
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Pending Approvals Panel ── */}
+          {(pendingApprovals?.length ?? 0) > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Pending Approvals
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold px-1.5 py-px min-w-[18px]">
+                    {pendingApprovals!.length}
+                  </span>
+                </h3>
+                <Link to="/approvals" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
+                  View all
+                </Link>
+              </div>
+              <div className="border border-border rounded-lg divide-y divide-border overflow-hidden">
+                {pendingApprovals!.slice(0, 5).map((approval) => {
+                  const agentName = agents?.find((a) => a.id === approval.requestedByAgentId)?.name;
+                  const isApproving = approveMutation.isPending && approveMutation.variables === approval.id;
+                  const isRejecting = rejectMutation.isPending && rejectMutation.variables === approval.id;
+                  return (
+                    <div key={approval.id} className="flex items-start gap-3 px-4 py-3 bg-card hover:bg-accent/30 transition-colors">
+                      <div className="mt-0.5 flex-shrink-0">
+                        <Clock className="h-4 w-4 text-amber-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-medium px-1.5 py-px rounded bg-muted text-muted-foreground">
+                            {APPROVAL_TYPE_LABELS[approval.type] ?? approval.type}
+                          </span>
+                          {agentName && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Zap className="h-3 w-3" />
+                              {agentName}
+                            </span>
+                          )}
+                          {approval.requestedByUserId && !agentName && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <User className="h-3 w-3" />
+                              User
+                            </span>
+                          )}
+                        </div>
+                        {approval.payload && Object.keys(approval.payload).length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                            {(approval.payload as Record<string, unknown>).reason as string
+                              ?? (approval.payload as Record<string, unknown>).description as string
+                              ?? JSON.stringify(approval.payload).slice(0, 80)}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground/60 mt-0.5">{timeAgo(approval.createdAt)}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                        <button
+                          onClick={() => approveMutation.mutate(approval.id)}
+                          disabled={isApproving || isRejecting}
+                          className={cn(
+                            "flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors",
+                            "bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20",
+                            (isApproving || isRejecting) && "opacity-50 pointer-events-none"
+                          )}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {isApproving ? "…" : "Approve"}
+                        </button>
+                        <button
+                          onClick={() => rejectMutation.mutate(approval.id)}
+                          disabled={isApproving || isRejecting}
+                          className={cn(
+                            "flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors",
+                            "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20",
+                            (isApproving || isRejecting) && "opacity-50 pointer-events-none"
+                          )}
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          {isRejecting ? "…" : "Reject"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {pendingApprovals!.length > 5 && (
+                  <Link
+                    to="/approvals"
+                    className="block px-4 py-2.5 text-xs text-center text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors no-underline"
+                  >
+                    + {pendingApprovals!.length - 5} more pending approvals
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
 
           <PluginSlotOutlet
             slotTypes={["dashboardWidget"]}

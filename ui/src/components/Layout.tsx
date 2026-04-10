@@ -16,8 +16,7 @@ import { ToastViewport } from "./ToastViewport";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { WorktreeBanner } from "./WorktreeBanner";
 import { DevRestartBanner } from "./DevRestartBanner";
-import { ChatSidebar } from "./ChatSidebar";
-import { ChatProvider, useChat } from "../context/ChatContext";
+import { ChatProvider } from "../context/ChatContext";
 import { useDialog } from "../context/DialogContext";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
@@ -41,7 +40,7 @@ const INSTANCE_SETTINGS_MEMORY_KEY = "paperclip.lastInstanceSettingsPath";
 
 /** Pages that need full height with no padding — they manage their own layout */
 function isFullPageRoute(pathname: string): boolean {
-  return /\/(memory|agent-chat)$/.test(pathname);
+  return /\/(memory|agent-chat|office)$/.test(pathname);
 }
 
 function readRememberedInstanceSettingsPath(): string {
@@ -53,27 +52,6 @@ function readRememberedInstanceSettingsPath(): string {
   }
 }
 
-function ChatOverlay() {
-  const { isChatOpen, setIsChatOpen } = useChat();
-  return (
-    <>
-      {isChatOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30"
-          onClick={() => setIsChatOpen(false)}
-        />
-      )}
-      <div
-        className={cn(
-          "fixed top-0 right-0 z-50 h-full w-[300px] shadow-2xl transition-transform duration-300 ease-in-out",
-          isChatOpen ? "translate-x-0" : "translate-x-full",
-        )}
-      >
-        <ChatSidebar onClose={() => setIsChatOpen(false)} />
-      </div>
-    </>
-  );
-}
 
 export function Layout() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar, isMobile } = useSidebar();
@@ -444,7 +422,7 @@ export function Layout() {
               className={cn(
                 "flex-1",
                 isFullPageRoute(location.pathname)
-                  ? "overflow-hidden"
+                  ? "relative min-h-0 overflow-hidden"
                   : cn("p-4 md:p-6", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
               )}
             >
@@ -462,7 +440,6 @@ export function Layout() {
         </div>
       </div>
       {isMobile && <MobileBottomNav visible={mobileNavVisible} />}
-      <ChatOverlay />
       <CommandPalette />
       <NewIssueDialog />
       <NewProjectDialog />

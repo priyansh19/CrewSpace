@@ -1,4 +1,5 @@
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from "@/lib/router";
+import { Suspense, lazy } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Layout } from "./components/Layout";
@@ -39,6 +40,7 @@ import { RunTranscriptUxLab } from "./pages/RunTranscriptUxLab";
 import { OrgChart } from "./pages/OrgChart";
 import { MemoryGraph } from "./pages/MemoryGraph";
 import { AgentChat } from "./pages/AgentChat";
+const Office = lazy(() => import("./pages/Office").then((m) => ({ default: m.Office })));
 import { Blockers } from "./pages/Blockers";
 import { Taskboard } from "./pages/Taskboard";
 import { NewAgent } from "./pages/NewAgent";
@@ -137,6 +139,7 @@ function boardRoutes() {
       <Route path="org" element={<OrgChart />} />
       <Route path="memory" element={<MemoryGraph />} />
       <Route path="agent-chat" element={<AgentChat />} />
+      <Route path="office" element={<Suspense fallback={null}><Office /></Suspense>} />
       <Route path="blockers" element={<Blockers />} />
       <Route path="taskboard" element={<Taskboard />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />
@@ -345,6 +348,7 @@ export function App() {
           <Route path="agents/:agentId/runs/:runId" element={<UnprefixedBoardRedirect />} />
           <Route path="memory" element={<UnprefixedBoardRedirect />} />
           <Route path="agent-chat" element={<UnprefixedBoardRedirect />} />
+          <Route path="office" element={<UnprefixedBoardRedirect />} />
           <Route path="org" element={<UnprefixedBoardRedirect />} />
           <Route path="taskboard" element={<UnprefixedBoardRedirect />} />
           <Route path="blockers" element={<UnprefixedBoardRedirect />} />

@@ -62,12 +62,36 @@ function normalize([x, y, z]: Vec3): Vec3 {
 function scale([x, y, z]: Vec3, s: number): Vec3 { return [x * s, y * s, z * s]; }
 function add([ax, ay, az]: Vec3, [bx, by, bz]: Vec3): Vec3 { return [ax + bx, ay + by, az + bz]; }
 
-/** Orbit a point around a center normal in 3D */
-function orbitAround(center: Vec3, normal: Vec3, radius: number, angle: number): Vec3 {
-  const up: Vec3 = Math.abs(normal[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-  const t1 = normalize(cross(normal, up));
-  const t2 = normalize(cross(normal, t1));
-  return add(center, add(scale(t1, radius * Math.cos(angle)), scale(t2, radius * Math.sin(angle))));
+/** Rotate vector v around a unit axis by angle (Rodrigues rotation formula) */
+function rotateAroundAxis(v: Vec3, axis: Vec3, angle: number): Vec3 {
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const dot = v[0] * axis[0] + v[1] * axis[1] + v[2] * axis[2];
+  const c = cross(axis, v);
+  return [
+    v[0] * cosA + c[0] * sinA + axis[0] * dot * (1 - cosA),
+    v[1] * cosA + c[1] * sinA + axis[1] * dot * (1 - cosA),
+    v[2] * cosA + c[2] * sinA + axis[2] * dot * (1 - cosA),
+  ];
+}
+
+/**
+ * Generate a unit direction within a spherical cap (cone) centered on baseDir.
+ * halfAngle in radians — how wide the cone is.
+ * seed — deterministic index (uses golden angle spiral for even distribution).
+ */
+function coneDir(baseDir: Vec3, halfAngle: number, seed: number): Vec3 {
+  const up: Vec3 = Math.abs(baseDir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  const t1 = normalize(cross(baseDir, up));
+  const t2 = normalize(cross(baseDir, t1));
+  const phi = seed * 2.399963229; // golden angle — even azimuthal spread
+  const theta = halfAngle * Math.sqrt((seed * 0.618033988) % 1); // √-uniform on cap
+  const sinT = Math.sin(theta);
+  const cosT = Math.cos(theta);
+  return normalize(add(
+    scale(baseDir, cosT),
+    scale(normalize(add(scale(t1, Math.cos(phi)), scale(t2, Math.sin(phi)))), sinT)
+  ));
 }
 
 // ── Node data ─────────────────────────────────────────────────────────────────
@@ -88,10 +112,12 @@ interface Mem3D {
   memoryType: string;
   agentId: string | null;
   agentColor: string;
-  orbitNormal: Vec3;
-  orbitRadius: number;
-  orbitOffset: number;  // phase offset
-  orbitSpeed: number;
+  /** Unit direction on the OUTER sphere — memory lives at r * dir */
+  dir: Vec3;
+  /** Axis for slow drift along the outer sphere surface */
+  driftAxis: Vec3;
+  driftSpeed: number;
+  /** Agent's unit-sphere position (for drawing the connecting line) */
   agentPos: Vec3;
   r: number;
   raw: AgentMemory;
@@ -146,24 +172,43 @@ function buildGraph3D(memories: AgentMemory[], links: AgentMemoryLink[]): GraphD
   }
 
   const mems: Mem3D[] = [];
-  for (const agent of agents) {
-    const agentMems = byAgent.get(agent.id) ?? [];
-    const count = agentMems.length;
-    const orbitR = agent.r * 0.09 + 0.12; // in sphere-space units
-    agentMems.forEach((m, j) => {
-      mems.push({
-        id: m.id, title: m.title, content: m.content ?? "",
-        memoryType: m.memoryType, agentId: agent.id, agentColor: agent.color,
-        orbitNormal: agent.pos,
-        orbitRadius: orbitR,
-        orbitOffset: (2 * Math.PI * j) / Math.max(count, 1),
-        orbitSpeed: 0.2 + Math.random() * 0.15,
-        agentPos: agent.pos,
-        r: 6 + Math.min((m.content?.length ?? 0) / 80, 4),
-        raw: m,
-      });
-    });
+
+  // Collect ALL memories in a stable order, then assign Fibonacci sphere positions
+  // across the ENTIRE outer shell — this maximally separates every dot regardless
+  // of which agent owns it. Lines back to agents show the ownership.
+  // Interleave memories across agents so same-agent memories are far apart on
+  // the Fibonacci sphere. Round-robin: slot 0=agent0[0], 1=agent1[0], 2=agent2[0],
+  // ..., N=agent0[1], N+1=agent1[1], etc. With 6 agents every same-agent
+  // neighbour is 6 positions apart → ~spread evenly over the full sphere.
+  const agentMemArrays = agents.map((a) => byAgent.get(a.id) ?? []);
+  const maxPerAgent = Math.max(...agentMemArrays.map((a) => a.length), 0);
+  const interleaved: Array<{ m: AgentMemory; agent: Agent3D }> = [];
+  for (let row = 0; row < maxPerAgent; row++) {
+    for (let ai = 0; ai < agents.length; ai++) {
+      const arr = agentMemArrays[ai];
+      if (row < arr.length) interleaved.push({ m: arr[row], agent: agents[ai] });
+    }
   }
+
+  const totalMems = interleaved.length;
+  const globalDirs = fibSphere(Math.max(totalMems, 1));
+
+  interleaved.forEach(({ m, agent }, globalIdx) => {
+    const dir = globalDirs[globalIdx];
+    const upRef: Vec3 = Math.abs(dir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const driftAxis = normalize(cross(dir, upRef));
+
+    mems.push({
+      id: m.id, title: m.title, content: m.content ?? "",
+      memoryType: m.memoryType, agentId: agent.id, agentColor: agent.color,
+      dir,
+      driftAxis,
+      driftSpeed: (0.006 + ((globalIdx * 0.1618033) % 1) * 0.005) * (globalIdx % 2 === 0 ? 1 : -1),
+      agentPos: agent.pos,
+      r: 3.5 + Math.min((m.content?.length ?? 0) / 120, 2.5),
+      raw: m,
+    });
+  });
 
   // Agent-to-agent edges from memory links
   const agentEdgeSet = new Set<string>();
@@ -194,8 +239,9 @@ function rgba(hex: string, a: number) { return `rgba(${hexRgb(hex)},${a})`; }
 
 // ── 3D Canvas Renderer ────────────────────────────────────────────────────────
 
-const SPHERE_R = 220;   // px radius of agent sphere at zoom=1
-const CAM_DIST = 700;   // camera distance
+const SPHERE_R = 260;   // px radius of the OUTER memory sphere at zoom=1
+const AGENT_FRAC = 0.48; // agents sit at SPHERE_R * AGENT_FRAC (inner shell)
+const CAM_DIST = 900;   // camera distance
 
 function use3DRenderer({
   graph,
@@ -292,81 +338,74 @@ function use3DRenderer({
       type Projected = { id: string; sx: number; sy: number; scale: number; depth: number; type: "agent" | "mem"; idx: number };
       const projected: Projected[] = [];
 
-      // Project agent positions
+      const agentR = r * AGENT_FRAC; // inner shell radius (agents)
+      // outer shell radius = r (memories)
+
+      // Project agent positions onto INNER sphere
       const agentProj: Array<{ sx: number; sy: number; scale: number; depth: number }> = agents.map((a) => {
-        let v: Vec3 = scale(a.pos, r);
-        v = rotY(v, rY + t * 0.15);
+        let v: Vec3 = scale(a.pos, agentR);
+        v = rotY(v, rY + t * 0.12);
         v = rotX(v, rX);
         const p = project(v, dist, cx, cy);
         projected.push({ id: a.id, sx: p.sx, sy: p.sy, scale: p.scale, depth: p.depth, type: "agent", idx: agents.indexOf(a) });
         return p;
       });
 
-      // Project memory positions (orbiting their agents)
+      // Project memory positions onto OUTER sphere (each drifts slowly in its cone)
       const memProj: Array<{ sx: number; sy: number; scale: number; depth: number }> = mems.map((m) => {
-        const angle = m.orbitOffset + t * m.orbitSpeed;
-        // orbit in 3D around agent pos on sphere
-        let agentV: Vec3 = scale(m.agentPos, r);
-        const orbitPt = orbitAround(agentV, m.orbitNormal, r * m.orbitRadius * 1.6, angle);
-        let v: Vec3 = orbitPt;
-        v = rotY(v, rY + t * 0.15);
+        const drifted = rotateAroundAxis(m.dir, m.driftAxis, t * m.driftSpeed);
+        let v: Vec3 = scale(drifted, r);
+        v = rotY(v, rY + t * 0.12);
         v = rotX(v, rX);
         const p = project(v, dist, cx, cy);
         projected.push({ id: m.id, sx: p.sx, sy: p.sy, scale: p.scale, depth: p.depth, type: "mem", idx: mems.indexOf(m) });
         return p;
       });
 
-      // ── Wireframe sphere ──
-      const wireAlpha = 0.06;
-      ctx.strokeStyle = `rgba(150,170,220,${wireAlpha})`;
-      ctx.lineWidth = 0.5;
-
-      // Latitude circles
-      const latCount = 5;
-      for (let li = 1; li < latCount; li++) {
-        const phi = (Math.PI * li) / latCount;
-        const circleR = Math.sin(phi) * r;
-        const circleY = Math.cos(phi) * r;
+      const drawWireframe = (wr: number, alpha: number, latN: number, lonN: number) => {
+        ctx.strokeStyle = `rgba(150,170,220,${alpha})`;
+        ctx.lineWidth = 0.5;
         const segs = 64;
-        ctx.beginPath();
-        for (let si = 0; si <= segs; si++) {
-          const theta = (2 * Math.PI * si) / segs;
-          let v: Vec3 = [circleR * Math.cos(theta), circleY, circleR * Math.sin(theta)];
-          v = rotY(v, rY + t * 0.15);
-          v = rotX(v, rX);
-          const p = project(v, dist, cx, cy);
-          if (si === 0) ctx.moveTo(p.sx, p.sy);
-          else ctx.lineTo(p.sx, p.sy);
+        for (let li = 1; li < latN; li++) {
+          const phi = (Math.PI * li) / latN;
+          const cr = Math.sin(phi) * wr, cy2 = Math.cos(phi) * wr;
+          ctx.beginPath();
+          for (let si = 0; si <= segs; si++) {
+            const theta = (2 * Math.PI * si) / segs;
+            let v: Vec3 = [cr * Math.cos(theta), cy2, cr * Math.sin(theta)];
+            v = rotY(v, rY + t * 0.12); v = rotX(v, rX);
+            const p = project(v, dist, cx, cy);
+            si === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
+          }
+          ctx.stroke();
         }
-        ctx.stroke();
-      }
+        for (let li = 0; li < lonN; li++) {
+          const theta = (Math.PI * li) / lonN;
+          ctx.beginPath();
+          for (let si = 0; si <= segs; si++) {
+            const phi = (Math.PI * si) / segs;
+            let v: Vec3 = [Math.sin(phi) * Math.cos(theta) * wr, Math.cos(phi) * wr, Math.sin(phi) * Math.sin(theta) * wr];
+            v = rotY(v, rY + t * 0.12); v = rotX(v, rX);
+            const p = project(v, dist, cx, cy);
+            si === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
+          }
+          ctx.stroke();
+        }
+      };
 
-      // Longitude lines
-      const lonCount = 6;
-      for (let li = 0; li < lonCount; li++) {
-        const theta = (Math.PI * li) / lonCount;
-        const segs = 64;
-        ctx.beginPath();
-        for (let si = 0; si <= segs; si++) {
-          const phi = (Math.PI * si) / segs;
-          let v: Vec3 = [Math.sin(phi) * Math.cos(theta) * r, Math.cos(phi) * r, Math.sin(phi) * Math.sin(theta) * r];
-          v = rotY(v, rY + t * 0.15);
-          v = rotX(v, rX);
-          const p = project(v, dist, cx, cy);
-          if (si === 0) ctx.moveTo(p.sx, p.sy);
-          else ctx.lineTo(p.sx, p.sy);
-        }
-        ctx.stroke();
-      }
+      // Outer sphere (memory shell) — faint
+      drawWireframe(r, 0.055, 6, 6);
+      // Inner sphere (agent shell) — slightly brighter to distinguish
+      drawWireframe(agentR, 0.10, 4, 4);
 
       // Center gravity glow
-      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.25);
-      cg.addColorStop(0, "rgba(99,102,241,0.15)");
-      cg.addColorStop(0.5, "rgba(99,102,241,0.05)");
+      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, agentR * 0.3);
+      cg.addColorStop(0, "rgba(99,102,241,0.18)");
+      cg.addColorStop(0.5, "rgba(99,102,241,0.06)");
       cg.addColorStop(1, "rgba(99,102,241,0)");
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
+      ctx.arc(cx, cy, agentR * 0.3, 0, Math.PI * 2);
       ctx.fill();
 
       // Center dot
@@ -390,8 +429,10 @@ function use3DRenderer({
         ctx.stroke();
       }
 
-      // ── Draw mem-to-agent edges ──
-      ctx.setLineDash([3, 4]);
+      // ── Draw mem-to-agent radial lines ──
+      // Always draw faint lines from outer memory to inner agent — this IS the
+      // "linked to agent in the outer circle" visual. Throttle alpha by depth.
+      ctx.setLineDash([2, 3]);
       for (let i = 0; i < mems.length; i++) {
         const m = mems[i];
         const agentIdx = agents.findIndex((a) => a.id === m.agentId);
@@ -401,14 +442,15 @@ function use3DRenderer({
         if (!ap || !mp) continue;
         const visFilter = !fAgent || m.agentId === fAgent;
         const visSearch = !q || m.title.toLowerCase().includes(q);
-        const vis = visFilter && visSearch;
+        if (!visFilter && !visSearch) continue;
         const isActive = m.id === activeId || m.agentId === activeId;
-        const depthFade = Math.min(1, (ap.scale + mp.scale) / 2);
+        const depthFade = Math.min(1, (mp.scale * 0.7 + ap.scale * 0.3));
+        const baseAlpha = isActive ? 0.55 : 0.10;
         ctx.beginPath();
-        ctx.moveTo(ap.sx, ap.sy);
-        ctx.lineTo(mp.sx, mp.sy);
-        ctx.strokeStyle = rgba(m.agentColor, vis ? (isActive ? 0.6 * depthFade : 0.18 * depthFade) : 0.04);
-        ctx.lineWidth = isActive ? 1 : 0.4;
+        ctx.moveTo(mp.sx, mp.sy);
+        ctx.lineTo(ap.sx, ap.sy);
+        ctx.strokeStyle = rgba(m.agentColor, baseAlpha * depthFade);
+        ctx.lineWidth = isActive ? 1.2 : 0.4;
         ctx.stroke();
       }
       ctx.setLineDash([]);
@@ -574,10 +616,11 @@ function use3DRenderer({
 
     let best: { id: string; distSq: number } | null = null;
 
-    // Check agents
+    // Check agents (inner sphere)
+    const agentRHit = r * AGENT_FRAC;
     for (const a of agents) {
-      let v: Vec3 = scale(a.pos, r);
-      v = rotY(v, rY + t * 0.15);
+      let v: Vec3 = scale(a.pos, agentRHit);
+      v = rotY(v, rY + t * 0.12);
       v = rotX(v, rX);
       const p = project(v, dist, cx, cy);
       const nodeR = a.r * p.scale * z;
@@ -588,14 +631,12 @@ function use3DRenderer({
       }
     }
 
-    // Check memories
+    // Check memories (outer sphere)
     for (let i = 0; i < mems.length; i++) {
       const m = mems[i];
-      const angle = m.orbitOffset + t * m.orbitSpeed;
-      let agentV: Vec3 = scale(m.agentPos, r);
-      const orbitPt = orbitAround(agentV, m.orbitNormal, r * m.orbitRadius * 1.6, angle);
-      let v: Vec3 = orbitPt;
-      v = rotY(v, rY + t * 0.15);
+      const drifted = rotateAroundAxis(m.dir, m.driftAxis, t * m.driftSpeed);
+      let v: Vec3 = scale(drifted, r);
+      v = rotY(v, rY + t * 0.12);
       v = rotX(v, rX);
       const p = project(v, dist, cx, cy);
       const nodeR = m.r * p.scale * z;
