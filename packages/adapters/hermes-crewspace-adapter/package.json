@@ -4,11 +4,33 @@
   "description": "CrewSpace adapter for Hermes Agent — run Hermes as a managed employee in a CrewSpace company",
   "type": "module",
   "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./server": "./dist/server/index.js",
-    "./ui": "./dist/ui/index.js",
-    "./cli": "./dist/cli/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "import": "./dist/cli/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      ".": ["./dist/index.d.ts"],
+      "server": ["./dist/server/index.d.ts"],
+      "ui": ["./dist/ui/index.d.ts"],
+      "cli": ["./dist/cli/index.d.ts"]
+    }
   },
   "files": [
     "dist"

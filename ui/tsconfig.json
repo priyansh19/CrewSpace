@@ -14,7 +14,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "lexical": ["./node_modules/lexical/index.d.ts"]
+      "lexical": ["./node_modules/lexical/index.d.ts"],
+      "hermes-crewspace-adapter": ["../packages/adapters/hermes-crewspace-adapter/dist/index.d.ts"],
+      "hermes-crewspace-adapter/server": ["../packages/adapters/hermes-crewspace-adapter/dist/server/index.d.ts"],
+      "hermes-crewspace-adapter/ui": ["../packages/adapters/hermes-crewspace-adapter/dist/ui/index.d.ts"],
+      "hermes-crewspace-adapter/cli": ["../packages/adapters/hermes-crewspace-adapter/dist/cli/index.d.ts"]
     }
   },
   "include": ["src"]

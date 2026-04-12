@@ -20,16 +20,31 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: npx playwright install --with-deps chromium
+
+      - name: Generate CrewSpace config
+        run: |
+          mkdir -p ~/.crewspace/instances/default
+          cat > ~/.crewspace/instances/default/config.json << 'CONF'
+          {
+            "$meta": { "version": 1, "updatedAt": "2026-01-01T00:00:00.000Z", "source": "onboard" },
+            "database": { "mode": "embedded-postgres" },
+            "logging": { "mode": "file" },
+            "server": { "deploymentMode": "local_trusted", "host": "127.0.0.1", "port": 3100 },
+            "auth": { "baseUrlMode": "auto" },
+            "storage": { "provider": "local_disk" },
+            "secrets": { "provider": "local_encrypted", "strictMode": false }
+          }
+          CONF
 
       - name: Run e2e tests
         run: pnpm run test:e2e
