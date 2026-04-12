@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Exception: vendored hermes adapter dist must be committed (no build step, copied from npm)
+!packages/adapters/hermes-crewspace-adapter/dist/
 .env
 *.tsbuildinfo
 drizzle/meta/
