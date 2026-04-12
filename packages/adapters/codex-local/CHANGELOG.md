@@ -1,4 +1,4 @@
-# @paperclipai/adapter-codex-local
+# @crewspace/adapter-codex-local
 
 ## 0.3.1
 
@@ -6,7 +6,7 @@
 
 - Stable release preparation for 0.3.1
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.3.1
+  - @crewspace/adapter-utils@0.3.1
 
 ## 0.3.0
 
@@ -17,7 +17,7 @@
 ### Patch Changes
 
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.3.0
+  - @crewspace/adapter-utils@0.3.0
 
 ## 0.2.7
 
@@ -25,7 +25,7 @@
 
 - Version bump (patch)
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.2.7
+  - @crewspace/adapter-utils@0.2.7
 
 ## 0.2.6
 
@@ -33,7 +33,7 @@
 
 - Version bump (patch)
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.2.6
+  - @crewspace/adapter-utils@0.2.6
 
 ## 0.2.5
 
@@ -41,7 +41,7 @@
 
 - Version bump (patch)
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.2.5
+  - @crewspace/adapter-utils@0.2.5
 
 ## 0.2.4
 
@@ -49,7 +49,7 @@
 
 - Version bump (patch)
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.2.4
+  - @crewspace/adapter-utils@0.2.4
 
 ## 0.2.3
 
@@ -57,7 +57,7 @@
 
 - Version bump (patch)
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.2.3
+  - @crewspace/adapter-utils@0.2.3
 
 ## 0.2.2
 
@@ -65,7 +65,7 @@
 
 - Version bump (patch)
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.2.2
+  - @crewspace/adapter-utils@0.2.2
 
 ## 0.2.1
 
@@ -73,4 +73,4 @@
 
 - Version bump (patch)
 - Updated dependencies
-  - @paperclipai/adapter-utils@0.2.1
+  - @crewspace/adapter-utils@0.2.1

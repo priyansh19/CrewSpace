@@ -61,11 +61,11 @@ export function Sidebar() {
       {/* Brand header */}
       <div className="flex items-center gap-2 px-4 h-13 shrink-0 border-b border-border/50">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* Nexus logo mark */}
+          {/* CrewSpace logo mark */}
           <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
             <Zap className="h-3.5 w-3.5 text-primary-foreground" fill="currentColor" />
           </div>
-          <span className="text-sm font-bold text-foreground tracking-tight">Nexus</span>
+          <span className="text-sm font-bold text-foreground tracking-tight">CrewSpace</span>
           {selectedCompany?.brandColor && (
             <div
               className="w-1.5 h-1.5 rounded-full shrink-0 ml-0.5"

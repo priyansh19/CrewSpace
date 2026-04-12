@@ -1,19 +1,19 @@
 services:
-  paperclip:
+  crewspace:
     build:
       context: ..
       dockerfile: Dockerfile
     ports:
-      - "${PAPERCLIP_PORT:-3100}:3100"
+      - "${CREWSPACE_PORT:-3100}:3100"
     environment:
       HOST: "0.0.0.0"
-      PAPERCLIP_HOME: "/paperclip"
+      CREWSPACE_HOME: "/crewspace"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
-      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
-      PAPERCLIP_DEPLOYMENT_EXPOSURE: "private"
-      PAPERCLIP_PUBLIC_URL: "${PAPERCLIP_PUBLIC_URL:-http://localhost:3100}"
+      CREWSPACE_DEPLOYMENT_MODE: "authenticated"
+      CREWSPACE_DEPLOYMENT_EXPOSURE: "private"
+      CREWSPACE_PUBLIC_URL: "${CREWSPACE_PUBLIC_URL:-http://localhost:3100}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
-      PAPERCLIP_AGENT_JWT_SECRET: "${PAPERCLIP_AGENT_JWT_SECRET:-}"
+      CREWSPACE_AGENT_JWT_SECRET: "${CREWSPACE_AGENT_JWT_SECRET:-}"
     volumes:
-      - "${PAPERCLIP_DATA_DIR:-../data/docker-paperclip}:/paperclip"
+      - "${CREWSPACE_DATA_DIR:-../data/docker-crewspace}:/crewspace"

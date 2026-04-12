@@ -1,0 +1,32 @@
+schema: crewspace/v1
+agents:
+  lead-reviewer:
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: required
+  peer-reviewer:
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: required
+  test-writer:
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+  test-auditor:
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6

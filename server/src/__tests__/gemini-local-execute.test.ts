@@ -2,17 +2,17 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { execute } from "@paperclipai/adapter-gemini-local/server";
+import { execute } from "@crewspaceai/adapter-gemini-local/server";
 
 async function writeFakeGeminiCommand(commandPath: string): Promise<void> {
   const script = `#!/usr/bin/env node
 const fs = require("node:fs");
 
-const capturePath = process.env.PAPERCLIP_TEST_CAPTURE_PATH;
+const capturePath = process.env.CREWSPACE_TEST_CAPTURE_PATH;
 const payload = {
   argv: process.argv.slice(2),
-  paperclipEnvKeys: Object.keys(process.env)
-    .filter((key) => key.startsWith("PAPERCLIP_"))
+  crewspaceEnvKeys: Object.keys(process.env)
+    .filter((key) => key.startsWith("CREWSPACE_"))
     .sort(),
 };
 if (capturePath) {
@@ -41,12 +41,12 @@ console.log(JSON.stringify({
 
 type CapturePayload = {
   argv: string[];
-  paperclipEnvKeys: string[];
+  crewspaceEnvKeys: string[];
 };
 
 describe("gemini execute", () => {
-  it("passes prompt via --prompt and injects paperclip env vars", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-gemini-execute-"));
+  it("passes prompt via --prompt and injects crewspace env vars", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "crewspace-gemini-execute-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "gemini");
     const capturePath = path.join(root, "capture.json");
@@ -78,9 +78,9 @@ describe("gemini execute", () => {
           cwd: workspace,
           model: "gemini-2.5-pro",
           env: {
-            PAPERCLIP_TEST_CAPTURE_PATH: capturePath,
+            CREWSPACE_TEST_CAPTURE_PATH: capturePath,
           },
-          promptTemplate: "Follow the paperclip heartbeat.",
+          promptTemplate: "Follow the crewspace heartbeat.",
         },
         context: {},
         authToken: "run-jwt-token",
@@ -101,20 +101,20 @@ describe("gemini execute", () => {
       expect(capture.argv).toContain("yolo");
       const promptFlagIndex = capture.argv.indexOf("--prompt");
       const promptArg = promptFlagIndex >= 0 ? capture.argv[promptFlagIndex + 1] : "";
-      expect(promptArg).toContain("Follow the paperclip heartbeat.");
-      expect(promptArg).toContain("Paperclip runtime note:");
-      expect(capture.paperclipEnvKeys).toEqual(
+      expect(promptArg).toContain("Follow the crewspace heartbeat.");
+      expect(promptArg).toContain("CrewSpace runtime note:");
+      expect(capture.crewspaceEnvKeys).toEqual(
         expect.arrayContaining([
-          "PAPERCLIP_AGENT_ID",
-          "PAPERCLIP_API_KEY",
-          "PAPERCLIP_API_URL",
-          "PAPERCLIP_COMPANY_ID",
-          "PAPERCLIP_RUN_ID",
+          "CREWSPACE_AGENT_ID",
+          "CREWSPACE_API_KEY",
+          "CREWSPACE_API_URL",
+          "CREWSPACE_COMPANY_ID",
+          "CREWSPACE_RUN_ID",
         ]),
       );
-      expect(invocationPrompt).toContain("Paperclip runtime note:");
-      expect(invocationPrompt).toContain("PAPERCLIP_API_URL");
-      expect(invocationPrompt).toContain("Paperclip API access note:");
+      expect(invocationPrompt).toContain("CrewSpace runtime note:");
+      expect(invocationPrompt).toContain("CREWSPACE_API_URL");
+      expect(invocationPrompt).toContain("CrewSpace API access note:");
       expect(invocationPrompt).toContain("run_shell_command");
       expect(result.question).toBeNull();
     } finally {
@@ -128,7 +128,7 @@ describe("gemini execute", () => {
   });
 
   it("always passes --approval-mode yolo", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-gemini-yolo-"));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "crewspace-gemini-yolo-"));
     const workspace = path.join(root, "workspace");
     const commandPath = path.join(root, "gemini");
     const capturePath = path.join(root, "capture.json");
@@ -146,7 +146,7 @@ describe("gemini execute", () => {
         config: {
           command: commandPath,
           cwd: workspace,
-          env: { PAPERCLIP_TEST_CAPTURE_PATH: capturePath },
+          env: { CREWSPACE_TEST_CAPTURE_PATH: capturePath },
         },
         context: {},
         authToken: "t",

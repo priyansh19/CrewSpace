@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useGLTF, Clone } from "@react-three/drei";
 import { ROOM_POSITIONS } from "@/stores/officeStore";
 
@@ -67,4 +68,4 @@ const Plants = () => {
   );
 };
 
-export default Plants;
+export default memo(Plants);

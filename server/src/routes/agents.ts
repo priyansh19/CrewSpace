@@ -2,8 +2,8 @@ import { Router, type Request } from "express";
 import { generateKeyPairSync, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import type { Db } from "@paperclipai/db";
-import { agents as agentsTable, companies, heartbeatRuns } from "@paperclipai/db";
+import type { Db } from "@crewspaceai/db";
+import { agents as agentsTable, companies, heartbeatRuns } from "@crewspaceai/db";
 import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
 import {
   agentSkillSyncSchema,
@@ -23,11 +23,11 @@ import {
   updateAgentInstructionsPathSchema,
   wakeAgentSchema,
   updateAgentSchema,
-} from "@paperclipai/shared";
+} from "@crewspaceai/shared";
 import {
-  readPaperclipSkillSyncPreference,
-  writePaperclipSkillSyncPreference,
-} from "@paperclipai/adapter-utils/server-utils";
+  readCrewSpaceSkillSyncPreference,
+  writeCrewSpaceSkillSyncPreference,
+} from "@crewspaceai/adapter-utils/server-utils";
 import { validate } from "../middleware/validate.js";
 import {
   agentService,
@@ -52,14 +52,14 @@ import { redactCurrentUserValue } from "../log-redaction.js";
 import { extractAndStoreMemories, getMemoryContext } from "../services/memoryExtractor.js";
 import { renderOrgChartSvg, renderOrgChartPng, type OrgNode, type OrgChartStyle, ORG_CHART_STYLES } from "./org-chart-svg.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
-import { runClaudeLogin } from "@paperclipai/adapter-claude-local/server";
+import { runClaudeLogin } from "@crewspaceai/adapter-claude-local/server";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
   DEFAULT_CODEX_LOCAL_MODEL,
-} from "@paperclipai/adapter-codex-local";
-import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
-import { DEFAULT_GEMINI_LOCAL_MODEL } from "@paperclipai/adapter-gemini-local";
-import { ensureOpenCodeModelConfiguredAndAvailable } from "@paperclipai/adapter-opencode-local/server";
+} from "@crewspaceai/adapter-codex-local";
+import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
+import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
+import { ensureOpenCodeModelConfiguredAndAvailable } from "@crewspaceai/adapter-opencode-local/server";
 import {
   loadDefaultAgentInstructionsBundle,
   resolveDefaultAgentInstructionsBundleRole,
@@ -96,7 +96,7 @@ export function agentRoutes(db: Db) {
   const companySkills = companySkillService(db);
   const workspaceOperations = workspaceOperationService(db);
   const instanceSettings = instanceSettingsService(db);
-  const strictSecretsMode = process.env.PAPERCLIP_SECRETS_STRICT_MODE === "true";
+  const strictSecretsMode = process.env.CREWSPACE_SECRETS_STRICT_MODE === "true";
 
   async function getCurrentUserRedactionOptions() {
     return {
@@ -548,7 +548,7 @@ export function agentRoutes(db: Db) {
     });
     return {
       ...config,
-      paperclipRuntimeSkills: runtimeSkillEntries,
+      crewspaceRuntimeSkills: runtimeSkillEntries,
     };
   }
 
@@ -579,7 +579,7 @@ export function agentRoutes(db: Db) {
     const desiredSkills = Array.from(new Set([...requiredSkills, ...resolvedRequestedSkills]));
 
     return {
-      adapterConfig: writePaperclipSkillSyncPreference(adapterConfig, desiredSkills),
+      adapterConfig: writeCrewSpaceSkillSyncPreference(adapterConfig, desiredSkills),
       desiredSkills,
       runtimeSkillEntries,
     };
@@ -730,7 +730,7 @@ export function agentRoutes(db: Db) {
 
     const adapter = findServerAdapter(agent.adapterType);
     if (!adapter?.listSkills) {
-      const preference = readPaperclipSkillSyncPreference(
+      const preference = readCrewSpaceSkillSyncPreference(
         agent.adapterConfig as Record<string, unknown>,
       );
       const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId, {
@@ -813,7 +813,7 @@ export function agentRoutes(db: Db) {
       );
       const runtimeSkillConfig = {
         ...runtimeConfig,
-        paperclipRuntimeSkills: runtimeSkillEntries,
+        crewspaceRuntimeSkills: runtimeSkillEntries,
       };
       const snapshot = adapter?.syncSkills
         ? await adapter.syncSkills({
@@ -2443,7 +2443,7 @@ export function agentRoutes(db: Db) {
 
     const cfg = agent.adapterConfig as Record<string, unknown> | null;
     const claudeCmd = typeof cfg?.command === "string" && cfg.command ? cfg.command : "claude";
-    const homeDir = process.env.PAPERCLIP_HOME ?? "/paperclip";
+    const homeDir = process.env.CREWSPACE_HOME ?? "/crewspace";
 
     // Open SSE stream immediately so the browser doesn't wait
     res.setHeader("Content-Type", "text/event-stream");

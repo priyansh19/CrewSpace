@@ -12,9 +12,9 @@ import {
   type DeploymentMode,
   type SecretProvider,
   type StorageProvider,
-} from "@paperclipai/shared";
+} from "@crewspaceai/shared";
 import { configExists, readConfig, resolveConfigPath, writeConfig } from "../config/store.js";
-import type { PaperclipConfig } from "../config/schema.js";
+import type { CrewSpaceConfig } from "../config/schema.js";
 import { ensureAgentJwtSecret, resolveAgentJwtEnvFile } from "../config/env.js";
 import { ensureLocalSecretsKeyFile } from "../config/secrets-key.js";
 import { promptDatabase } from "../prompts/database.js";
@@ -29,10 +29,10 @@ import {
   resolveDefaultBackupDir,
   resolveDefaultEmbeddedPostgresDir,
   resolveDefaultLogsDir,
-  resolvePaperclipInstanceId,
+  resolveCrewSpaceInstanceId,
 } from "../config/home.js";
 import { bootstrapCeoInvite } from "./auth-bootstrap-ceo.js";
-import { printPaperclipCliBanner } from "../utils/banner.js";
+import { printCrewSpaceCliBanner } from "../utils/banner.js";
 
 type SetupMode = "quickstart" | "advanced";
 
@@ -43,35 +43,35 @@ type OnboardOptions = {
   invokedByRun?: boolean;
 };
 
-type OnboardDefaults = Pick<PaperclipConfig, "database" | "logging" | "server" | "auth" | "storage" | "secrets">;
+type OnboardDefaults = Pick<CrewSpaceConfig, "database" | "logging" | "server" | "auth" | "storage" | "secrets">;
 
 const ONBOARD_ENV_KEYS = [
-  "PAPERCLIP_PUBLIC_URL",
+  "CREWSPACE_PUBLIC_URL",
   "DATABASE_URL",
-  "PAPERCLIP_DB_BACKUP_ENABLED",
-  "PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES",
-  "PAPERCLIP_DB_BACKUP_RETENTION_DAYS",
-  "PAPERCLIP_DB_BACKUP_DIR",
-  "PAPERCLIP_DEPLOYMENT_MODE",
-  "PAPERCLIP_DEPLOYMENT_EXPOSURE",
+  "CREWSPACE_DB_BACKUP_ENABLED",
+  "CREWSPACE_DB_BACKUP_INTERVAL_MINUTES",
+  "CREWSPACE_DB_BACKUP_RETENTION_DAYS",
+  "CREWSPACE_DB_BACKUP_DIR",
+  "CREWSPACE_DEPLOYMENT_MODE",
+  "CREWSPACE_DEPLOYMENT_EXPOSURE",
   "HOST",
   "PORT",
   "SERVE_UI",
-  "PAPERCLIP_ALLOWED_HOSTNAMES",
-  "PAPERCLIP_AUTH_BASE_URL_MODE",
-  "PAPERCLIP_AUTH_PUBLIC_BASE_URL",
+  "CREWSPACE_ALLOWED_HOSTNAMES",
+  "CREWSPACE_AUTH_BASE_URL_MODE",
+  "CREWSPACE_AUTH_PUBLIC_BASE_URL",
   "BETTER_AUTH_URL",
   "BETTER_AUTH_BASE_URL",
-  "PAPERCLIP_STORAGE_PROVIDER",
-  "PAPERCLIP_STORAGE_LOCAL_DIR",
-  "PAPERCLIP_STORAGE_S3_BUCKET",
-  "PAPERCLIP_STORAGE_S3_REGION",
-  "PAPERCLIP_STORAGE_S3_ENDPOINT",
-  "PAPERCLIP_STORAGE_S3_PREFIX",
-  "PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE",
-  "PAPERCLIP_SECRETS_PROVIDER",
-  "PAPERCLIP_SECRETS_STRICT_MODE",
-  "PAPERCLIP_SECRETS_MASTER_KEY_FILE",
+  "CREWSPACE_STORAGE_PROVIDER",
+  "CREWSPACE_STORAGE_LOCAL_DIR",
+  "CREWSPACE_STORAGE_S3_BUCKET",
+  "CREWSPACE_STORAGE_S3_REGION",
+  "CREWSPACE_STORAGE_S3_ENDPOINT",
+  "CREWSPACE_STORAGE_S3_PREFIX",
+  "CREWSPACE_STORAGE_S3_FORCE_PATH_STYLE",
+  "CREWSPACE_SECRETS_PROVIDER",
+  "CREWSPACE_SECRETS_STRICT_MODE",
+  "CREWSPACE_SECRETS_MASTER_KEY_FILE",
 ] as const;
 
 function parseBooleanFromEnv(rawValue: string | undefined): boolean | null {
@@ -104,32 +104,32 @@ function quickstartDefaultsFromEnv(): {
   usedEnvKeys: string[];
   ignoredEnvKeys: Array<{ key: string; reason: string }>;
 } {
-  const instanceId = resolvePaperclipInstanceId();
+  const instanceId = resolveCrewSpaceInstanceId();
   const defaultStorage = defaultStorageConfig();
   const defaultSecrets = defaultSecretsConfig();
   const databaseUrl = process.env.DATABASE_URL?.trim() || undefined;
   const publicUrl =
-    process.env.PAPERCLIP_PUBLIC_URL?.trim() ||
-    process.env.PAPERCLIP_AUTH_PUBLIC_BASE_URL?.trim() ||
+    process.env.CREWSPACE_PUBLIC_URL?.trim() ||
+    process.env.CREWSPACE_AUTH_PUBLIC_BASE_URL?.trim() ||
     process.env.BETTER_AUTH_URL?.trim() ||
     process.env.BETTER_AUTH_BASE_URL?.trim() ||
     undefined;
   const deploymentMode =
-    parseEnumFromEnv<DeploymentMode>(process.env.PAPERCLIP_DEPLOYMENT_MODE, DEPLOYMENT_MODES) ?? "local_trusted";
+    parseEnumFromEnv<DeploymentMode>(process.env.CREWSPACE_DEPLOYMENT_MODE, DEPLOYMENT_MODES) ?? "local_trusted";
   const deploymentExposureFromEnv = parseEnumFromEnv<DeploymentExposure>(
-    process.env.PAPERCLIP_DEPLOYMENT_EXPOSURE,
+    process.env.CREWSPACE_DEPLOYMENT_EXPOSURE,
     DEPLOYMENT_EXPOSURES,
   );
   const deploymentExposure =
     deploymentMode === "local_trusted" ? "private" : (deploymentExposureFromEnv ?? "private");
   const authPublicBaseUrl = publicUrl;
   const authBaseUrlModeFromEnv = parseEnumFromEnv<AuthBaseUrlMode>(
-    process.env.PAPERCLIP_AUTH_BASE_URL_MODE,
+    process.env.CREWSPACE_AUTH_BASE_URL_MODE,
     AUTH_BASE_URL_MODES,
   );
   const authBaseUrlMode = authBaseUrlModeFromEnv ?? (authPublicBaseUrl ? "explicit" : "auto");
-  const allowedHostnamesFromEnv = process.env.PAPERCLIP_ALLOWED_HOSTNAMES
-    ? process.env.PAPERCLIP_ALLOWED_HOSTNAMES
+  const allowedHostnamesFromEnv = process.env.CREWSPACE_ALLOWED_HOSTNAMES
+    ? process.env.CREWSPACE_ALLOWED_HOSTNAMES
       .split(",")
       .map((value) => value.trim().toLowerCase())
       .filter((value) => value.length > 0)
@@ -144,19 +144,19 @@ function quickstartDefaultsFromEnv(): {
     })()
     : null;
   const storageProvider =
-    parseEnumFromEnv<StorageProvider>(process.env.PAPERCLIP_STORAGE_PROVIDER, STORAGE_PROVIDERS) ??
+    parseEnumFromEnv<StorageProvider>(process.env.CREWSPACE_STORAGE_PROVIDER, STORAGE_PROVIDERS) ??
     defaultStorage.provider;
   const secretsProvider =
-    parseEnumFromEnv<SecretProvider>(process.env.PAPERCLIP_SECRETS_PROVIDER, SECRET_PROVIDERS) ??
+    parseEnumFromEnv<SecretProvider>(process.env.CREWSPACE_SECRETS_PROVIDER, SECRET_PROVIDERS) ??
     defaultSecrets.provider;
-  const databaseBackupEnabled = parseBooleanFromEnv(process.env.PAPERCLIP_DB_BACKUP_ENABLED) ?? true;
+  const databaseBackupEnabled = parseBooleanFromEnv(process.env.CREWSPACE_DB_BACKUP_ENABLED) ?? true;
   const databaseBackupIntervalMinutes = Math.max(
     1,
-    parseNumberFromEnv(process.env.PAPERCLIP_DB_BACKUP_INTERVAL_MINUTES) ?? 60,
+    parseNumberFromEnv(process.env.CREWSPACE_DB_BACKUP_INTERVAL_MINUTES) ?? 60,
   );
   const databaseBackupRetentionDays = Math.max(
     1,
-    parseNumberFromEnv(process.env.PAPERCLIP_DB_BACKUP_RETENTION_DAYS) ?? 30,
+    parseNumberFromEnv(process.env.CREWSPACE_DB_BACKUP_RETENTION_DAYS) ?? 30,
   );
   const defaults: OnboardDefaults = {
     database: {
@@ -168,7 +168,7 @@ function quickstartDefaultsFromEnv(): {
         enabled: databaseBackupEnabled,
         intervalMinutes: databaseBackupIntervalMinutes,
         retentionDays: databaseBackupRetentionDays,
-        dir: resolvePathFromEnv(process.env.PAPERCLIP_DB_BACKUP_DIR) ?? resolveDefaultBackupDir(instanceId),
+        dir: resolvePathFromEnv(process.env.CREWSPACE_DB_BACKUP_DIR) ?? resolveDefaultBackupDir(instanceId),
       },
     },
     logging: {
@@ -192,32 +192,32 @@ function quickstartDefaultsFromEnv(): {
       provider: storageProvider,
       localDisk: {
         baseDir:
-          resolvePathFromEnv(process.env.PAPERCLIP_STORAGE_LOCAL_DIR) ?? defaultStorage.localDisk.baseDir,
+          resolvePathFromEnv(process.env.CREWSPACE_STORAGE_LOCAL_DIR) ?? defaultStorage.localDisk.baseDir,
       },
       s3: {
-        bucket: process.env.PAPERCLIP_STORAGE_S3_BUCKET ?? defaultStorage.s3.bucket,
-        region: process.env.PAPERCLIP_STORAGE_S3_REGION ?? defaultStorage.s3.region,
-        endpoint: process.env.PAPERCLIP_STORAGE_S3_ENDPOINT ?? defaultStorage.s3.endpoint,
-        prefix: process.env.PAPERCLIP_STORAGE_S3_PREFIX ?? defaultStorage.s3.prefix,
+        bucket: process.env.CREWSPACE_STORAGE_S3_BUCKET ?? defaultStorage.s3.bucket,
+        region: process.env.CREWSPACE_STORAGE_S3_REGION ?? defaultStorage.s3.region,
+        endpoint: process.env.CREWSPACE_STORAGE_S3_ENDPOINT ?? defaultStorage.s3.endpoint,
+        prefix: process.env.CREWSPACE_STORAGE_S3_PREFIX ?? defaultStorage.s3.prefix,
         forcePathStyle:
-          parseBooleanFromEnv(process.env.PAPERCLIP_STORAGE_S3_FORCE_PATH_STYLE) ??
+          parseBooleanFromEnv(process.env.CREWSPACE_STORAGE_S3_FORCE_PATH_STYLE) ??
           defaultStorage.s3.forcePathStyle,
       },
     },
     secrets: {
       provider: secretsProvider,
-      strictMode: parseBooleanFromEnv(process.env.PAPERCLIP_SECRETS_STRICT_MODE) ?? defaultSecrets.strictMode,
+      strictMode: parseBooleanFromEnv(process.env.CREWSPACE_SECRETS_STRICT_MODE) ?? defaultSecrets.strictMode,
       localEncrypted: {
         keyFilePath:
-          resolvePathFromEnv(process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE) ??
+          resolvePathFromEnv(process.env.CREWSPACE_SECRETS_MASTER_KEY_FILE) ??
           defaultSecrets.localEncrypted.keyFilePath,
       },
     },
   };
   const ignoredEnvKeys: Array<{ key: string; reason: string }> = [];
-  if (deploymentMode === "local_trusted" && process.env.PAPERCLIP_DEPLOYMENT_EXPOSURE !== undefined) {
+  if (deploymentMode === "local_trusted" && process.env.CREWSPACE_DEPLOYMENT_EXPOSURE !== undefined) {
     ignoredEnvKeys.push({
-      key: "PAPERCLIP_DEPLOYMENT_EXPOSURE",
+      key: "CREWSPACE_DEPLOYMENT_EXPOSURE",
       reason: "Ignored because deployment mode local_trusted always forces private exposure",
     });
   }
@@ -229,22 +229,22 @@ function quickstartDefaultsFromEnv(): {
   return { defaults, usedEnvKeys, ignoredEnvKeys };
 }
 
-function canCreateBootstrapInviteImmediately(config: Pick<PaperclipConfig, "database" | "server">): boolean {
+function canCreateBootstrapInviteImmediately(config: Pick<CrewSpaceConfig, "database" | "server">): boolean {
   return config.server.deploymentMode === "authenticated" && config.database.mode !== "embedded-postgres";
 }
 
 export async function onboard(opts: OnboardOptions): Promise<void> {
-  printPaperclipCliBanner();
-  p.intro(pc.bgCyan(pc.black(" paperclipai onboard ")));
+  printCrewSpaceCliBanner();
+  p.intro(pc.bgCyan(pc.black(" crewspaceai onboard ")));
   const configPath = resolveConfigPath(opts.config);
-  const instance = describeLocalInstancePaths(resolvePaperclipInstanceId());
+  const instance = describeLocalInstancePaths(resolveCrewSpaceInstanceId());
   p.log.message(
     pc.dim(
       `Local home: ${instance.homeDir} | instance: ${instance.instanceId} | config: ${configPath}`,
     ),
   );
 
-  let existingConfig: PaperclipConfig | null = null;
+  let existingConfig: CrewSpaceConfig | null = null;
   if (configExists(opts.config)) {
     p.log.message(pc.dim(`${configPath} exists`));
 
@@ -261,18 +261,18 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
 
   if (existingConfig) {
     p.log.message(
-      pc.dim("Existing Paperclip install detected; keeping the current configuration unchanged."),
+      pc.dim("Existing CrewSpace install detected; keeping the current configuration unchanged."),
     );
-    p.log.message(pc.dim(`Use ${pc.cyan("paperclipai configure")} if you want to change settings.`));
+    p.log.message(pc.dim(`Use ${pc.cyan("crewspaceai configure")} if you want to change settings.`));
 
     const jwtSecret = ensureAgentJwtSecret(configPath);
     const envFilePath = resolveAgentJwtEnvFile(configPath);
     if (jwtSecret.created) {
-      p.log.success(`Created ${pc.cyan("PAPERCLIP_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
-    } else if (process.env.PAPERCLIP_AGENT_JWT_SECRET?.trim()) {
-      p.log.info(`Using existing ${pc.cyan("PAPERCLIP_AGENT_JWT_SECRET")} from environment`);
+      p.log.success(`Created ${pc.cyan("CREWSPACE_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
+    } else if (process.env.CREWSPACE_AGENT_JWT_SECRET?.trim()) {
+      p.log.info(`Using existing ${pc.cyan("CREWSPACE_AGENT_JWT_SECRET")} from environment`);
     } else {
-      p.log.info(`Using existing ${pc.cyan("PAPERCLIP_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
+      p.log.info(`Using existing ${pc.cyan("CREWSPACE_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
     }
 
     const keyResult = ensureLocalSecretsKeyFile(existingConfig, configPath);
@@ -293,16 +293,16 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
         `Auth URL mode: ${existingConfig.auth.baseUrlMode}${existingConfig.auth.publicBaseUrl ? ` (${existingConfig.auth.publicBaseUrl})` : ""}`,
         `Storage: ${existingConfig.storage.provider}`,
         `Secrets: ${existingConfig.secrets.provider} (strict mode ${existingConfig.secrets.strictMode ? "on" : "off"})`,
-        "Agent auth: PAPERCLIP_AGENT_JWT_SECRET configured",
+        "Agent auth: CREWSPACE_AGENT_JWT_SECRET configured",
       ].join("\n"),
       "Configuration ready",
     );
 
     p.note(
       [
-        `Run: ${pc.cyan("paperclipai run")}`,
-        `Reconfigure later: ${pc.cyan("paperclipai configure")}`,
-        `Diagnose setup: ${pc.cyan("paperclipai doctor")}`,
+        `Run: ${pc.cyan("crewspaceai run")}`,
+        `Reconfigure later: ${pc.cyan("crewspaceai configure")}`,
+        `Diagnose setup: ${pc.cyan("crewspaceai doctor")}`,
       ].join("\n"),
       "Next commands",
     );
@@ -310,7 +310,7 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
     let shouldRunNow = opts.run === true || opts.yes === true;
     if (!shouldRunNow && !opts.invokedByRun && process.stdin.isTTY && process.stdout.isTTY) {
       const answer = await p.confirm({
-        message: "Start Paperclip now?",
+        message: "Start CrewSpace now?",
         initialValue: true,
       });
       if (!p.isCancel(answer)) {
@@ -319,13 +319,13 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
     }
 
     if (shouldRunNow && !opts.invokedByRun) {
-      process.env.PAPERCLIP_OPEN_ON_LISTEN = "true";
+      process.env.CREWSPACE_OPEN_ON_LISTEN = "true";
       const { runCommand } = await import("./run.js");
       await runCommand({ config: configPath, repair: true, yes: true });
       return;
     }
 
-    p.outro("Existing Paperclip setup is ready.");
+    p.outro("Existing CrewSpace setup is ready.");
     return;
   }
 
@@ -356,7 +356,7 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
     setupMode = setupModeChoice as SetupMode;
   }
 
-  let llm: PaperclipConfig["llm"] | undefined;
+  let llm: CrewSpaceConfig["llm"] | undefined;
   const { defaults: derivedDefaults, usedEnvKeys, ignoredEnvKeys } = quickstartDefaultsFromEnv();
   let {
     database,
@@ -375,12 +375,12 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
       const s = p.spinner();
       s.start("Testing database connection...");
       try {
-        const { createDb } = await import("@paperclipai/db");
+        const { createDb } = await import("@crewspaceai/db");
         const db = createDb(database.connectionString);
         await db.execute("SELECT 1");
         s.stop("Database connection successful");
       } catch {
-        s.stop(pc.yellow("Could not connect to database — you can fix this later with `paperclipai doctor`"));
+        s.stop(pc.yellow("Could not connect to database — you can fix this later with `crewspaceai doctor`"));
       }
     }
 
@@ -470,14 +470,14 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
   const jwtSecret = ensureAgentJwtSecret(configPath);
   const envFilePath = resolveAgentJwtEnvFile(configPath);
   if (jwtSecret.created) {
-    p.log.success(`Created ${pc.cyan("PAPERCLIP_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
-  } else if (process.env.PAPERCLIP_AGENT_JWT_SECRET?.trim()) {
-    p.log.info(`Using existing ${pc.cyan("PAPERCLIP_AGENT_JWT_SECRET")} from environment`);
+    p.log.success(`Created ${pc.cyan("CREWSPACE_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
+  } else if (process.env.CREWSPACE_AGENT_JWT_SECRET?.trim()) {
+    p.log.info(`Using existing ${pc.cyan("CREWSPACE_AGENT_JWT_SECRET")} from environment`);
   } else {
-    p.log.info(`Using existing ${pc.cyan("PAPERCLIP_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
+    p.log.info(`Using existing ${pc.cyan("CREWSPACE_AGENT_JWT_SECRET")} in ${pc.dim(envFilePath)}`);
   }
 
-  const config: PaperclipConfig = {
+  const config: CrewSpaceConfig = {
     $meta: {
       version: 1,
       updatedAt: new Date().toISOString(),
@@ -511,16 +511,16 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
       `Auth URL mode: ${auth.baseUrlMode}${auth.publicBaseUrl ? ` (${auth.publicBaseUrl})` : ""}`,
       `Storage: ${storage.provider}`,
       `Secrets: ${secrets.provider} (strict mode ${secrets.strictMode ? "on" : "off"})`,
-      "Agent auth: PAPERCLIP_AGENT_JWT_SECRET configured",
+      "Agent auth: CREWSPACE_AGENT_JWT_SECRET configured",
     ].join("\n"),
     "Configuration saved",
   );
 
   p.note(
     [
-      `Run: ${pc.cyan("paperclipai run")}`,
-      `Reconfigure later: ${pc.cyan("paperclipai configure")}`,
-      `Diagnose setup: ${pc.cyan("paperclipai doctor")}`,
+      `Run: ${pc.cyan("crewspaceai run")}`,
+      `Reconfigure later: ${pc.cyan("crewspaceai configure")}`,
+      `Diagnose setup: ${pc.cyan("crewspaceai doctor")}`,
     ].join("\n"),
     "Next commands",
   );
@@ -533,7 +533,7 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
   let shouldRunNow = opts.run === true || opts.yes === true;
   if (!shouldRunNow && !opts.invokedByRun && process.stdin.isTTY && process.stdout.isTTY) {
     const answer = await p.confirm({
-      message: "Start Paperclip now?",
+      message: "Start CrewSpace now?",
       initialValue: true,
     });
     if (!p.isCancel(answer)) {
@@ -542,7 +542,7 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
   }
 
   if (shouldRunNow && !opts.invokedByRun) {
-    process.env.PAPERCLIP_OPEN_ON_LISTEN = "true";
+    process.env.CREWSPACE_OPEN_ON_LISTEN = "true";
     const { runCommand } = await import("./run.js");
     await runCommand({ config: configPath, repair: true, yes: true });
     return;
@@ -552,8 +552,8 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
     p.log.info(
       [
         "Bootstrap CEO invite will be created after the server starts.",
-        `Next: ${pc.cyan("paperclipai run")}`,
-        `Then: ${pc.cyan("paperclipai auth bootstrap-ceo")}`,
+        `Next: ${pc.cyan("crewspaceai run")}`,
+        `Then: ${pc.cyan("crewspaceai auth bootstrap-ceo")}`,
       ].join("\n"),
     );
   }

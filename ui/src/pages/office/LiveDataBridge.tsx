@@ -7,7 +7,7 @@ import { heartbeatsApi } from "@/api/heartbeats";
 import { queryKeys } from "@/lib/queryKeys";
 import { useOfficeStore } from "@/stores/officeStore";
 
-/** Fetches Nexus backend data and feeds it into the office store */
+/** Fetches CrewSpace backend data and feeds it into the office store */
 const LiveDataBridge = () => {
   const { selectedCompanyId } = useCompany();
   const setBackendSnapshot = useOfficeStore((s) => s.setBackendSnapshot);

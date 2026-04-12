@@ -1,4 +1,4 @@
-# @paperclipai/adapter-utils
+# @crewspace/adapter-utils
 
 ## 0.3.1
 

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 const MAX_SESSIONS = 50;
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@crewspaceai/shared";
 
 export interface ChatMessage {
   id: string;
@@ -26,6 +26,7 @@ interface ChatContextValue {
   openChatWithAgent: (agent: Agent) => void;
   openChatWithAgents: (agents: Agent[]) => void;
   updateSession: (id: string, messages: ChatMessage[], participants: Agent[]) => void;
+  bulkInitSessions: (agents: Agent[]) => void;
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
 }
@@ -93,9 +94,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // Creates one session per agent — only runs when sessions list is empty (first load)
+  const bulkInitSessions = useCallback((agents: Agent[]) => {
+    setSessions((prev) => {
+      if (prev.length > 0) return prev;
+      return agents.map((agent, i) => ({
+        id: `session-init-${agent.id}`,
+        primaryAgentId: agent.id,
+        participants: [agent],
+        messages: [],
+        updatedAt: new Date(Date.now() - i * 1000),
+      }));
+    });
+  }, []);
+
   return (
     <ChatContext.Provider
-      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, updateSession, isChatOpen, setIsChatOpen }}
+      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, updateSession, bulkInitSessions, isChatOpen, setIsChatOpen }}
     >
       {children}
     </ChatContext.Provider>

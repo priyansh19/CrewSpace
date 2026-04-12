@@ -34,37 +34,37 @@ importers:
       '@clack/prompts':
         specifier: ^0.10.0
         version: 0.10.1
-      '@paperclipai/adapter-claude-local':
+      '@crewspaceai/adapter-claude-local':
         specifier: workspace:*
         version: link:../packages/adapters/claude-local
-      '@paperclipai/adapter-codex-local':
+      '@crewspaceai/adapter-codex-local':
         specifier: workspace:*
         version: link:../packages/adapters/codex-local
-      '@paperclipai/adapter-cursor-local':
+      '@crewspaceai/adapter-cursor-local':
         specifier: workspace:*
         version: link:../packages/adapters/cursor-local
-      '@paperclipai/adapter-gemini-local':
+      '@crewspaceai/adapter-gemini-local':
         specifier: workspace:*
         version: link:../packages/adapters/gemini-local
-      '@paperclipai/adapter-openclaw-gateway':
+      '@crewspaceai/adapter-openclaw-gateway':
         specifier: workspace:*
         version: link:../packages/adapters/openclaw-gateway
-      '@paperclipai/adapter-opencode-local':
+      '@crewspaceai/adapter-opencode-local':
         specifier: workspace:*
         version: link:../packages/adapters/opencode-local
-      '@paperclipai/adapter-pi-local':
+      '@crewspaceai/adapter-pi-local':
         specifier: workspace:*
         version: link:../packages/adapters/pi-local
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../packages/adapter-utils
-      '@paperclipai/db':
+      '@crewspaceai/db':
         specifier: workspace:*
         version: link:../packages/db
-      '@paperclipai/server':
+      '@crewspaceai/server':
         specifier: workspace:*
         version: link:../server
-      '@paperclipai/shared':
+      '@crewspaceai/shared':
         specifier: workspace:*
         version: link:../packages/shared
       commander:
@@ -104,7 +104,7 @@ importers:
 
   packages/adapters/claude-local:
     dependencies:
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
       picocolors:
@@ -120,7 +120,7 @@ importers:
 
   packages/adapters/codex-local:
     dependencies:
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
       picocolors:
@@ -136,7 +136,7 @@ importers:
 
   packages/adapters/cursor-local:
     dependencies:
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
       picocolors:
@@ -152,7 +152,7 @@ importers:
 
   packages/adapters/gemini-local:
     dependencies:
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
       picocolors:
@@ -166,9 +166,18 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  packages/adapters/hermes-crewspace-adapter:
+    dependencies:
+      '@crewspaceai/adapter-utils':
+        specifier: workspace:*
+        version: link:../../adapter-utils
+      picocolors:
+        specifier: ^1.1.0
+        version: 1.1.1
+
   packages/adapters/openclaw-gateway:
     dependencies:
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
       picocolors:
@@ -190,7 +199,7 @@ importers:
 
   packages/adapters/opencode-local:
     dependencies:
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
       picocolors:
@@ -206,7 +215,7 @@ importers:
 
   packages/adapters/pi-local:
     dependencies:
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../../adapter-utils
       picocolors:
@@ -222,7 +231,7 @@ importers:
 
   packages/db:
     dependencies:
-      '@paperclipai/shared':
+      '@crewspaceai/shared':
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
@@ -251,9 +260,9 @@ importers:
         specifier: ^3.0.5
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.12.0)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.30.2)(tsx@4.21.0)
 
-  packages/plugins/create-paperclip-plugin:
+  packages/plugins/create-crewspace-plugin:
     dependencies:
-      '@paperclipai/plugin-sdk':
+      '@crewspaceai/plugin-sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:
@@ -266,7 +275,7 @@ importers:
 
   packages/plugins/examples/plugin-authoring-smoke-example:
     dependencies:
-      '@paperclipai/plugin-sdk':
+      '@crewspaceai/plugin-sdk':
         specifier: workspace:*
         version: link:../../sdk
       react:
@@ -315,12 +324,12 @@ importers:
       '@codemirror/view':
         specifier: ^6.28.0
         version: 6.39.15
+      '@crewspaceai/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../sdk
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
-      '@paperclipai/plugin-sdk':
-        specifier: workspace:*
-        version: link:../../sdk
       codemirror:
         specifier: ^6.0.1
         version: 6.0.2
@@ -349,7 +358,7 @@ importers:
 
   packages/plugins/examples/plugin-hello-world-example:
     dependencies:
-      '@paperclipai/plugin-sdk':
+      '@crewspaceai/plugin-sdk':
         specifier: workspace:*
         version: link:../../sdk
     devDependencies:
@@ -374,10 +383,10 @@ importers:
 
   packages/plugins/examples/plugin-kitchen-sink-example:
     dependencies:
-      '@paperclipai/plugin-sdk':
+      '@crewspaceai/plugin-sdk':
         specifier: workspace:*
         version: link:../../sdk
-      '@paperclipai/shared':
+      '@crewspaceai/shared':
         specifier: workspace:*
         version: link:../../../shared
     devDependencies:
@@ -405,7 +414,7 @@ importers:
 
   packages/plugins/sdk:
     dependencies:
-      '@paperclipai/shared':
+      '@crewspaceai/shared':
         specifier: workspace:*
         version: link:../../shared
       react:
@@ -440,37 +449,37 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.888.0
         version: 3.994.0
-      '@paperclipai/adapter-claude-local':
+      '@crewspaceai/adapter-claude-local':
         specifier: workspace:*
         version: link:../packages/adapters/claude-local
-      '@paperclipai/adapter-codex-local':
+      '@crewspaceai/adapter-codex-local':
         specifier: workspace:*
         version: link:../packages/adapters/codex-local
-      '@paperclipai/adapter-cursor-local':
+      '@crewspaceai/adapter-cursor-local':
         specifier: workspace:*
         version: link:../packages/adapters/cursor-local
-      '@paperclipai/adapter-gemini-local':
+      '@crewspaceai/adapter-gemini-local':
         specifier: workspace:*
         version: link:../packages/adapters/gemini-local
-      '@paperclipai/adapter-openclaw-gateway':
+      '@crewspaceai/adapter-openclaw-gateway':
         specifier: workspace:*
         version: link:../packages/adapters/openclaw-gateway
-      '@paperclipai/adapter-opencode-local':
+      '@crewspaceai/adapter-opencode-local':
         specifier: workspace:*
         version: link:../packages/adapters/opencode-local
-      '@paperclipai/adapter-pi-local':
+      '@crewspaceai/adapter-pi-local':
         specifier: workspace:*
         version: link:../packages/adapters/pi-local
-      '@paperclipai/adapter-utils':
+      '@crewspaceai/adapter-utils':
         specifier: workspace:*
         version: link:../packages/adapter-utils
-      '@paperclipai/db':
+      '@crewspaceai/db':
         specifier: workspace:*
         version: link:../packages/db
-      '@paperclipai/plugin-sdk':
+      '@crewspaceai/plugin-sdk':
         specifier: workspace:*
         version: link:../packages/plugins/sdk
-      '@paperclipai/shared':
+      '@crewspaceai/shared':
         specifier: workspace:*
         version: link:../packages/shared
       ajv:
@@ -503,9 +512,9 @@ importers:
       express:
         specifier: ^5.1.0
         version: 5.2.1
-      hermes-paperclip-adapter:
-        specifier: ^0.2.0
-        version: 0.2.0
+      hermes-crewspace-adapter:
+        specifier: workspace:*
+        version: link:../packages/adapters/hermes-crewspace-adapter
       jsdom:
         specifier: ^28.1.0
         version: 28.1.0(@noble/hashes@2.0.1)
@@ -579,6 +588,33 @@ importers:
 
   ui:
     dependencies:
+      '@crewspaceai/adapter-claude-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/claude-local
+      '@crewspaceai/adapter-codex-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/codex-local
+      '@crewspaceai/adapter-cursor-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/cursor-local
+      '@crewspaceai/adapter-gemini-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/gemini-local
+      '@crewspaceai/adapter-openclaw-gateway':
+        specifier: workspace:*
+        version: link:../packages/adapters/openclaw-gateway
+      '@crewspaceai/adapter-opencode-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/opencode-local
+      '@crewspaceai/adapter-pi-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/pi-local
+      '@crewspaceai/adapter-utils':
+        specifier: workspace:*
+        version: link:../packages/adapter-utils
+      '@crewspaceai/shared':
+        specifier: workspace:*
+        version: link:../packages/shared
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -594,33 +630,6 @@ importers:
       '@mdxeditor/editor':
         specifier: ^3.52.4
         version: 3.52.4(@codemirror/language@6.12.1)(@lezer/highlight@1.2.3)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yjs@13.6.29)
-      '@paperclipai/adapter-claude-local':
-        specifier: workspace:*
-        version: link:../packages/adapters/claude-local
-      '@paperclipai/adapter-codex-local':
-        specifier: workspace:*
-        version: link:../packages/adapters/codex-local
-      '@paperclipai/adapter-cursor-local':
-        specifier: workspace:*
-        version: link:../packages/adapters/cursor-local
-      '@paperclipai/adapter-gemini-local':
-        specifier: workspace:*
-        version: link:../packages/adapters/gemini-local
-      '@paperclipai/adapter-openclaw-gateway':
-        specifier: workspace:*
-        version: link:../packages/adapters/openclaw-gateway
-      '@paperclipai/adapter-opencode-local':
-        specifier: workspace:*
-        version: link:../packages/adapters/opencode-local
-      '@paperclipai/adapter-pi-local':
-        specifier: workspace:*
-        version: link:../packages/adapters/pi-local
-      '@paperclipai/adapter-utils':
-        specifier: workspace:*
-        version: link:../packages/adapter-utils
-      '@paperclipai/shared':
-        specifier: workspace:*
-        version: link:../packages/shared
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@19.2.14)(react@19.2.4)
@@ -645,9 +654,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      hermes-paperclip-adapter:
-        specifier: ^0.2.0
-        version: 0.2.0
+      hermes-crewspace-adapter:
+        specifier: workspace:*
+        version: link:../packages/adapters/hermes-crewspace-adapter
       lexical:
         specifier: 0.35.0
         version: 0.35.0
@@ -2068,9 +2077,6 @@ packages:
 
   '@open-draft/deferred-promise@2.2.0':
     resolution: {integrity: sha512-CecwLWx3rhxVQF6V4bAgPS5t+So2sTbPgAzafKkVizyi7tlwpcFpdFqq+wqF2OwNBmqFuu6tOyouTuxgpMfzmA==}
-
-  '@paperclipai/adapter-utils@2026.325.0':
-    resolution: {integrity: sha512-YDVSAgjkeJ0PvxXDJVN9MZDX7oYRzidLtGHmGgRGd6gSk/bF2ygAKvND4FI1YxDc/cRLQjqAFCpCYaC/9wqIEA==}
 
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
@@ -4592,10 +4598,6 @@ packages:
 
   help-me@5.0.0:
     resolution: {integrity: sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg==}
-
-  hermes-paperclip-adapter@0.2.0:
-    resolution: {integrity: sha512-6CP5vxfvY4jY9XJK5zu4ZUL9aB7HHNtEMk6q7m1Pu9Gzoby1Vx5VNmVqte3NUO+1cvVK9Arj1f67xLagWkbo5Q==}
-    engines: {node: '>=20.0.0'}
 
   hls.js@1.6.15:
     resolution: {integrity: sha512-E3a5VwgXimGHwpRGV+WxRTKeSp2DW5DI5MWv34ulL3t5UNmyJWCQ1KmLEHbYzcfThfXG8amBL+fCYPneGHC4VA==}
@@ -8006,8 +8008,6 @@ snapshots:
 
   '@open-draft/deferred-promise@2.2.0': {}
 
-  '@paperclipai/adapter-utils@2026.325.0': {}
-
   '@paralleldrive/cuid2@2.3.1':
     dependencies:
       '@noble/hashes': 1.8.0
@@ -10708,11 +10708,6 @@ snapshots:
       '@types/hast': 3.0.4
 
   help-me@5.0.0: {}
-
-  hermes-paperclip-adapter@0.2.0:
-    dependencies:
-      '@paperclipai/adapter-utils': 2026.325.0
-      picocolors: 1.1.1
 
   hls.js@1.6.15: {}
 

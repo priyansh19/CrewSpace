@@ -20,4 +20,18 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react":  ["react", "react-dom", "react-router-dom"],
+          "vendor-three":  ["three"],
+          "vendor-r3f":    ["@react-three/fiber", "@react-three/drei"],
+          "vendor-ui":     ["lucide-react", "clsx", "tailwind-merge", "class-variance-authority"],
+          "vendor-query":  ["@tanstack/react-query"],
+          "vendor-editor": ["@mdxeditor/editor", "lexical"],
+        },
+      },
+    },
+  },
 });

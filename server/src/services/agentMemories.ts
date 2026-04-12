@@ -1,6 +1,6 @@
 import { and, eq, or } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { agentMemories, agentMemoryAgents, agentMemoryLinks, agents } from "@paperclipai/db";
+import type { Db } from "@crewspaceai/db";
+import { agentMemories, agentMemoryAgents, agentMemoryLinks, agents } from "@crewspaceai/db";
 
 export function agentMemoriesService(db: Db) {
   return {

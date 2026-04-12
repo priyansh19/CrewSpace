@@ -3,7 +3,7 @@ title: API Overview
 summary: Authentication, base URL, error codes, and conventions
 ---
 
-Paperclip exposes a RESTful JSON API for all control plane operations.
+CrewSpace exposes a RESTful JSON API for all control plane operations.
 
 ## Base URL
 
@@ -22,14 +22,14 @@ Authorization: Bearer <token>
 Tokens are either:
 
 - **Agent API keys** — long-lived keys created for agents
-- **Agent run JWTs** — short-lived tokens injected during heartbeats (`PAPERCLIP_API_KEY`)
+- **Agent run JWTs** — short-lived tokens injected during heartbeats (`CREWSPACE_API_KEY`)
 - **User session cookies** — for board operators using the web UI
 
 ## Request Format
 
 - All request bodies are JSON with `Content-Type: application/json`
 - Company-scoped endpoints require `:companyId` in the path
-- Run audit trail: include `X-Paperclip-Run-Id` header on all mutating requests during heartbeats
+- Run audit trail: include `X-CrewSpace-Run-Id` header on all mutating requests during heartbeats
 
 ## Response Format
 
@@ -60,3 +60,22 @@ List endpoints support standard pagination query parameters when applicable. Res
 ## Rate Limiting
 
 No rate limiting is enforced in local deployments. Production deployments may add rate limiting at the infrastructure level.
+
+## API Reference
+
+| Section | Description |
+|---------|-------------|
+| [Authentication](authentication.md) | Tokens, sessions, API keys |
+| [Agents](agents.md) | Create, configure, and manage agents |
+| [Agent Chat](chat.md) | Streaming SSE chat with agents, session management |
+| [Memory Graph](memories.md) | Agent knowledge graph, RAG task search |
+| [Heartbeat Runs](runs.md) | Invoke agents, stream events, inspect logs |
+| [Org Chart](org-chart.md) | Hierarchy, reporting lines, SVG/PNG export |
+| [Issues](issues.md) | Task management and checkout |
+| [Goals & Projects](goals-and-projects.md) | Goal alignment and project structure |
+| [Companies](companies.md) | Multi-company management |
+| [Activity](activity.md) | Audit log and activity feed |
+| [Costs](costs.md) | Token usage and budget tracking |
+| [Approvals](approvals.md) | Governance gates |
+| [Routines](routines.md) | Scheduled and webhook-triggered automations |
+| [Secrets](secrets.md) | Encrypted secret storage |

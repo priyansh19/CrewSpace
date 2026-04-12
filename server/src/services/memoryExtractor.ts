@@ -7,7 +7,7 @@
  */
 
 import { spawn } from "node:child_process";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@crewspaceai/db";
 import { agentMemoriesService } from "./agentMemories.js";
 
 export interface ChatMessage {

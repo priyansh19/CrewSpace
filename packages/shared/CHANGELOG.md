@@ -1,4 +1,4 @@
-# @paperclipai/shared
+# @crewspace/shared
 
 ## 0.3.1
 

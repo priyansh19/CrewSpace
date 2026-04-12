@@ -1,5 +1,5 @@
 import { useGLTF, Clone, Html } from "@react-three/drei";
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { RoomId } from "@/stores/officeStore";
@@ -8,27 +8,28 @@ import { useOfficeStore } from "@/stores/officeStore";
 // Preload all furniture models at module load for immediate availability
 useGLTF.preload("/models/programmer_desktop_3d_pc.glb");
 useGLTF.preload("/models/chair.glb");
-useGLTF.preload("/models/desk.glb");
 useGLTF.preload("/models/monitor.glb");
 useGLTF.preload("/models/table.glb");
 useGLTF.preload("/models/table-round.glb");
 useGLTF.preload("/models/sofa.glb");
 useGLTF.preload("/models/whiteboard.glb");
-useGLTF.preload("/models/bed.glb");
 useGLTF.preload("/models/server-rack.glb");
 useGLTF.preload("/models/filing-cabinet.glb");
 // Upgraded models
 useGLTF.preload("/models/office_chair (4).glb");
 useGLTF.preload("/models/simple_bunk_bed.glb");
 useGLTF.preload("/models/rhyzome_plant.glb");
-// Store decor characters
-useGLTF.preload("/models/knuckles_sonic_rumble.glb");
+// Store staff
+useGLTF.preload("/models/agent-figure.glb");
 useGLTF.preload("/models/movie_sonic_sonic_rumble.glb");
 
 interface FurnitureProps {
   roomId: RoomId;
   position: [number, number, number];
 }
+
+// Nike store shoe color palette — module-level so it's never recreated
+const SCOLS = ["#cc2222","#1144cc","#111111","#ee8800","#22aa55","#ffffff","#8800aa","#cc5500"] as const;
 
 // Minimal cache for the few non-GLB primitives (net, TV frame, coffee table, ping pong ball)
 const _gc = new Map<string, THREE.BufferGeometry>();
@@ -66,9 +67,9 @@ const DevChair = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number 
 };
 
 // Programmer desktop — new GLB
-const DevWorkstation = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => {
+const DevWorkstation = ({ pos, rot = 0, scale = 0.075 }: { pos: [number,number,number]; rot?: number; scale?: number }) => {
   const { scene } = useGLTF("/models/programmer_desktop_3d_pc.glb");
-  return <Clone object={scene} position={[pos[0], pos[1] + 0.02, pos[2]]} rotation={[0, rot, 0]} scale={0.075} />;
+  return <Clone object={scene} position={[pos[0], pos[1] + 0.02, pos[2]]} rotation={[0, rot, 0]} scale={scale} />;
 };
 
 const Monitor = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => {
@@ -95,11 +96,6 @@ const Sofa = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) =
 const Whiteboard = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => {
   const { scene } = useGLTF("/models/whiteboard.glb");
   return <Clone object={scene} position={pos} rotation={[0, rot, 0]} />;
-};
-
-const Bed = ({ pos }: { pos: [number,number,number] }) => {
-  const { scene } = useGLTF("/models/bed.glb");
-  return <Clone object={scene} position={pos} />;
 };
 
 // Upgraded bunk bed
@@ -156,49 +152,10 @@ const ScreenPanel = ({ pos, w, h }: { pos: [number,number,number]; w: number; h:
   <mesh position={pos} geometry={sg("box", w, h, 0.01)} material={sm(SCR, 0.4, SCR, 0.1)} />
 );
 
-// ─── Nike staff (salesperson) — procedural humanoid ──────────────────────────
-const NikeStaff = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => (
-  <group position={pos} rotation={[0, rot, 0]}>
-    {/* Legs */}
-    <mesh position={[-0.09,0.22,0]} castShadow>
-      <cylinderGeometry args={[0.07,0.07,0.44,8]} />
-      <meshStandardMaterial color="#1a1a2a" roughness={0.8} />
-    </mesh>
-    <mesh position={[0.09,0.22,0]} castShadow>
-      <cylinderGeometry args={[0.07,0.07,0.44,8]} />
-      <meshStandardMaterial color="#1a1a2a" roughness={0.8} />
-    </mesh>
-    {/* Body — white Nike polo */}
-    <mesh position={[0,0.62,0]} castShadow>
-      <cylinderGeometry args={[0.15,0.17,0.52,10]} />
-      <meshStandardMaterial color="#f5f5f5" roughness={0.75} />
-    </mesh>
-    {/* Name badge */}
-    <mesh position={[0.06,0.72,0.16]}>
-      <boxGeometry args={[0.1,0.06,0.01]} />
-      <meshStandardMaterial color="#cc2222" roughness={0.5} />
-    </mesh>
-    {/* Head */}
-    <mesh position={[0,1.02,0]} castShadow>
-      <sphereGeometry args={[0.155,10,10]} />
-      <meshStandardMaterial color="#e8c090" roughness={0.82} />
-    </mesh>
-    {/* Arms */}
-    <mesh position={[-0.22,0.65,0]} rotation={[0,0,0.3]} castShadow>
-      <cylinderGeometry args={[0.055,0.055,0.4,8]} />
-      <meshStandardMaterial color="#f5f5f5" roughness={0.75} />
-    </mesh>
-    <mesh position={[0.22,0.65,0]} rotation={[0,0,-0.3]} castShadow>
-      <cylinderGeometry args={[0.055,0.055,0.4,8]} />
-      <meshStandardMaterial color="#f5f5f5" roughness={0.75} />
-    </mesh>
-  </group>
-);
-
-// ─── Sonic character decorations ─────────────────────────────────────────────
-const KnucklesFigure = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => {
-  const { scene } = useGLTF("/models/knuckles_sonic_rumble.glb");
-  return <Clone object={scene} position={pos} rotation={[0, rot, 0]} scale={1.2} />;
+// ─── Store staff — agent-figure based ────────────────────────────────────────
+const StoreStaff = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => {
+  const { scene } = useGLTF("/models/agent-figure.glb");
+  return <Clone object={scene} position={pos} rotation={[0, rot, 0]} scale={0.25} />;
 };
 
 const MovieSonicFigure = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => {
@@ -299,14 +256,16 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
         <group>
           {[-12.5,-10,-7.5,-5,-2.5,0,2.5,5,7.5,10,12.5].map((xOff,i) => (
             <group key={`ws1${i}`}>
-              <DevWorkstation pos={[px+xOff, py, pz-2.15]} rot={Math.PI / 2} />
-              <DevChair       pos={[px+xOff, py, pz-0.95]} rot={-Math.PI / 2} />
+              <Table          pos={[px+xOff, py, pz-2.1]} size={[2.4, 0.06, 1.1]} />
+              <DevWorkstation pos={[px+xOff, 0.73, pz-2.1]} rot={0} scale={0.14} />
+              <DevChair       pos={[px+xOff, py, pz-0.65]} rot={Math.PI + Math.PI/2} />
             </group>
           ))}
           {[-12.5,-10,-7.5,-5,-2.5,0,2.5,5,7.5,10,12.5].map((xOff,i) => (
             <group key={`ws2${i}`}>
-              <DevWorkstation pos={[px+xOff, py, pz+2.15]} rot={-Math.PI / 2} />
-              <DevChair       pos={[px+xOff, py, pz+0.95]} rot={Math.PI / 2} />
+              <Table          pos={[px+xOff, py, pz+2.1]} size={[2.4, 0.06, 1.1]} />
+              <DevWorkstation pos={[px+xOff, 0.73, pz+2.1]} rot={Math.PI} scale={0.14} />
+              <DevChair       pos={[px+xOff, py, pz+0.65]} rot={Math.PI/2} />
             </group>
           ))}
           <Whiteboard pos={[px+12.5, py, pz-3.8]} />
@@ -385,32 +344,61 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
         </group>
       );
 
-    case "nike-store":
+    case "nike-store": {
       return (
         <group>
-          {/* ── Knuckles mascot ── */}
-          <KnucklesFigure pos={[px+5, py, pz-3]} rot={-0.4} />
+          {/* ── Back wall: full-width shoe display ── */}
+          {/* Backdrop panel */}
+          <mesh position={[px, 1.5, pz-4.28]} geometry={sg("box",13,3,0.06)} material={sm("#f8f5f0",0.4)} castShadow />
+          {/* 4 shelf boards */}
+          {([0.55,1.1,1.65,2.2] as number[]).map((y,i) => (
+            <mesh key={`bshelf${i}`} position={[px, y, pz-4.08]} geometry={sg("box",12.5,0.05,0.42)} material={sm("#ddd8cc",0.65)} castShadow />
+          ))}
+          {/* Shoes on back wall: 6 cols × 4 rows */}
+          {([-5,-3,-1,1,3,5] as number[]).map((xOff,xi) =>
+            ([0.65,1.2,1.75,2.3] as number[]).map((y,yi) => (
+              <group key={`ws${xi}_${yi}`} position={[px+xOff, y, pz-3.9]}>
+                <mesh geometry={sg("box",0.36,0.05,0.14)} position={[0,0,0]}      material={sm("#111111",0.7)} />
+                <mesh geometry={sg("box",0.28,0.13,0.12)} position={[0.02,0.09,0]} material={sm(SCOLS[(xi+yi*2)%SCOLS.length],0.6)} />
+                <mesh geometry={sg("box",0.1,0.08,0.12)}  position={[0.15,0.05,0]} material={sm(SCOLS[(xi+yi*2)%SCOLS.length],0.55)} />
+                <mesh geometry={sg("box",0.08,0.16,0.1)}  position={[-0.15,0.1,0]} material={sm("#ffffff",0.7)} />
+              </group>
+            ))
+          )}
 
-          {/* ── Shoe display shelves (back wall) ── */}
-          {([-5,-2.5,0,2.5,5] as number[]).map((xOff,i) => (
-            <group key={`shelf${i}`}>
-              <mesh position={[px+xOff,0.6, pz-4.2]} geometry={sg("box",2.2,0.06,0.45)} material={sm("#f0ece4",0.6)} castShadow />
-              <mesh position={[px+xOff,1.2, pz-4.2]} geometry={sg("box",2.2,0.06,0.45)} material={sm("#f0ece4",0.6)} castShadow />
-              <mesh position={[px+xOff,1.8, pz-4.2]} geometry={sg("box",2.2,0.06,0.45)} material={sm("#f0ece4",0.6)} castShadow />
-              <mesh position={[px+xOff-0.4,0.7,pz-4.2]} geometry={sg("box",0.5,0.2,0.3)} material={sm("#cc2222",0.7)} castShadow />
-              <mesh position={[px+xOff+0.4,0.7,pz-4.2]} geometry={sg("box",0.5,0.2,0.3)} material={sm("#cc2222",0.7)} castShadow />
+          {/* ── Left wall: stacked shoe boxes ── */}
+          <mesh position={[px-6.85,1.1,pz-0.5]} geometry={sg("box",0.06,2,6)} material={sm("#eeebe4",0.5)} castShadow />
+          {([0.45,0.9,1.35,1.8] as number[]).map((y,i) => (
+            <mesh key={`lshelf${i}`} position={[px-6.65,y,pz-0.5]} geometry={sg("box",0.22,0.04,5.6)} material={sm("#d4ccc0",0.7)} castShadow />
+          ))}
+          {([-2,-0.8,0.4,1.6,2.8] as number[]).map((z,zi) =>
+            ([0.5,1.0,1.5] as number[]).map((y,yi) => (
+              <group key={`lbox${zi}_${yi}`} position={[px-6.6, y, pz+z-0.5]}>
+                <mesh geometry={sg("box",0.18,0.2,0.3)} material={sm(SCOLS[(zi+yi*3)%SCOLS.length],0.65)} />
+                <mesh geometry={sg("box",0.16,0.02,0.28)} position={[0,0.11,0]} material={sm("#ffffff",0.75)} />
+              </group>
+            ))
+          )}
+
+          {/* ── Central island: featured sneakers on display stands ── */}
+          <Table pos={[px, py, pz-1]} size={[4,0.08,1.2]} />
+          {([-1.2,0,1.2] as number[]).map((xOff,i) => (
+            <group key={`feat${i}`} position={[px+xOff, 0.73, pz-1]}>
+              <mesh geometry={sg("cyl",0.15,0.2,0.06,12)} position={[0,-0.03,0]} material={sm("#ffffff",0.4)} />
+              <mesh geometry={sg("box",0.42,0.06,0.16)} position={[0,0,0]}      material={sm("#111111",0.7)} />
+              <mesh geometry={sg("box",0.32,0.15,0.14)} position={[0.02,0.1,0]} material={sm(SCOLS[i*2],0.6)} />
+              <mesh geometry={sg("box",0.12,0.09,0.14)} position={[0.17,0.06,0]} material={sm(SCOLS[i*2],0.55)} />
+              <mesh geometry={sg("box",0.1,0.18,0.12)}  position={[-0.17,0.12,0]} material={sm("#ffffff",0.7)} />
             </group>
           ))}
+          <Html position={[px,1.55,pz-1]} center distanceFactor={18} style={{pointerEvents:"none"}}>
+            <div style={{fontSize:"6px",background:"#cc2222",color:"#fff",padding:"1px 8px",
+              borderRadius:"2px",fontFamily:"monospace",fontWeight:800,letterSpacing:"0.12em",whiteSpace:"nowrap"}}>
+              NEW ARRIVALS
+            </div>
+          </Html>
 
-          {/* ── Left side shelves ── */}
-          {([0.5,1.1,1.7] as number[]).map((yOff,i) => (
-            <mesh key={`lshelf${i}`} position={[px-6.8,yOff,pz-0.5]} geometry={sg("box",0.06,0.06,7.5)} material={sm("#d0c8bc",0.6)} castShadow />
-          ))}
-
-          {/* ── Central display table ── */}
-          <Table pos={[px, py, pz-1]} size={[4,0.08,1.2]} />
-
-          {/* ── Try-on seating bench ── */}
+          {/* ── Try-on bench ── */}
           <mesh position={[px-3.5,0.44,pz+1.5]} geometry={sg("box",3.5,0.12,0.55)} material={sm("#c8a070",0.85)} castShadow />
           {([-1,0,1] as number[]).map((xOff,i) => (
             <mesh key={`bs${i}`} position={[px-3.5+xOff,0.22,pz+1.5]} geometry={sg("box",0.12,0.44,0.5)} material={sm("#8a5a28",0.9)} castShadow />
@@ -420,47 +408,44 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
           <Sofa pos={[px+2.5, py, pz+3.5]} rot={Math.PI} />
           <Table pos={[px-0.5, py, pz+3.5]} size={[0.8,0.04,0.5]} />
 
-          {/* ══ Cash register counter (prominent, against right wall) ══ */}
-          {/* Counter body — L-shaped: long front + short side */}
+          {/* ── Cash counter ── */}
           <mesh position={[px+5.6,0.52,pz+0.5]} geometry={sg("box",1.8,0.88,3.5)} material={sm("#1a1a25",0.5)} castShadow />
-          <mesh position={[px+4.8,0.52,pz+2.1]} geometry={sg("box",0.2,0.88,0.3)} material={sm("#1a1a25",0.5)} castShadow />
-          {/* Counter top surface */}
           <mesh position={[px+5.6,0.97,pz+0.5]} geometry={sg("box",1.85,0.06,3.55)} material={sm("#2a2a38",0.4)} castShadow />
-          {/* POS monitor */}
           <Monitor pos={[px+5.6, 1.0, pz-0.6]} />
-          {/* Cash drawer */}
           <mesh position={[px+5.6,0.62,pz-0.8]} geometry={sg("box",0.9,0.08,0.35)} material={sm("#333344",0.5)} castShadow />
-          {/* Card reader */}
           <mesh position={[px+5.6,1.04,pz+0.1]} geometry={sg("box",0.18,0.12,0.28)} material={sm("#111111",0.5)} castShadow />
           <mesh position={[px+5.6,1.04,pz+0.1]} geometry={sg("box",0.14,0.02,0.22)} material={sm(SCR,0.3,SCR,0.15)} />
-          {/* "PAY HERE" label */}
-          <Html position={[px+5.6,1.6,pz+0.5]} center distanceFactor={20} style={{ pointerEvents:"none" }}>
-            <div style={{ fontSize:"7px",background:"#cc2222",color:"#fff",padding:"1px 6px",
-              borderRadius:"2px",fontFamily:"monospace",letterSpacing:"0.1em",fontWeight:700,whiteSpace:"nowrap" }}>
+          <Html position={[px+5.6,1.6,pz+0.5]} center distanceFactor={20} style={{pointerEvents:"none"}}>
+            <div style={{fontSize:"7px",background:"#cc2222",color:"#fff",padding:"1px 6px",
+              borderRadius:"2px",fontFamily:"monospace",letterSpacing:"0.1em",fontWeight:700,whiteSpace:"nowrap"}}>
               PAY HERE
             </div>
           </Html>
 
-          {/* ── Queue markers on floor (rope stanchions look) ── */}
-          {([pz+1.8, pz+0.9, pz+0.0] as number[]).map((qz,i) => (
+          {/* ── Queue stanchions ── */}
+          {([pz+1.8,pz+0.9,pz+0.0] as number[]).map((qz,i) => (
             <group key={`q${i}`}>
               <mesh position={[px+3.8,0.5,qz]}><cylinderGeometry args={[0.04,0.06,1.0,8]}/><meshStandardMaterial color="#c8a020" metalness={0.6} roughness={0.3}/></mesh>
               <mesh position={[px+3.8,0.02,qz]}><cylinderGeometry args={[0.18,0.18,0.04,12]}/><meshStandardMaterial color="#c8a020" metalness={0.5}/></mesh>
             </group>
           ))}
-          {/* Rope between stanchions */}
           <mesh position={[px+3.8,0.5,pz+1.35]}><boxGeometry args={[0.03,0.03,0.9]}/><meshStandardMaterial color="#8a2020" roughness={0.6}/></mesh>
           <mesh position={[px+3.8,0.5,pz+0.45]}><boxGeometry args={[0.03,0.03,0.9]}/><meshStandardMaterial color="#8a2020" roughness={0.6}/></mesh>
 
-          {/* ── Staff ── */}
-          {/* Salesperson 1 — near shoe shelves */}
-          <NikeStaff pos={[px-2,py,pz-2.5]} rot={0.4} />
-          {/* Salesperson 2 — helping at display table */}
-          <NikeStaff pos={[px+1.5,py,pz-0.8]} rot={Math.PI+0.3} />
+          {/* ── Staff agents (agent-figure) ── */}
+          {/* Sales agent at back wall showing shoes to customer */}
+          <StoreStaff pos={[px-2, py, pz-3.0]} rot={0.4} />
+          {/* Customer browsing near shoe wall */}
+          <StoreStaff pos={[px-4, py, pz-2.5]} rot={Math.PI+0.2} />
+          {/* Sales agent at central display, presenting to customer */}
+          <StoreStaff pos={[px+1.5, py, pz-0.5]} rot={Math.PI+0.3} />
+          {/* Customer at display table */}
+          <StoreStaff pos={[px-0.5, py, pz+0.2]} rot={0.1} />
           {/* Cashier behind counter */}
-          <NikeStaff pos={[px+5.6,py,pz+1.8]} rot={Math.PI} />
+          <StoreStaff pos={[px+5.6, py, pz+1.8]} rot={Math.PI} />
         </group>
       );
+    }
 
     case "food-court":
       return (
@@ -492,8 +477,8 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
           {/* Umbrella stands over outdoor tables */}
           {([-4, 0, 4] as number[]).map((xOff,i) => (
             <group key={`umb${i}`}>
-              <mesh position={[px+xOff, 1.3, pz+1.8]} geometry={sg("cyl", 0.05, 0.05, 2.6, 6)} material={sm("#888888", 0.5)} castShadow />
-              <mesh position={[px+xOff, 2.65, pz+1.8]} geometry={sg("cyl", 1.6, 0.2, 0.12, 12)} material={sm(["#cc2222","#2255cc","#22aa44"][i], 0.7)} castShadow />
+              <mesh position={[px+xOff, 1.3, pz+1.8]} geometry={sg("cyl", 0.05, 0.05, 2.6, 6)} material={sm("#888888", 0.5)} />
+              <mesh position={[px+xOff, 2.65, pz+1.8]} geometry={sg("cyl", 1.6, 0.2, 0.12, 12)} material={sm(["#cc2222","#2255cc","#22aa44"][i], 0.7)} />
             </group>
           ))}
         </group>
@@ -509,9 +494,8 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
             <group key={`arcade${i}`}>
               <mesh position={[px+xOff, 0.8, pz-4.2]} geometry={sg("box", 0.8, 1.6, 0.5)} material={sm(["#cc2222","#2244cc","#22aa44","#cc8800"][i], 0.6)} castShadow />
               <ScreenPanel pos={[px+xOff, 1.1, pz-3.94]} w={0.6} h={0.55} />
-              {/* Joystick top */}
-              <mesh position={[px+xOff, 0.52, pz-3.97]} geometry={sg("cyl", 0.04, 0.04, 0.12, 8)} material={sm("#222222", 0.5)} castShadow />
-              <mesh position={[px+xOff, 0.6, pz-3.97]}  geometry={sg("sph", 0.06, 8, 8)} material={sm("#cc2222", 0.5)} castShadow />
+              <mesh position={[px+xOff, 0.52, pz-3.97]} geometry={sg("cyl", 0.04, 0.04, 0.12, 8)} material={sm("#222222", 0.5)} />
+              <mesh position={[px+xOff, 0.6, pz-3.97]}  geometry={sg("sph", 0.06, 8, 8)} material={sm("#cc2222", 0.5)} />
             </group>
           ))}
           {/* Big screen TV wall */}
@@ -519,7 +503,7 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
           <ScreenPanel pos={[px+4.5, 1.5, pz-4.74]} w={2.6} h={1.6} />
           {/* Bean bags / gaming chairs */}
           {([-4, -1.5, 0.5, 2.5] as number[]).map((xOff,i) => (
-            <mesh key={`bean${i}`} position={[px+xOff, 0.2, pz-2.5]} geometry={sg("sph", 0.38, 10, 10)} material={sm(["#cc2222","#2244cc","#22aa44","#cc8800"][i], 0.9)} castShadow />
+            <mesh key={`bean${i}`} position={[px+xOff, 0.2, pz-2.5]} geometry={sg("sph", 0.38, 10, 10)} material={sm(["#cc2222","#2244cc","#22aa44","#cc8800"][i], 0.9)} />
           ))}
           {/* Sofa facing big screen */}
           <Sofa pos={[px-2.5, py, pz+2.5]} rot={Math.PI} />
@@ -534,4 +518,10 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
   }
 };
 
-export default Furniture;
+// Memoize: roomId and position[0]/position[2] never change for a given room instance.
+// This prevents Furniture from re-rendering when OfficeFloor re-renders (e.g. night mode toggle).
+export default memo(Furniture, (prev, next) =>
+  prev.roomId === next.roomId &&
+  prev.position[0] === next.position[0] &&
+  prev.position[2] === next.position[2],
+);

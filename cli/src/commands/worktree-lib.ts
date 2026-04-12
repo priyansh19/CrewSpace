@@ -1,9 +1,9 @@
 import { randomInt } from "node:crypto";
 import path from "node:path";
-import type { PaperclipConfig } from "../config/schema.js";
+import type { CrewSpaceConfig } from "../config/schema.js";
 import { expandHomePrefix } from "../config/home.js";
 
-export const DEFAULT_WORKTREE_HOME = "~/.paperclip-worktrees";
+export const DEFAULT_WORKTREE_HOME = "~/.crewspace-worktrees";
 export const WORKTREE_SEED_MODES = ["minimal", "full"] as const;
 
 export type WorktreeSeedMode = (typeof WORKTREE_SEED_MODES)[number];
@@ -146,7 +146,7 @@ export function resolveWorktreeLocalPaths(opts: {
   const cwd = path.resolve(opts.cwd);
   const homeDir = path.resolve(expandHomePrefix(opts.homeDir ?? DEFAULT_WORKTREE_HOME));
   const instanceRoot = path.resolve(homeDir, "instances", opts.instanceId);
-  const repoConfigDir = path.resolve(cwd, ".paperclip");
+  const repoConfigDir = path.resolve(cwd, ".crewspace");
   return {
     cwd,
     repoConfigDir,
@@ -177,12 +177,12 @@ export function rewriteLocalUrlPort(rawUrl: string | undefined, port: number): s
 }
 
 export function buildWorktreeConfig(input: {
-  sourceConfig: PaperclipConfig | null;
+  sourceConfig: CrewSpaceConfig | null;
   paths: WorktreeLocalPaths;
   serverPort: number;
   databasePort: number;
   now?: Date;
-}): PaperclipConfig {
+}): CrewSpaceConfig {
   const { sourceConfig, paths, serverPort, databasePort } = input;
   const nowIso = (input.now ?? new Date()).toISOString();
 
@@ -230,7 +230,7 @@ export function buildWorktreeConfig(input: {
         baseDir: paths.storageDir,
       },
       s3: {
-        bucket: source?.storage.s3.bucket ?? "paperclip",
+        bucket: source?.storage.s3.bucket ?? "crewspace",
         region: source?.storage.s3.region ?? "us-east-1",
         endpoint: source?.storage.s3.endpoint,
         prefix: source?.storage.s3.prefix ?? "",
@@ -252,13 +252,13 @@ export function buildWorktreeEnvEntries(
   branding?: WorktreeUiBranding,
 ): Record<string, string> {
   return {
-    PAPERCLIP_HOME: paths.homeDir,
-    PAPERCLIP_INSTANCE_ID: paths.instanceId,
-    PAPERCLIP_CONFIG: paths.configPath,
-    PAPERCLIP_CONTEXT: paths.contextPath,
-    PAPERCLIP_IN_WORKTREE: "true",
-    ...(branding?.name ? { PAPERCLIP_WORKTREE_NAME: branding.name } : {}),
-    ...(branding?.color ? { PAPERCLIP_WORKTREE_COLOR: branding.color } : {}),
+    CREWSPACE_HOME: paths.homeDir,
+    CREWSPACE_INSTANCE_ID: paths.instanceId,
+    CREWSPACE_CONFIG: paths.configPath,
+    CREWSPACE_CONTEXT: paths.contextPath,
+    CREWSPACE_IN_WORKTREE: "true",
+    ...(branding?.name ? { CREWSPACE_WORKTREE_NAME: branding.name } : {}),
+    ...(branding?.color ? { CREWSPACE_WORKTREE_COLOR: branding.color } : {}),
   };
 }
 

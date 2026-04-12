@@ -21,7 +21,7 @@ import { agentsApi } from "../api/agents";
 import { agentMemoriesApi } from "../api/agentMemories";
 import { agentDotColor, formatChatTime, streamAgentChat } from "../lib/agentChat";
 import { queryKeys } from "../lib/queryKeys";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@crewspaceai/shared";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -560,7 +560,7 @@ function EmptyChat({ onNewChat }: { onNewChat: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AgentChat() {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession } = useChat();
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, bulkInitSessions } = useChat();
   const { selectedCompanyId } = useCompany();
   const newChatRef = useRef<(() => void) | null>(null);
 
@@ -572,6 +572,12 @@ export function AgentChat() {
   });
 
   const allAgents = useMemo(() => agents ?? [], [agents]);
+
+  // When real agents first load, seed one session per agent so they appear in the list
+  useEffect(() => {
+    if (allAgents.length > 0) bulkInitSessions(allAgents);
+  }, [allAgents, bulkInitSessions]);
+
   const activeSession = useMemo(() => sessions.find((s) => s.id === activeSessionId) ?? null, [sessions, activeSessionId]);
   const sorted = useMemo(() => [...sessions].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()), [sessions]);
 

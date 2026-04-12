@@ -1,4 +1,4 @@
-import type { CreateConfigValues } from "@paperclipai/adapter-utils";
+import type { CreateConfigValues } from "@crewspaceai/adapter-utils";
 
 export const defaultCreateValues: CreateConfigValues = {
   adapterType: "claude_local",

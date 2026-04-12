@@ -1,7 +1,7 @@
 import { ROOM_POSITIONS, ROOM_DIMS, type RoomId } from "@/stores/officeStore";
 import { Clone, Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useOfficeStore } from "@/stores/officeStore";
 import Room from "./Room";
 import Furniture from "./Furniture";
@@ -20,47 +20,82 @@ const BoundaryWall = ({ args, position }: { args: [number,number,number]; positi
   <lineSegments position={position} geometry={edgesGeo(...args)} material={_boundaryMat} />
 );
 
-// ─── Shared floor materials ───────────────────────────────────────────────────
-const FLOOR_MAT    = new THREE.MeshStandardMaterial({ color: "#d8ccb8", roughness: 0.95 });
-const CARPET_MAT   = new THREE.MeshStandardMaterial({ color: "#a89070", roughness: 0.98 });
-const HALLWAY_MAT  = new THREE.MeshStandardMaterial({ color: "#ece4d4", roughness: 0.85 });
-const PLAZA_MAT    = new THREE.MeshStandardMaterial({ color: "#c8c0b0", roughness: 0.88 });
-const PAVEMENT_MAT = new THREE.MeshStandardMaterial({ color: "#b0a8a0", roughness: 0.9 });
+// ─── Shared floor / outdoor materials ────────────────────────────────────────
+const FLOOR_MAT       = new THREE.MeshStandardMaterial({ color: "#d8ccb8", roughness: 0.95 });
+const CARPET_MAT      = new THREE.MeshStandardMaterial({ color: "#a89070", roughness: 0.98 });
+const HALLWAY_MAT     = new THREE.MeshStandardMaterial({ color: "#ece4d4", roughness: 0.85 });
+const PLAZA_MAT       = new THREE.MeshStandardMaterial({ color: "#c8c0b0", roughness: 0.88 });
+const PAVEMENT_MAT    = new THREE.MeshStandardMaterial({ color: "#b0a8a0", roughness: 0.90 });
+const GRASS_MAT       = new THREE.MeshStandardMaterial({ color: "#3e7022", roughness: 0.92 });
+const PARK_PATH_MAT   = new THREE.MeshStandardMaterial({ color: "#c0b8a8", roughness: 0.88 });
+const FENCE_MAT       = new THREE.MeshStandardMaterial({ color: "#6a5a3a", roughness: 0.85 });
+const PARK_SMOKE_MAT  = new THREE.MeshStandardMaterial({ color: "#909088", roughness: 0.92 });
+const SMOKE_POST_MAT  = new THREE.MeshStandardMaterial({ color: "#555555" });
+const SMOKE_ROPE_MAT  = new THREE.MeshStandardMaterial({ color: "#888888", metalness: 0.6 });
+const PARKING_MAT     = new THREE.MeshStandardMaterial({ color: "#9a9590", roughness: 0.94 });
+const PARKING_LINE_MAT = new THREE.MeshStandardMaterial({ color: "#e8e4d8", roughness: 0.85 });
+const PARKING_SIGN_MAT = new THREE.MeshStandardMaterial({ color: "#555555", metalness: 0.5 });
 
-// ─── Lamp post ────────────────────────────────────────────────────────────────
-const _poleMat = new THREE.MeshStandardMaterial({ color: "#888888", roughness: 0.6, metalness: 0.5 });
-const LampPost = ({ position }: { position: [number,number,number] }) => {
-  const isNight = useOfficeStore((s) => s.isNightMode);
-  const headMat = useMemo(
-    () => new THREE.MeshStandardMaterial({
-      color: isNight ? "#fff7cc" : "#fffde8",
-      emissive: isNight ? "#fff4b0" : "#fffde8",
-      emissiveIntensity: isNight ? 2.2 : 0.65,
-      roughness: 0.25,
-    }),
-    [isNight],
-  );
+// ─── Lamp posts (instanced for performance) ───────────────────────────────────
+const _poleMat      = new THREE.MeshStandardMaterial({ color: "#888888", roughness: 0.6, metalness: 0.5 });
+const _poleGeo      = new THREE.CylinderGeometry(0.06, 0.09, 3, 8);
+const _headGeo      = new THREE.SphereGeometry(0.22, 8, 8);
+const _headMatShared = new THREE.MeshStandardMaterial({ color: "#fffde8", emissive: "#fffde8", emissiveIntensity: 0.65, roughness: 0.25 });
+const _dummy        = new THREE.Object3D();
+
+const ENTRANCE_LAMP_XS: number[] = [-22, -10, 2, 14, 26, 38];
+const ENTRANCE_LAMPS: [number,number,number][] = ENTRANCE_LAMP_XS.map(x => [x, 0, 21.5]);
+
+// All lamp positions: 24 perimeter + 6 entrance = 30 total
+// Perimeter arrays defined after this component since they reference NORTH/SOUTH/EAST/WEST consts below
+// We declare them here too so the component can reference them
+const _ALL_LAMP_POSITIONS: [number,number,number][] = [
+  ...[-22,-10,2,14,26,38].map(x => [x,0,-19] as [number,number,number]),   // NORTH
+  ...[-22,-10,2,14,26,38].map(x => [x,0,45]  as [number,number,number]),   // SOUTH
+  ...[-14,-4,6,16,26,36].map(z => [-25,0,z]  as [number,number,number]),   // WEST
+  ...[-14,-4,6,16,26,36].map(z => [45,0,z]   as [number,number,number]),   // EAST
+  ...ENTRANCE_LAMPS,                                                         // ENTRANCE (6)
+];
+
+const AllLampPosts = () => {
+  const isNight  = useOfficeStore((s) => s.isNightMode);
+  const poleRef  = useRef<THREE.InstancedMesh>(null);
+  const headRef  = useRef<THREE.InstancedMesh>(null);
+
+  // Build instance matrices once on mount
+  useEffect(() => {
+    const pm = poleRef.current;
+    const hm = headRef.current;
+    if (!pm || !hm) return;
+    _ALL_LAMP_POSITIONS.forEach((pos, i) => {
+      _dummy.position.set(pos[0], 1.5, pos[2]);
+      _dummy.updateMatrix();
+      pm.setMatrixAt(i, _dummy.matrix);
+      _dummy.position.set(pos[0], 3.1, pos[2]);
+      _dummy.updateMatrix();
+      hm.setMatrixAt(i, _dummy.matrix);
+    });
+    pm.instanceMatrix.needsUpdate = true;
+    hm.instanceMatrix.needsUpdate = true;
+  }, []);
+
+  // Update shared head material when night mode changes (1 material update = all 30 heads)
+  useEffect(() => {
+    _headMatShared.color.set(isNight ? "#fff7cc" : "#fffde8");
+    _headMatShared.emissive.set(isNight ? "#fff4b0" : "#fffde8");
+    _headMatShared.emissiveIntensity = isNight ? 2.2 : 0.65;
+    _headMatShared.needsUpdate = true;
+  }, [isNight]);
 
   return (
-    <group position={position}>
-      <mesh position={[0, 1.5, 0]}>
-        <cylinderGeometry args={[0.06, 0.09, 3, 8]} />
-        <primitive object={_poleMat} attach="material" />
-      </mesh>
-      <mesh position={[0, 3.1, 0]}>
-        <sphereGeometry args={[0.22, 8, 8]} />
-        <primitive object={headMat} attach="material" />
-      </mesh>
-      {isNight && (
-        <pointLight
-          position={[0, 3.1, 0]}
-          intensity={1.4}
-          distance={8}
-          decay={2}
-          color="#ffe7a8"
-        />
-      )}
-    </group>
+    <>
+      <instancedMesh ref={poleRef} args={[_poleGeo, _poleMat, _ALL_LAMP_POSITIONS.length]} />
+      <instancedMesh ref={headRef} args={[_headGeo, _headMatShared, _ALL_LAMP_POSITIONS.length]} />
+      {/* Only entrance lamps emit point lights (max 6) */}
+      {isNight && ENTRANCE_LAMPS.map((pos, i) => (
+        <pointLight key={i} position={[pos[0], 3.1, pos[2]]} intensity={1.4} distance={8} decay={2} color="#ffe7a8" />
+      ))}
+    </>
   );
 };
 
@@ -74,15 +109,27 @@ const ParkTree = ({ position, s = 1.0 }: { position: [number,number,number]; s?:
     const cloned = scene.clone(true);
     cloned.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
+      // Detect trunk: mesh name contains "tree" but NOT "leaves"
+      // (mango_tree.glb uses: tree_Material.004_0, tree_Material.002_0 = trunk; leaves_Material.001_0 = foliage)
+      const name = child.name.toLowerCase();
+      const isTrunk = name.includes("tree") && !name.includes("leave") && !name.includes("leaf")
+        || /trunk|bark|stem|wood|branch|tronc/.test(name);
       const sourceMaterial = child.material;
       const materials = Array.isArray(sourceMaterial) ? sourceMaterial : [sourceMaterial];
       const tintedMaterials = materials.map((material) => {
         if (!(material instanceof THREE.MeshStandardMaterial)) return material;
         const next = material.clone();
-        next.color = new THREE.Color("#5f9f3a");
-        next.emissive = new THREE.Color("#102408");
-        next.emissiveIntensity = 0.06;
-        next.roughness = 0.92;
+        if (isTrunk) {
+          next.color = new THREE.Color("#1a1008");
+          next.emissive = new THREE.Color("#000000");
+          next.emissiveIntensity = 0;
+          next.roughness = 0.98;
+        } else {
+          next.color = new THREE.Color("#5f9f3a");
+          next.emissive = new THREE.Color("#102408");
+          next.emissiveIntensity = 0.06;
+          next.roughness = 0.92;
+        }
         return next;
       });
       child.material = Array.isArray(sourceMaterial) ? tintedMaterials : tintedMaterials[0];
@@ -188,8 +235,38 @@ const ParkedCar = ({
   car: (typeof CAR_MODELS)[number];
 }) => {
   const { scene } = useGLTF(car.path);
-  const fitted = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
+
+  const { carScene, fitted } = useMemo(() => {
+    // Deep-clone so each parked car is independent
+    const carScene = scene.clone(true);
+
+    // Force-fix all meshes: ensure visible, fix near-black or invisible materials
+    carScene.traverse((child) => {
+      child.visible = true;
+      child.frustumCulled = false;
+      if (!(child instanceof THREE.Mesh)) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat) => {
+        if (!(mat instanceof THREE.MeshStandardMaterial)) return;
+        mat.visible = true;
+        mat.depthWrite = true;
+        mat.depthTest = true;
+        // Fix near-black baseColor that makes meshes invisible (e.g. caliper badges)
+        const c = mat.color;
+        if (c.r < 0.05 && c.g < 0.05 && c.b < 0.05 && !mat.map) {
+          c.set(0.15, 0.15, 0.15); // replace invisible black with dark grey
+        }
+        // Fix near-zero alpha on opaque materials
+        if (mat.opacity < 0.1 && mat.alphaMap == null) {
+          mat.opacity = 1;
+          mat.transparent = false;
+        }
+      });
+    });
+
+    // Compute bounding box from the fixed clone
+    carScene.updateMatrixWorld(true);
+    const box = new THREE.Box3().expandByObject(carScene);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     box.getSize(size);
@@ -197,12 +274,11 @@ const ParkedCar = ({
 
     const longest = Math.max(size.x, size.z, 0.001);
     const scale = car.bayLength / longest;
+    const groundOffset = -box.min.y * scale;
 
     return {
-      scale,
-      centerX: center.x,
-      centerZ: center.z,
-      groundOffset: -box.min.y * scale,
+      carScene,
+      fitted: { scale, centerX: center.x, centerZ: center.z, groundOffset },
     };
   }, [car.bayLength, scene]);
 
@@ -216,7 +292,7 @@ const ParkedCar = ({
         ]}
         scale={fitted.scale}
       >
-        <Clone object={scene} />
+        <primitive object={carScene} />
       </group>
       <Html position={[0, car.labelY, 0]} center distanceFactor={28} style={{ pointerEvents: "none" }}>
         <div style={{ fontSize: "6px", color: "#ffffff", background: "rgba(0,0,0,0.55)",
@@ -377,10 +453,6 @@ const HALLWAY_PATHS: [number,number,number,number][] = [
 
 // ─── Perimeter lamp positions ─────────────────────────────────────────────────
 // Building spans x: -25→45, z: -19→19. Courtyard z: 19→45.
-const NORTH_LAMPS: [number,number,number][] = [-22,-10,2,14,26,38].map(x => [x, 0, -19]);
-const SOUTH_LAMPS: [number,number,number][] = [-22,-10,2,14,26,38].map(x => [x, 0, 45]);
-const WEST_LAMPS:  [number,number,number][] = [-14,-4,6,16,26,36].map(z => [-25, 0, z]);
-const EAST_LAMPS:  [number,number,number][] = [-14,-4,6,16,26,36].map(z => [45,  0, z]);
 
 const OfficeFloor = () => {
   const bw = 70, bd = 38, wh = 3, wt = 0.12, cx = 10, cz = 0;
@@ -487,52 +559,28 @@ const OfficeFloor = () => {
          ══════════════════════════════════════════════════════════════ */}
 
       {/* ── Vertical leg grass (west wall, full courtyard height) ── */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.008,33.5]} receiveShadow>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.008,33.5]} receiveShadow material={GRASS_MAT}>
         <planeGeometry args={[11,23]} />
-        <meshStandardMaterial color="#3e7022" roughness={0.92} />
       </mesh>
 
       {/* ── Horizontal leg grass (south wall strip, east of vertical leg) ── */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[3,0.008,41]} receiveShadow>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[3,0.008,41]} receiveShadow material={GRASS_MAT}>
         <planeGeometry args={[34,8]} />
-        <meshStandardMaterial color="#3e7022" roughness={0.92} />
       </mesh>
 
       {/* ── Paths ── */}
-      {/* Vertical spine */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.015,33.5]}>
-        <planeGeometry args={[1.0,23]} />
-        <meshStandardMaterial color="#c0b8a8" roughness={0.88} />
-      </mesh>
-      {/* Horizontal cross-path at mid-vertical */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.015,33.5]}>
-        <planeGeometry args={[11,1.0]} />
-        <meshStandardMaterial color="#c0b8a8" roughness={0.88} />
-      </mesh>
-      {/* Horizontal leg path */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[3,0.015,41]}>
-        <planeGeometry args={[34,1.0]} />
-        <meshStandardMaterial color="#c0b8a8" roughness={0.88} />
-      </mesh>
-      {/* Corner connector */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.015,41]}>
-        <planeGeometry args={[1.0,8]} />
-        <meshStandardMaterial color="#c0b8a8" roughness={0.88} />
-      </mesh>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.015,33.5]} material={PARK_PATH_MAT}><planeGeometry args={[1.0,23]} /></mesh>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.015,33.5]} material={PARK_PATH_MAT}><planeGeometry args={[11,1.0]}  /></mesh>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[3,0.015,41]}        material={PARK_PATH_MAT}><planeGeometry args={[34,1.0]} /></mesh>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[-19.5,0.015,41]}    material={PARK_PATH_MAT}><planeGeometry args={[1.0,8]}  /></mesh>
 
       {/* ── Fence — outer perimeter of the L ── */}
-      {/* West edge (full height) */}
-      <mesh position={[-25,0.22,33.5]}><boxGeometry args={[0.08,0.44,23]}/><meshStandardMaterial color="#6a5a3a" roughness={0.85}/></mesh>
-      {/* North edge of vertical leg */}
-      <mesh position={[-19.5,0.22,22]}><boxGeometry args={[11,0.44,0.08]}/><meshStandardMaterial color="#6a5a3a" roughness={0.85}/></mesh>
-      {/* East edge of vertical leg (inner corner, only above the horiz leg) */}
-      <mesh position={[-14,0.22,29.5]}><boxGeometry args={[0.08,0.44,15]}/><meshStandardMaterial color="#6a5a3a" roughness={0.85}/></mesh>
-      {/* South edge (full L bottom) */}
-      <mesh position={[3,0.22,45]}><boxGeometry args={[34,0.44,0.08]}/><meshStandardMaterial color="#6a5a3a" roughness={0.85}/></mesh>
-      {/* North edge of horizontal leg */}
-      <mesh position={[3,0.22,37]}><boxGeometry args={[34,0.44,0.08]}/><meshStandardMaterial color="#6a5a3a" roughness={0.85}/></mesh>
-      {/* East end of horizontal leg */}
-      <mesh position={[20,0.22,41]}><boxGeometry args={[0.08,0.44,8]}/><meshStandardMaterial color="#6a5a3a" roughness={0.85}/></mesh>
+      <mesh position={[-25,0.22,33.5]}  material={FENCE_MAT}><boxGeometry args={[0.08,0.44,23]}  /></mesh>
+      <mesh position={[-19.5,0.22,22]}  material={FENCE_MAT}><boxGeometry args={[11,0.44,0.08]}  /></mesh>
+      <mesh position={[-14,0.22,29.5]}  material={FENCE_MAT}><boxGeometry args={[0.08,0.44,15]}  /></mesh>
+      <mesh position={[3,0.22,45]}      material={FENCE_MAT}><boxGeometry args={[34,0.44,0.08]}  /></mesh>
+      <mesh position={[3,0.22,37]}      material={FENCE_MAT}><boxGeometry args={[34,0.44,0.08]}  /></mesh>
+      <mesh position={[20,0.22,41]}     material={FENCE_MAT}><boxGeometry args={[0.08,0.44,8]}   /></mesh>
 
       {/* ── Vertical leg: benches & trees ── */}
       <Bench position={[-22.5,0,26]} rot={Math.PI/2} />
@@ -542,7 +590,7 @@ const OfficeFloor = () => {
       <ParkTree position={[-24,0,23.5]}  s={1.05} />
       <ParkTree position={[-15,0,23.8]}  s={0.88} />
       <ParkTree position={[-23.5,0,29.5]} s={1.1} />
-      <ParkTree position={[-15.5,0,30.0]} s={0.90} />
+      <ParkTree position={[-21.5,0,31.5]} s={0.80} />
       <ParkTree position={[-24,0,35.5]}  s={0.95} />
 
       {/* ── Horizontal leg: benches & trees ── */}
@@ -560,18 +608,17 @@ const OfficeFloor = () => {
       <ParkTree position={[18.5,0,43.0]} s={0.80} />
 
       {/* ── Designated Smoking Area — south-east corner of horizontal leg ── */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[16.5,0.012,41.5]}>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[16.5,0.012,41.5]} material={PARK_SMOKE_MAT}>
         <planeGeometry args={[6,5]} />
-        <meshStandardMaterial color="#909088" roughness={0.92} />
       </mesh>
       {([13.5,19.5] as number[]).map((x,i) => (
-        <mesh key={`sp${i}`} position={[x,0.3,39.1]}><cylinderGeometry args={[0.05,0.05,0.6,8]}/><meshStandardMaterial color="#555555"/></mesh>
+        <mesh key={`sp${i}`}  position={[x,0.3,39.1]} material={SMOKE_POST_MAT}><cylinderGeometry args={[0.05,0.05,0.6,8]}/></mesh>
       ))}
       {([13.5,19.5] as number[]).map((x,i) => (
-        <mesh key={`sp2${i}`} position={[x,0.3,43.9]}><cylinderGeometry args={[0.05,0.05,0.6,8]}/><meshStandardMaterial color="#555555"/></mesh>
+        <mesh key={`sp2${i}`} position={[x,0.3,43.9]} material={SMOKE_POST_MAT}><cylinderGeometry args={[0.05,0.05,0.6,8]}/></mesh>
       ))}
-      <mesh position={[16.5,0.55,39.1]}><boxGeometry args={[6,0.04,0.04]}/><meshStandardMaterial color="#888888" metalness={0.6}/></mesh>
-      <mesh position={[16.5,0.55,43.9]}><boxGeometry args={[6,0.04,0.04]}/><meshStandardMaterial color="#888888" metalness={0.6}/></mesh>
+      <mesh position={[16.5,0.55,39.1]} material={SMOKE_ROPE_MAT}><boxGeometry args={[6,0.04,0.04]}/></mesh>
+      <mesh position={[16.5,0.55,43.9]} material={SMOKE_ROPE_MAT}><boxGeometry args={[6,0.04,0.04]}/></mesh>
       <AshtrayPost position={[14.5,0,40.5]} />
       <AshtrayPost position={[17.5,0,42.0]} />
       <AshtrayPost position={[19,0,40.0]} />
@@ -586,23 +633,20 @@ const OfficeFloor = () => {
       {/* ══════════════════════════════════════════════════════════════
           PARKING LOT — east strip (x 34→45, z 22→45)
          ══════════════════════════════════════════════════════════════ */}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[39.5,0.006,33.5]}>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[39.5,0.006,33.5]} material={PARKING_MAT}>
         <planeGeometry args={[11,23]} />
-        <meshStandardMaterial color="#9a9590" roughness={0.94} />
       </mesh>
       {/* Bay lines */}
       {([24,27.5,31,34.5,38,41.5] as number[]).map((z,i) => (
-        <mesh key={`pl${i}`} rotation={[-Math.PI/2,0,0]} position={[39.5,0.012,z]}>
+        <mesh key={`pl${i}`} rotation={[-Math.PI/2,0,0]} position={[39.5,0.012,z]} material={PARKING_LINE_MAT}>
           <planeGeometry args={[11,0.12]} />
-          <meshStandardMaterial color="#e8e4d8" roughness={0.85} />
         </mesh>
       ))}
-      <mesh rotation={[-Math.PI/2,0,0]} position={[39.5,0.011,33.5]}>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[39.5,0.011,33.5]} material={PARKING_LINE_MAT}>
         <planeGeometry args={[0.12,23]} />
-        <meshStandardMaterial color="#e8e4d8" roughness={0.85} />
       </mesh>
       {/* Sign */}
-      <mesh position={[39.5,1.0,23]}><cylinderGeometry args={[0.05,0.05,2,8]}/><meshStandardMaterial color="#555" metalness={0.5}/></mesh>
+      <mesh position={[39.5,1.0,23]} material={PARKING_SIGN_MAT}><cylinderGeometry args={[0.05,0.05,2,8]}/></mesh>
       <Html position={[39.5,2.4,23]} center distanceFactor={20} style={{ pointerEvents:"none" }}>
         <div style={{ fontSize:"8px",background:"#1a44aa",color:"#fff",padding:"2px 7px",
           borderRadius:"3px",border:"1px solid #88aaff",fontFamily:"monospace",
@@ -615,13 +659,8 @@ const OfficeFloor = () => {
         <ParkedCar key={`parked-car-${i}`} position={car.position} rot={car.rot} car={car.car} />
       ))}
 
-      {/* ── Perimeter lamp posts (all four boundary walls) ── */}
-      {NORTH_LAMPS.map((pos,i) => <LampPost key={`n${i}`} position={pos} />)}
-      {SOUTH_LAMPS.map((pos,i) => <LampPost key={`s${i}`} position={pos} />)}
-      {WEST_LAMPS.map((pos,i)  => <LampPost key={`w${i}`} position={pos} />)}
-      {EAST_LAMPS.map((pos,i)  => <LampPost key={`e${i}`} position={pos} />)}
-      {/* Extra lamps flanking the main entrance pavement strip */}
-      {[-22,-10,2,14,26,38].map((x,i) => <LampPost key={`p${i}`} position={[x,0,21.5]} />)}
+      {/* All 30 lamp posts rendered as 2 InstancedMeshes + 6 entrance point lights */}
+      <AllLampPosts />
 
       <Plants />
     </group>

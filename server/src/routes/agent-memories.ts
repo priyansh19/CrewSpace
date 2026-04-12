@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@crewspaceai/db";
 import { agentMemoriesService } from "../services/agentMemories.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 

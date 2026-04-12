@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AgentIcon } from "./AgentIconPicker";
 import { cn } from "@/lib/utils";
 import { agentDotColor, formatChatTime, streamAgentChat, AGENT_STATUS_COLOR } from "../lib/agentChat";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@crewspaceai/shared";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

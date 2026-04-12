@@ -24,7 +24,7 @@ import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, 
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
-import type { Agent, Issue, Approval, HeartbeatRun } from "@paperclipai/shared";
+import type { Agent, Issue, Approval, HeartbeatRun } from "@crewspaceai/shared";
 import { PluginSlotOutlet } from "@/plugins/slots";
 
 function getRecentIssues(issues: Issue[]): Issue[] {
@@ -385,7 +385,7 @@ export function Dashboard() {
       return (
         <EmptyState
           icon={LayoutDashboard}
-          message="Welcome to Paperclip. Set up your first company and agent to get started."
+          message="Welcome to CrewSpace. Set up your first company and agent to get started."
           action="Get Started"
           onAction={openOnboarding}
         />

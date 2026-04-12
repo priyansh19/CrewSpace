@@ -1,6 +1,6 @@
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 interface RoomProps {
   position: [number, number, number];
@@ -184,4 +184,5 @@ const Room = ({
   );
 };
 
-export default Room;
+// Room geometry is purely static — memo prevents re-renders from parent OfficeFloor
+export default memo(Room);

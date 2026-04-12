@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useOfficeStore } from "@/stores/officeStore";
 import OfficeScene from "./office/OfficeScene";
 import LiveDataBridge from "./office/LiveDataBridge";
@@ -12,9 +13,10 @@ export function Office() {
   const selectedAgentId = useOfficeStore((s) => s.selectedAgentId);
   const selectAgent     = useOfficeStore((s) => s.selectAgent);
 
-  const workingCount = officeAgents.filter(
-    (a) => a.status === "working" || a.status === "collaborating" || a.status === "meeting",
-  ).length;
+  const workingCount = useMemo(
+    () => officeAgents.filter((a) => a.status === "working" || a.status === "collaborating" || a.status === "meeting").length,
+    [officeAgents],
+  );
 
   const hud = {
     background:    isNightMode ? "rgba(8,10,24,0.88)"      : "rgba(255,250,240,0.88)",

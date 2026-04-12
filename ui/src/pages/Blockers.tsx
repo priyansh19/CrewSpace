@@ -8,7 +8,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { Link } from "@/lib/router";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Issue } from "@paperclipai/shared";
+import type { Issue } from "@crewspaceai/shared";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -312,7 +312,7 @@ export type {
   PluginLauncherDeclaration,
   PluginMinimumHostVersion,
   PluginUiDeclaration,
-  PaperclipPluginManifestV1,
+  CrewSpacePluginManifestV1,
   PluginRecord,
   PluginStateRecord,
   PluginConfig,
@@ -574,7 +574,7 @@ export {
 } from "./project-mentions.js";
 
 export {
-  paperclipConfigSchema,
+  crewspaceConfigSchema,
   configMetaSchema,
   llmConfigSchema,
   databaseBackupConfigSchema,
@@ -587,7 +587,7 @@ export {
   storageLocalDiskConfigSchema,
   storageS3ConfigSchema,
   secretsLocalEncryptedConfigSchema,
-  type PaperclipConfig,
+  type CrewSpaceConfig,
   type LlmConfig,
   type DatabaseBackupConfig,
   type DatabaseConfig,

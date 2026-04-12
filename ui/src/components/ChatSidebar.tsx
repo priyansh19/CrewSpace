@@ -27,7 +27,7 @@ import { agentsApi } from "../api/agents";
 import { agentDotColor, formatChatTime, streamAgentChat } from "../lib/agentChat";
 import { agentMemoriesApi } from "../api/agentMemories";
 import type { ChatMessage } from "../context/ChatContext";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@crewspaceai/shared";
 
 function timeAgoShort(date: Date): string {
   const diff = Date.now() - date.getTime();

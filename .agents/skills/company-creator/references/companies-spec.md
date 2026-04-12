@@ -39,7 +39,7 @@ company-package/
 ├── assets/
 ├── scripts/
 ├── references/
-└── .paperclip.yaml          (optional vendor extension)
+└── .crewspace.yaml          (optional vendor extension)
 ```
 
 ## Common Frontmatter Fields

@@ -1,4 +1,4 @@
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@crewspaceai/db";
 import { agentMemoriesService } from "./agentMemories.js";
 
 /**

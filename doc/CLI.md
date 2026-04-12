@@ -1,6 +1,6 @@
 # CLI Reference
 
-Paperclip CLI now supports both:
+CrewSpace CLI now supports both:
 
 - instance setup/diagnostics (`onboard`, `doctor`, `configure`, `env`, `allowed-hostname`)
 - control-plane client operations (issues, approvals, agents, activity, dashboard)
@@ -10,19 +10,19 @@ Paperclip CLI now supports both:
 Use repo script in development:
 
 ```sh
-pnpm paperclipai --help
+pnpm crewspace --help
 ```
 
 First-time local bootstrap + run:
 
 ```sh
-pnpm paperclipai run
+pnpm crewspace run
 ```
 
 Choose local instance:
 
 ```sh
-pnpm paperclipai run --instance dev
+pnpm crewspace run --instance dev
 ```
 
 ## Deployment Modes
@@ -31,16 +31,16 @@ Mode taxonomy and design intent are documented in `doc/DEPLOYMENT-MODES.md`.
 
 Current CLI behavior:
 
-- `paperclipai onboard` and `paperclipai configure --section server` set deployment mode in config
-- runtime can override mode with `PAPERCLIP_DEPLOYMENT_MODE`
-- `paperclipai run` and `paperclipai doctor` do not yet expose a direct `--mode` flag
+- `crewspace onboard` and `crewspace configure --section server` set deployment mode in config
+- runtime can override mode with `CREWSPACE_DEPLOYMENT_MODE`
+- `crewspace run` and `crewspace doctor` do not yet expose a direct `--mode` flag
 
 Target behavior (planned) is documented in `doc/DEPLOYMENT-MODES.md` section 5.
 
 Allow an authenticated/private hostname (for example custom Tailscale DNS):
 
 ```sh
-pnpm paperclipai allowed-hostname dotta-macbook-pro
+pnpm crewspace allowed-hostname dotta-macbook-pro
 ```
 
 All client commands support:
@@ -54,107 +54,107 @@ All client commands support:
 
 Company-scoped commands also support `--company-id <id>`.
 
-Use `--data-dir` on any CLI command to isolate all default local state (config/context/db/logs/storage/secrets) away from `~/.paperclip`:
+Use `--data-dir` on any CLI command to isolate all default local state (config/context/db/logs/storage/secrets) away from `~/.crewspace`:
 
 ```sh
-pnpm paperclipai run --data-dir ./tmp/paperclip-dev
-pnpm paperclipai issue list --data-dir ./tmp/paperclip-dev
+pnpm crewspace run --data-dir ./tmp/crewspace-dev
+pnpm crewspace issue list --data-dir ./tmp/crewspace-dev
 ```
 
 ## Context Profiles
 
-Store local defaults in `~/.paperclip/context.json`:
+Store local defaults in `~/.crewspace/context.json`:
 
 ```sh
-pnpm paperclipai context set --api-base http://localhost:3100 --company-id <company-id>
-pnpm paperclipai context show
-pnpm paperclipai context list
-pnpm paperclipai context use default
+pnpm crewspace context set --api-base http://localhost:3100 --company-id <company-id>
+pnpm crewspace context show
+pnpm crewspace context list
+pnpm crewspace context use default
 ```
 
 To avoid storing secrets in context, set `apiKeyEnvVarName` and keep the key in env:
 
 ```sh
-pnpm paperclipai context set --api-key-env-var-name PAPERCLIP_API_KEY
-export PAPERCLIP_API_KEY=...
+pnpm crewspace context set --api-key-env-var-name CREWSPACE_API_KEY
+export CREWSPACE_API_KEY=...
 ```
 
 ## Company Commands
 
 ```sh
-pnpm paperclipai company list
-pnpm paperclipai company get <company-id>
-pnpm paperclipai company delete <company-id-or-prefix> --yes --confirm <same-id-or-prefix>
+pnpm crewspace company list
+pnpm crewspace company get <company-id>
+pnpm crewspace company delete <company-id-or-prefix> --yes --confirm <same-id-or-prefix>
 ```
 
 Examples:
 
 ```sh
-pnpm paperclipai company delete PAP --yes --confirm PAP
-pnpm paperclipai company delete 5cbe79ee-acb3-4597-896e-7662742593cd --yes --confirm 5cbe79ee-acb3-4597-896e-7662742593cd
+pnpm crewspace company delete PAP --yes --confirm PAP
+pnpm crewspace company delete 5cbe79ee-acb3-4597-896e-7662742593cd --yes --confirm 5cbe79ee-acb3-4597-896e-7662742593cd
 ```
 
 Notes:
 
-- Deletion is server-gated by `PAPERCLIP_ENABLE_COMPANY_DELETION`.
-- With agent authentication, company deletion is company-scoped. Use the current company ID/prefix (for example via `--company-id` or `PAPERCLIP_COMPANY_ID`), not another company.
+- Deletion is server-gated by `CREWSPACE_ENABLE_COMPANY_DELETION`.
+- With agent authentication, company deletion is company-scoped. Use the current company ID/prefix (for example via `--company-id` or `CREWSPACE_COMPANY_ID`), not another company.
 
 ## Issue Commands
 
 ```sh
-pnpm paperclipai issue list --company-id <company-id> [--status todo,in_progress] [--assignee-agent-id <agent-id>] [--match text]
-pnpm paperclipai issue get <issue-id-or-identifier>
-pnpm paperclipai issue create --company-id <company-id> --title "..." [--description "..."] [--status todo] [--priority high]
-pnpm paperclipai issue update <issue-id> [--status in_progress] [--comment "..."]
-pnpm paperclipai issue comment <issue-id> --body "..." [--reopen]
-pnpm paperclipai issue checkout <issue-id> --agent-id <agent-id> [--expected-statuses todo,backlog,blocked]
-pnpm paperclipai issue release <issue-id>
+pnpm crewspace issue list --company-id <company-id> [--status todo,in_progress] [--assignee-agent-id <agent-id>] [--match text]
+pnpm crewspace issue get <issue-id-or-identifier>
+pnpm crewspace issue create --company-id <company-id> --title "..." [--description "..."] [--status todo] [--priority high]
+pnpm crewspace issue update <issue-id> [--status in_progress] [--comment "..."]
+pnpm crewspace issue comment <issue-id> --body "..." [--reopen]
+pnpm crewspace issue checkout <issue-id> --agent-id <agent-id> [--expected-statuses todo,backlog,blocked]
+pnpm crewspace issue release <issue-id>
 ```
 
 ## Agent Commands
 
 ```sh
-pnpm paperclipai agent list --company-id <company-id>
-pnpm paperclipai agent get <agent-id>
-pnpm paperclipai agent local-cli <agent-id-or-shortname> --company-id <company-id>
+pnpm crewspace agent list --company-id <company-id>
+pnpm crewspace agent get <agent-id>
+pnpm crewspace agent local-cli <agent-id-or-shortname> --company-id <company-id>
 ```
 
-`agent local-cli` is the quickest way to run local Claude/Codex manually as a Paperclip agent:
+`agent local-cli` is the quickest way to run local Claude/Codex manually as a CrewSpace agent:
 
 - creates a new long-lived agent API key
-- installs missing Paperclip skills into `~/.codex/skills` and `~/.claude/skills`
-- prints `export ...` lines for `PAPERCLIP_API_URL`, `PAPERCLIP_COMPANY_ID`, `PAPERCLIP_AGENT_ID`, and `PAPERCLIP_API_KEY`
+- installs missing CrewSpace skills into `~/.codex/skills` and `~/.claude/skills`
+- prints `export ...` lines for `CREWSPACE_API_URL`, `CREWSPACE_COMPANY_ID`, `CREWSPACE_AGENT_ID`, and `CREWSPACE_API_KEY`
 
 Example for shortname-based local setup:
 
 ```sh
-pnpm paperclipai agent local-cli codexcoder --company-id <company-id>
-pnpm paperclipai agent local-cli claudecoder --company-id <company-id>
+pnpm crewspace agent local-cli codexcoder --company-id <company-id>
+pnpm crewspace agent local-cli claudecoder --company-id <company-id>
 ```
 
 ## Approval Commands
 
 ```sh
-pnpm paperclipai approval list --company-id <company-id> [--status pending]
-pnpm paperclipai approval get <approval-id>
-pnpm paperclipai approval create --company-id <company-id> --type hire_agent --payload '{"name":"..."}' [--issue-ids <id1,id2>]
-pnpm paperclipai approval approve <approval-id> [--decision-note "..."]
-pnpm paperclipai approval reject <approval-id> [--decision-note "..."]
-pnpm paperclipai approval request-revision <approval-id> [--decision-note "..."]
-pnpm paperclipai approval resubmit <approval-id> [--payload '{"...":"..."}']
-pnpm paperclipai approval comment <approval-id> --body "..."
+pnpm crewspace approval list --company-id <company-id> [--status pending]
+pnpm crewspace approval get <approval-id>
+pnpm crewspace approval create --company-id <company-id> --type hire_agent --payload '{"name":"..."}' [--issue-ids <id1,id2>]
+pnpm crewspace approval approve <approval-id> [--decision-note "..."]
+pnpm crewspace approval reject <approval-id> [--decision-note "..."]
+pnpm crewspace approval request-revision <approval-id> [--decision-note "..."]
+pnpm crewspace approval resubmit <approval-id> [--payload '{"...":"..."}']
+pnpm crewspace approval comment <approval-id> --body "..."
 ```
 
 ## Activity Commands
 
 ```sh
-pnpm paperclipai activity list --company-id <company-id> [--agent-id <agent-id>] [--entity-type issue] [--entity-id <id>]
+pnpm crewspace activity list --company-id <company-id> [--agent-id <agent-id>] [--entity-type issue] [--entity-id <id>]
 ```
 
 ## Dashboard Commands
 
 ```sh
-pnpm paperclipai dashboard get --company-id <company-id>
+pnpm crewspace dashboard get --company-id <company-id>
 ```
 
 ## Heartbeat Command
@@ -162,23 +162,23 @@ pnpm paperclipai dashboard get --company-id <company-id>
 `heartbeat run` now also supports context/api-key options and uses the shared client stack:
 
 ```sh
-pnpm paperclipai heartbeat run --agent-id <agent-id> [--api-base http://localhost:3100] [--api-key <token>]
+pnpm crewspace heartbeat run --agent-id <agent-id> [--api-base http://localhost:3100] [--api-key <token>]
 ```
 
 ## Local Storage Defaults
 
-Default local instance root is `~/.paperclip/instances/default`:
+Default local instance root is `~/.crewspace/instances/default`:
 
-- config: `~/.paperclip/instances/default/config.json`
-- embedded db: `~/.paperclip/instances/default/db`
-- logs: `~/.paperclip/instances/default/logs`
-- storage: `~/.paperclip/instances/default/data/storage`
-- secrets key: `~/.paperclip/instances/default/secrets/master.key`
+- config: `~/.crewspace/instances/default/config.json`
+- embedded db: `~/.crewspace/instances/default/db`
+- logs: `~/.crewspace/instances/default/logs`
+- storage: `~/.crewspace/instances/default/data/storage`
+- secrets key: `~/.crewspace/instances/default/secrets/master.key`
 
 Override base home or instance with env vars:
 
 ```sh
-PAPERCLIP_HOME=/custom/home PAPERCLIP_INSTANCE_ID=dev pnpm paperclipai run
+CREWSPACE_HOME=/custom/home CREWSPACE_INSTANCE_ID=dev pnpm crewspace run
 ```
 
 ## Storage Configuration
@@ -186,7 +186,7 @@ PAPERCLIP_HOME=/custom/home PAPERCLIP_INSTANCE_ID=dev pnpm paperclipai run
 Configure storage provider and settings:
 
 ```sh
-pnpm paperclipai configure --section storage
+pnpm crewspace configure --section storage
 ```
 
 Supported providers:

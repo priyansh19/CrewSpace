@@ -3,8 +3,8 @@
 // imports (process/, http/, heartbeat.ts) don't need rewriting.
 import type { ChildProcess } from "node:child_process";
 import { logger } from "../middleware/logger.js";
-import * as serverUtils from "@paperclipai/adapter-utils/server-utils";
-export type { RunProcessResult } from "@paperclipai/adapter-utils/server-utils";
+import * as serverUtils from "@crewspaceai/adapter-utils/server-utils";
+export type { RunProcessResult } from "@crewspaceai/adapter-utils/server-utils";
 
 type BuildInvocationEnvForLogsOptions = {
   runtimeEnv?: NodeJS.ProcessEnv | Record<string, string>;
@@ -27,7 +27,7 @@ export const appendWithCap = serverUtils.appendWithCap;
 export const resolvePathValue = serverUtils.resolvePathValue;
 export const renderTemplate = serverUtils.renderTemplate;
 export const redactEnvForLogs = serverUtils.redactEnvForLogs;
-export const buildPaperclipEnv = serverUtils.buildPaperclipEnv;
+export const buildCrewSpaceEnv = serverUtils.buildCrewSpaceEnv;
 export const defaultPathForPlatform = serverUtils.defaultPathForPlatform;
 export const ensurePathInEnv = serverUtils.ensurePathInEnv;
 export const ensureAbsoluteDirectory = serverUtils.ensureAbsoluteDirectory;
@@ -38,7 +38,7 @@ export function buildInvocationEnvForLogs(
   env: Record<string, string>,
   options: BuildInvocationEnvForLogsOptions = {},
 ): Record<string, string> {
-  // TODO: Remove this fallback once @paperclipai/adapter-utils exports buildInvocationEnvForLogs everywhere we consume it.
+  // TODO: Remove this fallback once @crewspaceai/adapter-utils exports buildInvocationEnvForLogs everywhere we consume it.
   const maybeBuildInvocationEnvForLogs = (
     serverUtils as typeof serverUtils & {
       buildInvocationEnvForLogs?: (
@@ -64,14 +64,14 @@ export function buildInvocationEnvForLogs(
 
   const resolvedCommand = options.resolvedCommand?.trim();
   if (resolvedCommand) {
-    merged[options.resolvedCommandEnvKey ?? "PAPERCLIP_RESOLVED_COMMAND"] = resolvedCommand;
+    merged[options.resolvedCommandEnvKey ?? "CREWSPACE_RESOLVED_COMMAND"] = resolvedCommand;
   }
 
   return redactEnvForLogs(merged);
 }
 
 // Re-export runChildProcess with the server's pino logger wired in.
-import type { RunProcessResult } from "@paperclipai/adapter-utils/server-utils";
+import type { RunProcessResult } from "@crewspaceai/adapter-utils/server-utils";
 const _runChildProcess = serverUtils.runChildProcess;
 
 export async function runChildProcess(

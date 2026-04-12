@@ -146,8 +146,8 @@ export const ROOM_SEATS: Record<RoomId, SeatDef[]> = {
     { offset: [3.2, 0, 0], rot: -Math.PI / 2 },
   ],
   workstations: [
-    ...[-10, -8, -6, -4, -2, 0, 2, 4, 6, 8, 10].map((x) => ({ offset: [x, 0, -0.6] as [number, number, number], rot: Math.PI })),
-    ...[-10, -8, -6, -4, -2, 0, 2, 4, 6, 8, 10].map((x) => ({ offset: [x, 0, 0.6] as [number, number, number], rot: 0 })),
+    ...[-12.5, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 12.5].map((x) => ({ offset: [x, 0, -0.65] as [number, number, number], rot: Math.PI })),
+    ...[-12.5, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 12.5].map((x) => ({ offset: [x, 0, 0.65] as [number, number, number], rot: 0 })),
   ],
   "sleeping-room": [
     ...[
@@ -271,7 +271,6 @@ interface OfficeStore {
   liveMode: boolean;
   selectAgent: (id: string | null) => void;
   toggleNightMode: () => void;
-  tick: () => void;
   setBackendSnapshot: (snapshot: BackendSnapshot) => void;
 }
 
@@ -442,24 +441,38 @@ type MockSeed = {
   task: string;
   title: string | null;
   capabilities: string | null;
+  reportsTo?: string | null;
 };
 
 const MOCK_OFFICE_AGENT_SEEDS: MockSeed[] = [
-  { id: "mock-a1", name: "Clipworth", role: "manager", status: "working", currentRoom: "ceo-cabin", task: "Q3 Production Targets", title: "Operations Manager", capabilities: "Strategy, delegation, production planning" },
-  { id: "mock-a2", name: "Bender", role: "developer", status: "working", currentRoom: "workstations", task: "Wire Gauge Calibration System", title: "Production Engineer", capabilities: "Automation, systems, calibration" },
-  { id: "mock-a3", name: "Coil", role: "designer", status: "working", currentRoom: "workstations", task: "Paperclip Shape R&D", title: "Product Designer", capabilities: "Design, prototyping, product research" },
-  { id: "mock-a4", name: "Temper", role: "security", status: "working", currentRoom: "workstations", task: "Supply Chain Audit", title: "Quality & Compliance", capabilities: "Auditing, compliance, risk review" },
-  { id: "mock-a5", name: "Alloy", role: "developer", status: "idle", currentRoom: "kitchen", task: "Coffee Break", title: "Production Engineer", capabilities: "Automation, tooling, product systems" },
-  { id: "mock-a6", name: "Crimp", role: "designer", status: "idle", currentRoom: "play-area", task: "Table Tennis", title: "Product Designer", capabilities: "UX, design systems, R&D" },
-  { id: "mock-a7", name: "Gauge", role: "developer", status: "meeting", currentRoom: "scrum-room", task: "Production Standup", title: "Production Engineer", capabilities: "Systems, planning, execution" },
-  { id: "mock-a8", name: "Sterling", role: "manager", status: "meeting", currentRoom: "scrum-room", task: "Sprint Review", title: "Operations Manager", capabilities: "Coordination, reviews, planning" },
-  { id: "mock-a9", name: "Zinc", role: "security", status: "sleeping", currentRoom: "sleeping-room", task: "Recharging", title: "Quality & Compliance", capabilities: "Controls, audits, response" },
-  { id: "mock-a10", name: "Tungsten", role: "developer", status: "working", currentRoom: "workstations", task: "Inventory Database Optimization", title: "Production Engineer", capabilities: "Databases, APIs, automation" },
-  { id: "mock-a11", name: "Nickel", role: "designer", status: "collaborating", currentRoom: "conf-design", task: "Premium Clip Line Design", title: "Product Designer", capabilities: "Visual design, product concepts" },
-  { id: "mock-a12", name: "Rivet", role: "developer", status: "idle", currentRoom: "play-area", task: "Table Tennis", title: "Production Engineer", capabilities: "Frontend, tooling, QA" },
-  { id: "mock-a13", name: "Pixel", role: "designer", status: "idle", currentRoom: "nike-store", task: "Browsing New Kicks", title: "Product Designer", capabilities: "Trends, style, consumer research" },
-  { id: "mock-a14", name: "Byte", role: "developer", status: "idle", currentRoom: "food-court", task: "Lunch Break", title: "Production Engineer", capabilities: "Systems, APIs, databases" },
-  { id: "mock-a15", name: "Cryogen", role: "security", status: "idle", currentRoom: "gaming-room", task: "Arcade Session", title: "Quality & Compliance", capabilities: "Controls, pen-testing, forensics" },
+  // ── C-Suite ──────────────────────────────────────────────────────────────────
+  { id: "mock-ceo-1",      name: "Alex Mercer",     role: "ceo",      status: "meeting",      currentRoom: "ceo-cabin",    task: "Q4 AI Roadmap Review",                   title: "Chief Executive Officer",           capabilities: "Vision, strategy, P&L management, board relations",            reportsTo: null },
+  { id: "mock-cmo-1",      name: "Nora Patel",      role: "pm",       status: "working",      currentRoom: "conf-product", task: "Q4 GTM Strategy & Pilot Demo Prep",      title: "Chief Marketing Officer",           capabilities: "Brand strategy, GTM, demand generation, product positioning",    reportsTo: "mock-ceo-1" },
+  { id: "mock-cto-1",      name: "Leo Zhang",       role: "manager",  status: "meeting",      currentRoom: "scrum-room",   task: "Engineering Status Sync",                title: "Chief Technology Officer",          capabilities: "Technical strategy, AI/ML architecture, cloud infra, R&D",      reportsTo: "mock-ceo-1" },
+
+  // ── VPs (under CTO) ──────────────────────────────────────────────────────────
+  { id: "mock-mgr-apps",   name: "Jordan Blake",    role: "manager",  status: "meeting",      currentRoom: "conf-dev",     task: "Sprint Planning – AI Apps Team",         title: "VP of AI Applications",             capabilities: "Agile delivery, sprint planning, production readiness, releases", reportsTo: "mock-cto-1" },
+  { id: "mock-mgr-infra",  name: "Priya Mehta",     role: "manager",  status: "working",      currentRoom: "server-room",  task: "Azure Cost Optimisation Review",         title: "VP of AI Infrastructure",           capabilities: "Azure cloud, AI infra, MLOps, cost optimisation, DevOps",       reportsTo: "mock-cto-1" },
+
+  // ── Dev Team (under Jordan) ──────────────────────────────────────────────────
+  { id: "mock-dev-1",      name: "Sam Torres",      role: "developer", status: "working",     currentRoom: "workstations", task: "RAG Chunking Strategy – v2.4 Tuning",    title: "Senior AI Engineer",                capabilities: "Python, LangChain, RAG, LLM fine-tuning, FastAPI",             reportsTo: "mock-mgr-apps" },
+  { id: "mock-dev-2",      name: "Lena Kim",        role: "developer", status: "working",     currentRoom: "workstations", task: "Streaming API – SSE Integration",        title: "AI Application Engineer",           capabilities: "React, TypeScript, SSE streaming, prompt engineering, UX",      reportsTo: "mock-mgr-apps" },
+
+  // ── QA Team (under Jordan) ──────────────────────────────────────────────────
+  { id: "mock-qa-1",       name: "Omar Hassan",     role: "security",  status: "working",     currentRoom: "conf-qa",      task: "Production Readiness Sign-off – v2.4",   title: "QA Lead – AI Systems",              capabilities: "AI testing, hallucination detection, Playwright, k6",           reportsTo: "mock-mgr-apps" },
+  { id: "mock-qa-2",       name: "Yuki Tanaka",     role: "security",  status: "idle",        currentRoom: "kitchen",      task: "Coffee Break",                           title: "AI Quality Engineer",               capabilities: "Automated test pipelines, model evaluation, regression",        reportsTo: "mock-mgr-apps" },
+
+  // ── Production Release Team (under Jordan) ────────────────────────────────────
+  { id: "mock-prod-1",     name: "Carlos Diaz",     role: "engineer",  status: "working",     currentRoom: "workstations", task: "Blue-Green Deploy Pipeline Optimisation", title: "Release Engineer",                 capabilities: "CI/CD, GitHub Actions, blue-green deploys, canary releases",    reportsTo: "mock-mgr-apps" },
+  { id: "mock-prod-2",     name: "Nia Williams",    role: "engineer",  status: "idle",        currentRoom: "food-court",   task: "Lunch Break",                            title: "Site Reliability Engineer",         capabilities: "SRE, Datadog, PagerDuty, incident management, SLO tracking",    reportsTo: "mock-mgr-apps" },
+
+  // ── DevOps Bangers Team (under Priya) ────────────────────────────────────────
+  { id: "mock-devops-1",   name: "Axel Johansson",  role: "engineer",  status: "working",     currentRoom: "server-room",  task: "PR Preview Environments – Terraform",    title: "DevOps Lead – Bangers",             capabilities: "Azure DevOps, Terraform, Helm, Kubernetes, container registry",  reportsTo: "mock-mgr-infra" },
+  { id: "mock-devops-2",   name: "Fatima Al-Rashid",role: "engineer",  status: "working",     currentRoom: "workstations", task: "Kubernetes Resource Limits Audit",       title: "DevOps Engineer – Bangers",         capabilities: "Kubernetes, Helm, network policies, security patching, Renovate", reportsTo: "mock-mgr-infra" },
+
+  // ── Orion Infra Team (under Priya) ───────────────────────────────────────────
+  { id: "mock-orion-1",    name: "Derek Novak",     role: "researcher",status: "collaborating",currentRoom: "conf-data",    task: "Q4 GPU Cluster Capacity Planning",       title: "AI Infrastructure Lead – Orion",    capabilities: "Azure ML, GPU clusters, MLflow, ONNX Runtime, model serving",    reportsTo: "mock-mgr-infra" },
+  { id: "mock-orion-2",    name: "Ifeoma Obi",      role: "researcher",status: "collaborating",currentRoom: "conf-data",    task: "Embedding Cache Warm-up Init Container", title: "AI Infrastructure Engineer – Orion", capabilities: "Azure Cognitive Search, embeddings infra, vector indexing, hybrid search", reportsTo: "mock-mgr-infra" },
 ];
 
 function buildMockOfficeAgents(existingOfficeAgents: OfficeAgent[]) {
@@ -496,7 +509,7 @@ function buildMockOfficeAgents(existingOfficeAgents: OfficeAgent[]) {
       liveRunCount: 0,
       openIssueCount: 0,
       lastHeartbeatAt: null,
-      reportsTo: null,
+      reportsTo: seed.reportsTo ?? null,
       urlKey: null,
     } satisfies OfficeAgent;
   });
@@ -524,17 +537,4 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
         selectedAgentId: hasSelectedAgent ? state.selectedAgentId : null,
       };
     }),
-  tick: () =>
-    set((state) => ({
-      officeAgents: state.officeAgents.map((agent) => {
-        const [x, y, z] = agent.position;
-        const [tx, ty, tz] = agent.targetPosition;
-        const next: [number, number, number] = [
-          Math.abs(tx - x) < 0.02 ? tx : x + (tx - x) * 0.12,
-          Math.abs(ty - y) < 0.02 ? ty : y + (ty - y) * 0.12,
-          Math.abs(tz - z) < 0.02 ? tz : z + (tz - z) * 0.12,
-        ];
-        return { ...agent, position: next };
-      }),
-    })),
 }));

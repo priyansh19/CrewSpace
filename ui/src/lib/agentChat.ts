@@ -1,5 +1,5 @@
 import { agentsApi } from "../api/agents";
-import type { Agent } from "@paperclipai/shared";
+import type { Agent } from "@crewspaceai/shared";
 import type { ChatMessage } from "../context/ChatContext";
 
 export const AGENT_STATUS_COLOR: Record<string, string> = {
