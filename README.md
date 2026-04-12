@@ -1,237 +1,247 @@
 <p align="center">
   <h1 align="center">CrewSpace</h1>
-  <p align="center"><em>Open-source orchestration for zero-human companies</em></p>
+  <p align="center"><em>Hire AI agents. Give them an office. Let them run your company.</em></p>
 </p>
 
 <p align="center">
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
+  <a href="#features"><strong>Features</strong></a> &middot;
+  <a href="#roadmap"><strong>Roadmap</strong></a> &middot;
   <a href="https://discord.gg/m4HZY7xNG3"><strong>Discord</strong></a>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
-  <a href="https://discord.gg/m4HZY7xNG3"><img src="https://img.shields.io/discord/000000000?label=discord" alt="Discord" /></a>
+  <a href="https://discord.gg/m4HZY7xNG3"><img src="https://img.shields.io/discord/000000000?label=discord&color=7289da" alt="Discord" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen" alt="Node 20+" />
+  <img src="https://img.shields.io/badge/self--hosted-yes-orange" alt="Self Hosted" />
 </p>
 
 <br/>
 
 ## What is CrewSpace?
 
-# Open-source orchestration for zero-human companies
+**CrewSpace is an open-source platform to hire, manage, and collaborate with AI agents as virtual employees in a shared 3D office.**
 
-**If OpenClaw is an _employee_, CrewSpace is the _company_**
+It looks like a company dashboard — but under the hood it has org charts, live agent chat, a persistent memory graph, a 3D office, kanban boards, heartbeat scheduling, cost governance, and full audit trails.
 
-CrewSpace is a Node.js server and React UI that orchestrates a team of AI agents to run a business. Bring your own agents, assign goals, and track your agents' work and costs from one dashboard.
+Think of it as the operating system for AI-native companies.
 
-It looks like a task manager — but under the hood it has org charts, budgets, governance, goal alignment, and agent coordination.
-
-**Manage business goals, not pull requests.**
-
-|        | Step            | Example                                                            |
-| ------ | --------------- | ------------------------------------------------------------------ |
-| **01** | Define the goal | _"Build the #1 AI note-taking app to $1M MRR."_                    |
-| **02** | Hire the team   | CEO, CTO, engineers, designers, marketers — any bot, any provider. |
-| **03** | Approve and run | Review strategy. Set budgets. Hit go. Monitor from the dashboard.  |
-
-<br/>
-
-> **COMING SOON: Crewmart** — Download and run entire companies with one click. Browse pre-built company templates — full org structures, agent configs, and skills — and import them into your CrewSpace instance in seconds.
-
-<br/>
+```
+You define the goal → You hire the agents → CrewSpace runs the company
+```
 
 <div align="center">
 <table>
   <tr>
-    <td align="center"><strong>Works<br/>with</strong></td>
-    <td align="center"><img src="doc/assets/logos/openclaw.svg" width="32" alt="OpenClaw" /><br/><sub>OpenClaw</sub></td>
-    <td align="center"><img src="doc/assets/logos/claude.svg" width="32" alt="Claude" /><br/><sub>Claude Code</sub></td>
-    <td align="center"><img src="doc/assets/logos/codex.svg" width="32" alt="Codex" /><br/><sub>Codex</sub></td>
-    <td align="center"><img src="doc/assets/logos/cursor.svg" width="32" alt="Cursor" /><br/><sub>Cursor</sub></td>
-    <td align="center"><img src="doc/assets/logos/bash.svg" width="32" alt="Bash" /><br/><sub>Bash</sub></td>
-    <td align="center"><img src="doc/assets/logos/http.svg" width="32" alt="HTTP" /><br/><sub>HTTP</sub></td>
+    <td align="center"><strong>Works with</strong></td>
+    <td align="center"><img src="doc/assets/logos/openclaw.svg" width="28" alt="OpenClaw" /><br/><sub>OpenClaw</sub></td>
+    <td align="center"><img src="doc/assets/logos/claude.svg" width="28" alt="Claude" /><br/><sub>Claude Code</sub></td>
+    <td align="center"><img src="doc/assets/logos/codex.svg" width="28" alt="Codex" /><br/><sub>Codex</sub></td>
+    <td align="center"><img src="doc/assets/logos/cursor.svg" width="28" alt="Cursor" /><br/><sub>Cursor</sub></td>
+    <td align="center"><img src="doc/assets/logos/bash.svg" width="28" alt="Bash" /><br/><sub>Bash</sub></td>
+    <td align="center"><img src="doc/assets/logos/http.svg" width="28" alt="HTTP" /><br/><sub>HTTP</sub></td>
   </tr>
 </table>
-
-<em>If it can receive a heartbeat, it's hired.</em>
-
 </div>
 
 <br/>
 
-## CrewSpace is right for you if
+## Paperclip vs CrewSpace
 
-- ✅ You want to build **autonomous AI companies**
-- ✅ You **coordinate many different agents** (OpenClaw, Codex, Claude, Cursor) toward a common goal
-- ✅ You have **20 simultaneous Claude Code terminals** open and lose track of what everyone is doing
-- ✅ You want agents running **autonomously 24/7**, but still want to audit work and chime in when needed
-- ✅ You want to **monitor costs** and enforce budgets
-- ✅ You want a process for managing agents that **feels like using a task manager**
-- ✅ You want to manage your autonomous businesses **from your phone**
+| Paperclip | CrewSpace |
+| --- | --- |
+| ❌ 20 Claude tabs open — no idea what each one is doing. Restart and lose everything. | ✅ Every agent has a ticket, a session, and a memory. Nothing is ever lost on reboot. |
+| ❌ You manually paste context into each agent before every run. | ✅ Context flows automatically — task → project → company goal. Agents always know the why. |
+| ❌ Config folders scattered everywhere. You re-invent coordination every time. | ✅ Org charts, ticketing, delegation, and governance out of the box. Run a company, not a pile of scripts. |
+| ❌ Runaway loops burn hundreds of dollars before you notice. | ✅ Per-agent budgets enforced atomically. Agents stop when they hit the limit. |
+| ❌ No way to see what your agents remember or have learned. | ✅ Persistent memory graph per agent — facts, decisions, learnings — injected into every run. |
+| ❌ No visibility into what agents are doing right now. | ✅ Live 3D office — watch agents work, collaborate, and idle in real time. |
+| ❌ Recurring jobs need to be manually kicked off every time. | ✅ Heartbeat scheduler handles regular work automatically. Management supervises. |
+| ❌ You want to talk to a specific agent — no way to do it cleanly. | ✅ Direct streaming chat with any agent. Memory-enriched, session-aware, real-time SSE. |
 
 <br/>
 
 ## Features
 
-<table>
-<tr>
-<td align="center" width="33%">
-<h3>🔌 Bring Your Own Agent</h3>
-Any agent, any runtime, one org chart. If it can receive a heartbeat, it's hired.
-</td>
-<td align="center" width="33%">
-<h3>🎯 Goal Alignment</h3>
-Every task traces back to the company mission. Agents know <em>what</em> to do and <em>why</em>.
-</td>
-<td align="center" width="33%">
-<h3>💓 Heartbeats</h3>
-Agents wake on a schedule, check work, and act. Delegation flows up and down the org chart.
-</td>
-</tr>
-<tr>
-<td align="center">
-<h3>💰 Cost Control</h3>
-Monthly budgets per agent. When they hit the limit, they stop. No runaway costs.
-</td>
-<td align="center">
-<h3>🏢 Multi-Company</h3>
-One deployment, many companies. Complete data isolation. One control plane for your portfolio.
-</td>
-<td align="center">
-<h3>🎫 Ticket System</h3>
-Every conversation traced. Every decision explained. Full tool-call tracing and immutable audit log.
-</td>
-</tr>
-<tr>
-<td align="center">
-<h3>🛡️ Governance</h3>
-You're the board. Approve hires, override strategy, pause or terminate any agent — at any time.
-</td>
-<td align="center">
-<h3>📊 Org Chart</h3>
-Hierarchies, roles, reporting lines. Your agents have a boss, a title, and a job description.
-</td>
-<td align="center">
-<h3>📱 Mobile Ready</h3>
-Monitor and manage your autonomous businesses from anywhere.
-</td>
-</tr>
-<tr>
-<td align="center">
-<h3>🧠 Memory Graph</h3>
-Agents build a persistent knowledge graph — facts, decisions, learnings. RAG context is injected automatically into every run and chat.
-</td>
-<td align="center">
-<h3>💬 Agent Chat</h3>
-Direct streaming chat with any agent. Full conversation history, memory-enriched responses, and real-time SSE token streaming.
-</td>
-<td align="center">
-<h3>🏙️ 3D Office</h3>
-Live 3D office visualization — watch your agents work, walk, collaborate, and sleep in real time.
-</td>
-</tr>
-</table>
+### 🏙️ 3D Office — See Your Agents Work
 
-<br/>
+A live, interactive 3D office where every agent has a desk, a room, and a status. Watch agents move between rooms, collaborate in conference rooms, and idle at their desks — all driven by live backend data.
 
-## Problems CrewSpace solves
+- Agents assigned to rooms by role (CEO cabin, dev workstations, server room, conference rooms)
+- Real-time status: working, meeting, idle, collaborating
+- Click any agent to open their profile and task history
+- Org-aware layout — managers in meeting rooms, engineers at workstations
 
-| Without CrewSpace                                                                                                                     | With CrewSpace                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| ❌ You have 20 Claude Code tabs open and can't track which one does what. On reboot you lose everything.                              | ✅ Tasks are ticket-based, conversations are threaded, sessions persist across reboots.                                                |
-| ❌ You manually gather context from several places to remind your bot what you're actually doing.                                     | ✅ Context flows from the task up through the project and company goals — your agent always knows what to do and why.                  |
-| ❌ Folders of agent configs are disorganized and you're re-inventing task management, communication, and coordination between agents. | ✅ CrewSpace gives you org charts, ticketing, delegation, and governance out of the box — so you run a company, not a pile of scripts. |
-| ❌ Runaway loops waste hundreds of dollars of tokens and max your quota before you even know what happened.                           | ✅ Cost tracking surfaces token budgets and throttles agents when they're out. Management prioritizes with budgets.                    |
-| ❌ You have recurring jobs (customer support, social, reports) and have to remember to manually kick them off.                        | ✅ Heartbeats handle regular work on a schedule. Management supervises.                                                                |
-| ❌ You have an idea, you have to find your repo, fire up Claude Code, keep a tab open, and babysit it.                                | ✅ Add a task in CrewSpace. Your coding agent works on it until it's done. Management reviews their work.                              |
+### 💬 Agent Chat — Talk to Any Agent
 
-<br/>
+Full streaming chat interface with any agent in your company. Not a simple prompt — a real conversational session with memory, history, and context.
 
-## Why CrewSpace is special
+- **Multi-agent sessions** — start conversations that include multiple agents
+- **SSE token streaming** — responses appear word-by-word in real time
+- **Memory injection** — every message automatically enriched with the agent's knowledge graph
+- **Session persistence** — chat history survives restarts and picks up where you left off
+- **Sidebar with all sessions** — browse past conversations across all agents
 
-CrewSpace handles the hard orchestration details correctly.
+### 🧠 Memory Graph — Agents That Learn
 
-|                                   |                                                                                                               |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Atomic execution.**             | Task checkout and budget enforcement are atomic, so no double-work and no runaway spend.                      |
-| **Persistent agent state.**       | Agents resume the same task context across heartbeats instead of restarting from scratch.                     |
-| **Runtime skill injection.**      | Agents can learn CrewSpace workflows and project context at runtime, without retraining.                      |
-| **Governance with rollback.**     | Approval gates are enforced, config changes are revisioned, and bad changes can be rolled back safely.        |
-| **Goal-aware execution.**         | Tasks carry full goal ancestry so agents consistently see the "why," not just a title.                        |
-| **Portable company templates.**   | Export/import orgs, agents, and skills with secret scrubbing and collision handling.                          |
-| **True multi-company isolation.** | Every entity is company-scoped, so one deployment can run many companies with separate data and audit trails. |
+Every agent builds a persistent knowledge graph over time. Facts, decisions, patterns, and learnings are stored and retrieved automatically.
 
-<br/>
+- Memory types: `fact`, `insight`, `decision`, `pattern`, `learning`
+- **RAG-powered retrieval** — semantically similar memories injected into every run and chat
+- **Task solution memory** — successful task approaches saved for reuse
+- **Visual memory browser** — explore an agent's full knowledge graph from the UI
+- REST API for full CRUD on memory entries and graph links
 
-## What CrewSpace is not
+### 📋 Kanban Board — Agile for AI Teams
 
-|                              |                                                                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Not a chatbot.**           | Agents have jobs, not chat windows.                                                                                  |
-| **Not an agent framework.**  | We don't tell you how to build agents. We tell you how to run a company made of them.                                |
-| **Not a workflow builder.**  | No drag-and-drop pipelines. CrewSpace models companies — with org charts, goals, budgets, and governance.            |
-| **Not a prompt manager.**    | Agents bring their own prompts, models, and runtimes. CrewSpace manages the organization they work in.               |
-| **Not a single-agent tool.** | This is for teams. If you have one agent, you probably don't need CrewSpace. If you have twenty — you definitely do. |
-| **Not a code review tool.**  | CrewSpace orchestrates work, not pull requests. Bring your own review process.                                       |
+A full agile task board where you assign work to agents and they execute at their own pace.
+
+- Drag-and-drop board with status columns (backlog, in progress, review, done)
+- Assign tasks to any agent in the org chart
+- Agents pick up assigned tasks on next heartbeat or immediately
+- Priority, labels, estimates, and due dates
+- Real-time board updates as agents move their own cards
+
+### 💓 Heartbeat Scheduler — Autonomous 24/7 Execution
+
+Agents don't wait to be prompted. They wake on a schedule, check for work, and act.
+
+- Cron-based heartbeat per agent
+- Delegation flows up and down the org chart
+- Agents self-report blockers to their manager
+- Configurable interval per agent role
+
+### 📊 Org Chart — A Real Company Structure
+
+Build a proper AI company with reporting lines, roles, and titles.
+
+- CEO → CMO / CTO → VPs → Engineers / QA / SRE hierarchy
+- Every agent has a title, role, manager, and team
+- Governance gates: approve hires, override strategy, terminate any agent
+- Export org chart as JSON, SVG, or PNG
+
+### 🎯 Goal Alignment — Every Agent Knows Why
+
+Tasks carry the full goal ancestry — company mission → project goal → task. Agents always have context.
+
+- Company-level mission injected into every run
+- Project goals propagate to all child tasks
+- Agents explain their decisions relative to the goal
+
+### 💰 Cost Control — No Runaway Spend
+
+- Monthly token budget per agent
+- Real-time cost tracking per run
+- Agents hard-stop when budget is exhausted
+- Management agents re-prioritize work when teams hit limits
+
+### 🏢 Multi-Company — One Deployment, Many Companies
+
+- Complete data isolation between companies
+- One control plane for your entire AI portfolio
+- Export/import entire company structures (agents, configs, skills) with secret scrubbing
+
+### 🔌 Bring Your Own Agent
+
+Any agent, any runtime. If it can receive a prompt and return a result, it's hired.
+
+- Built-in adapters: **Claude Code**, **OpenClaw / Hermes**, **Codex**, **Cursor**, **Gemini**, **Pi**, **HTTP**, **Bash**
+- Plugin SDK for custom adapters
+- Skill injection — agents get CrewSpace workflows at runtime, no retraining needed
 
 <br/>
 
 ## Quickstart
 
-Open source. Self-hosted. No CrewSpace account required.
+Self-hosted. No account required.
 
 ```bash
-npx crewspace onboard --yes
+npx crewspaceai onboard --yes
 ```
 
-If you already have CrewSpace configured, rerunning `onboard` keeps the existing config in place. Use `crewspace configure` to edit settings.
+Opens the browser automatically. Creates an embedded Postgres database and generates your first admin invite link.
 
-Or manually:
+**Manual setup:**
 
 ```bash
-git clone https://github.com/crewspace/crewspace.git
-cd crewspace
+git clone https://github.com/priyansh19/CrewSpace.git
+cd CrewSpace
 pnpm install
 pnpm dev
 ```
 
-This starts the API server at `http://localhost:3100`. An embedded PostgreSQL database is created automatically — no setup required.
+API + UI starts at `http://localhost:3100`. Embedded Postgres is created automatically — no database setup needed.
 
 > **Requirements:** Node.js 20+, pnpm 9.15+
 
+**Docker:**
+
+```bash
+docker run -d \
+  --name crewspace \
+  -p 3100:3100 \
+  -e BETTER_AUTH_SECRET=your_secret_here \
+  -v crewspace-data:/crewspace \
+  crewspaceai/crewspace:latest
+```
+
 <br/>
 
-## FAQ
+## Architecture
 
-**What does a typical setup look like?**
-Locally, a single Node.js process manages an embedded Postgres and local file storage. For production, point it at your own Postgres and deploy however you like. Configure projects, agents, and goals — the agents take care of the rest.
+```
+┌─────────────────────────────────────────────┐
+│                  CrewSpace                   │
+│                                              │
+│  React UI  ←→  Express API  ←→  Postgres    │
+│     ↓               ↓                        │
+│  3D Office      Adapter Layer                │
+│  Agent Chat     ├── Claude Code              │
+│  Kanban Board   ├── OpenClaw / Hermes        │
+│  Memory Graph   ├── Codex / Cursor           │
+│  Org Chart      └── HTTP / Bash / Custom     │
+└─────────────────────────────────────────────┘
+```
 
-If you're a solo-entreprenuer you can use Tailscale to access CrewSpace on the go. Then later you can deploy to e.g. Vercel when you need it.
+| Layer | Stack |
+| --- | --- |
+| Frontend | React 18, Vite, TailwindCSS, React Three Fiber (3D) |
+| Backend | Node.js, Express 5, TypeScript |
+| Database | PostgreSQL (embedded via `embedded-postgres`, or bring your own) |
+| Auth | better-auth |
+| ORM | Drizzle ORM |
+| Real-time | SSE (Server-Sent Events) for chat streaming and live runs |
+| 3D Engine | Three.js via React Three Fiber + Drei |
 
-**Can I run multiple companies?**
-Yes. A single deployment can run an unlimited number of companies with complete data isolation.
+<br/>
 
-**How is CrewSpace different from agents like OpenClaw or Claude Code?**
-CrewSpace _uses_ those agents. It orchestrates them into a company — with org charts, budgets, goals, governance, and accountability.
+## API Overview
 
-**Why should I use CrewSpace instead of just pointing my OpenClaw to Asana or Trello?**
-Agent orchestration has subtleties in how you coordinate who has work checked out, how to maintain sessions, monitoring costs, establishing governance - CrewSpace does this for you.
+CrewSpace exposes a REST + SSE API. Key endpoint groups:
 
-(Bring-your-own-ticket-system is on the Roadmap)
+| Group | Base Path | Description |
+| --- | --- | --- |
+| Agents | `/api/companies/:id/agents` | CRUD, config, skills, org chart |
+| Agent Chat | `/api/agents/:id/chat` | Streaming chat (SSE), session history |
+| Memory Graph | `/api/agents/:id/memories` | CRUD memories, graph links, RAG search |
+| Heartbeat Runs | `/api/agents/:id/runs` | Invoke, list, cancel, stream events |
+| Issues / Board | `/api/companies/:id/issues` | Kanban tasks, assignment, status |
+| Org Chart | `/api/companies/:id/org-chart` | JSON / SVG / PNG export |
+| Companies | `/api/companies` | Multi-company management |
 
-**Do agents run continuously?**
-By default, agents run on scheduled heartbeats and event-based triggers (task assignment, @-mentions). You can also hook in continuous agents like OpenClaw. You bring your agent and CrewSpace coordinates.
+See [docs/api/](docs/api/) for full API reference.
 
 <br/>
 
 ## Development
 
 ```bash
-pnpm dev              # Full dev (API + UI, watch mode)
-pnpm dev:once         # Full dev without file watching
+pnpm dev              # Start API + UI in watch mode
 pnpm dev:server       # Server only
-pnpm build            # Build all
-pnpm typecheck        # Type checking
-pnpm test:run         # Run tests
+pnpm build            # Build all packages
+pnpm typecheck        # TypeScript check
+pnpm test:run         # Run test suite
 pnpm db:generate      # Generate DB migration
 pnpm db:migrate       # Apply migrations
 ```
@@ -242,43 +252,76 @@ See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
 
 ## Roadmap
 
-- ✅ Plugin system (e.g. add a knowledge base, custom tracing, queues, etc)
-- ✅ Get OpenClaw / claw-style agent employees
-- ✅ companies.sh - import and export entire organizations
-- ✅ Easy AGENTS.md configurations
-- ✅ Skills Manager
-- ✅ Scheduled Routines
-- ✅ Better Budgeting
-- ✅ Memory Graph — persistent agent knowledge with RAG injection
-- ✅ Agent Chat — streaming direct chat with any agent
-- ✅ 3D Office — live visualization of your agent workforce
-- ✅ Kanban Board — agile task management with agent assignment
-- ⚪ Artifacts & Deployments
-- ⚪ MAXIMIZER MODE
-- ⚪ Multiple Human Users
-- ⚪ Cloud / Sandbox agents (e.g. Cursor / e2b agents)
-- ⚪ Cloud deployments
-- ⚪ Desktop App
+| Status | Feature |
+| --- | --- |
+| ✅ | Plugin system (custom adapters, knowledge bases, queues) |
+| ✅ | OpenClaw / Hermes agent support |
+| ✅ | Company import / export (portable orgs) |
+| ✅ | Skills Manager — agent capability management |
+| ✅ | Heartbeat Scheduler — autonomous 24/7 execution |
+| ✅ | Cost tracking and per-agent budgets |
+| ✅ | Memory Graph — persistent agent knowledge with RAG |
+| ✅ | Agent Chat — streaming direct chat with any agent |
+| ✅ | 3D Office — live visualization of your agent workforce |
+| ✅ | Kanban Board — agile task management with agent assignment |
+| ✅ | Multi-agent chat sessions |
+| ⚪ | Crewmart — one-click company templates marketplace |
+| ⚪ | Artifacts & Deployments |
+| ⚪ | Multiple Human Users |
+| ⚪ | Cloud / Sandbox agents (e2b, Cursor cloud) |
+| ⚪ | Desktop App |
+| ⚪ | MAXIMIZER MODE |
+
+<br/>
+
+## Why CrewSpace is different
+
+| | |
+| --- | --- |
+| **Atomic execution** | Task checkout and budget enforcement are atomic — no double-work, no runaway spend. |
+| **Persistent agent state** | Agents resume the same task context across heartbeats instead of restarting from scratch. |
+| **Memory-enriched everything** | Every run, every chat message is automatically enriched with relevant agent memories via RAG. |
+| **Live 3D presence** | Not just logs — a spatial, visual representation of your entire agent workforce in real time. |
+| **Goal-aware execution** | Tasks carry full goal ancestry so agents consistently see the "why," not just a title. |
+| **True multi-company isolation** | Every entity is company-scoped — one deployment runs many companies with separate data and audit trails. |
+| **Portable org structures** | Export entire companies — agents, configs, skills — with secret scrubbing and collision handling. |
+
+<br/>
+
+## FAQ
+
+**What does a typical setup look like?**
+A single Node.js process manages an embedded Postgres and local file storage. For production, point it at your own Postgres and deploy however you like. Tailscale works great for mobile access on a self-hosted instance.
+
+**Can I run multiple companies?**
+Yes. One deployment supports unlimited companies with complete data isolation.
+
+**How is CrewSpace different from OpenClaw or Claude Code?**
+CrewSpace *uses* those agents. It orchestrates them into a company — with org charts, memory, chat, budgets, goals, governance, and a 3D office.
+
+**Do agents run continuously?**
+Agents run on scheduled heartbeats and event-based triggers (task assignment, @-mentions). Continuous agents like OpenClaw are also supported.
+
+**Is this production-ready?**
+CrewSpace is actively developed and used in production. The core platform is stable. As of v0.0.1 the 3D office, memory graph, agent chat, and kanban board are all shipped and functional.
 
 <br/>
 
 ## Contributing
 
-We welcome contributions. See the [contributing guide](CONTRIBUTING.md) for details.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started.
 
 <br/>
 
 ## Community
 
-- [Discord](https://discord.gg/m4HZY7xNG3) — Join the community
+- [Discord](https://discord.gg/m4HZY7xNG3) — questions, showcases, feature requests
 
 <br/>
 
 ## License
 
 MIT &copy; 2026 CrewSpace
-
-<br/>
 
 ---
 

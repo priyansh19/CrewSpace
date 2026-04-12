@@ -1,6 +1,6 @@
 {
   "name": "hermes-crewspace-adapter",
-  "version": "0.2.0",
+  "version": "0.0.1",
   "description": "CrewSpace adapter for Hermes Agent — run Hermes as a managed employee in a CrewSpace company",
   "type": "module",
   "license": "MIT",

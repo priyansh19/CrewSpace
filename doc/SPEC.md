@@ -377,12 +377,14 @@ Flow:
 
 ### Tech Stack
 
-| Layer    | Technology                                                   |
-| -------- | ------------------------------------------------------------ |
-| Frontend | React + Vite                                                 |
-| Backend  | TypeScript + Express (REST API, not tRPC — need non-TS clients) |
-| Database | PostgreSQL (see [doc/DATABASE.md](./doc/DATABASE.md) for details — PGlite embedded for dev, Docker or hosted Supabase for production) |
-| Auth     | [Better Auth](https://www.better-auth.com/)                  |
+| Layer     | Technology                                                                                                                               |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend  | React 18 + Vite, TailwindCSS, React Three Fiber + Three.js (3D Office)                                                                 |
+| Backend   | TypeScript + Express 5 (REST + SSE; not tRPC — need non-TS clients)                                                                    |
+| Database  | PostgreSQL (PGlite embedded for dev, Docker or hosted Postgres for production — see [doc/DATABASE.md](./doc/DATABASE.md))               |
+| Auth      | [Better Auth](https://www.better-auth.com/)                                                                                             |
+| ORM       | Drizzle ORM                                                                                                                             |
+| Real-time | SSE (Server-Sent Events) for Agent Chat streaming and live heartbeat run events                                                         |
 
 ### Concurrency Model: Atomic Task Checkout
 
@@ -447,11 +449,14 @@ The plugin framework has shipped. Plugins can register new adapter types, hook i
 Each is a distinct page/route:
 
 1. **Org Chart** — the org tree with live status indicators (running/idle/paused/error) per agent. Real-time activity feed of what agents are doing.
-2. **Task Board** — Task management. Kanban and list views. Filter by team, agent, project, status.
+2. **Task Board (Kanban)** — Agile task management. Drag-and-drop Kanban with status columns (backlog, in progress, review, done). Filter by team, agent, project, status. Agent assignment with real-time card movement as agents progress work.
 3. **Dashboard** — high-level metrics: agent count, active tasks, costs, goal progress, burn rate. The "glance" view from GOAL.md.
 4. **Agent Detail** — deep dive on a single agent: their tasks, activity, costs, configuration, status history.
-5. **Project/Initiative Views** — progress tracking against milestones and goals.
-6. **Cost Dashboard** — spend visualization at every level (agent, task, project, company).
+5. **Agent Chat** — full streaming SSE chat with any agent. Multi-agent sessions, memory-enriched responses, session persistence, and a ChatSidebar with full session history. Also available as a dedicated full-page AgentChat interface.
+6. **Memory Graph Browser** — visual explorer for an agent's persistent knowledge graph. Browse facts, insights, decisions, patterns, and learnings. Supports graph traversal and direct CRUD from the UI.
+7. **3D Office** — live Three.js / React Three Fiber 3D visualization of the agent workforce. Rooms: CEO cabin, dev workstations, server room, conference rooms, kitchen. Click any agent to open their profile. Real-time status and positioning driven by live backend data.
+8. **Project/Initiative Views** — progress tracking against milestones and goals.
+9. **Cost Dashboard** — spend visualization at every level (agent, task, project, company).
 
 ### Board Controls (Available Everywhere)
 
@@ -468,38 +473,42 @@ Each is a distinct page/route:
 
 ### Must Have (V1)
 
-- [ ] **Company CRUD** — create a Company with Initiatives
-- [ ] **Agent CRUD** — create/edit/pause/resume Agents with Adapter config
-- [ ] **Org chart** — define reporting structure, visualize it
-- [ ] **Process adapter** — invoke(), status(), cancel() for local child processes
-- [ ] **Task management** — full lifecycle with hierarchy (tasks trace to company goal)
-- [ ] **Atomic task checkout** — single assignment, in_progress locking
-- [ ] **Board governance** — human approves hires, pauses Agents, sets budgets, full PM access
-- [ ] **Cost tracking** — Agents report token usage, per-Agent/task/Company visibility
-- [ ] **Budget controls** — soft alerts + hard ceiling with auto-pause
-- [ ] **Default agent** — basic Claude Code/Codex loop with CrewSpace skill
-- [ ] **Default CEO** — strategic planning, delegation, board communication
-- [ ] **CrewSpace skill (SKILL.md)** — teaches agents to interact with the API
-- [ ] **REST API** — full API for agent interaction (Express)
-- [ ] **Web UI** — React/Vite: org chart, task board, dashboard, cost views
-- [ ] **Agent auth** — connection string generation with URL + key + instructions
-- [ ] **One-command dev setup** — embedded PGlite, everything local
-- [ ] **Multiple Adapter types** (HTTP, OpenClaw gateway, and local coding adapters)
+- [x] **Company CRUD** — create a Company with Initiatives
+- [x] **Agent CRUD** — create/edit/pause/resume Agents with Adapter config
+- [x] **Org chart** — define reporting structure, visualize it; JSON / SVG / PNG export API
+- [x] **Process adapter** — invoke(), status(), cancel() for local child processes
+- [x] **Task management** — full lifecycle with hierarchy (tasks trace to company goal)
+- [x] **Atomic task checkout** — single assignment, in_progress locking
+- [x] **Board governance** — human approves hires, pauses Agents, sets budgets, full PM access
+- [x] **Cost tracking** — Agents report token usage, per-Agent/task/Company visibility
+- [x] **Budget controls** — soft alerts + hard ceiling with auto-pause
+- [x] **Default agent** — basic Claude Code/Codex loop with CrewSpace skill
+- [x] **Default CEO** — strategic planning, delegation, board communication
+- [x] **CrewSpace skill (SKILL.md)** — teaches agents to interact with the API
+- [x] **REST API** — full API for agent interaction (Express)
+- [x] **Web UI** — React/Vite: org chart, task board, dashboard, cost views
+- [x] **Agent auth** — connection string generation with URL + key + instructions
+- [x] **One-command dev setup** — embedded PGlite, everything local
+- [x] **Multiple Adapter types** (HTTP, OpenClaw gateway, and local coding adapters)
+- [x] **Memory Graph** — persistent agent knowledge graph; fact/insight/decision/pattern/learning types; RAG retrieval; task-solution memory; visual browser in UI
+- [x] **Agent Chat** — full streaming SSE chat; multi-agent sessions; session persistence; memory-enriched responses; ChatSidebar; full-page AgentChat interface
+- [x] **3D Office** — live Three.js/React Three Fiber visualization; room layout by role; real-time agent status and positioning
+- [x] **Kanban Board** — drag-and-drop agile board; agent assignment; real-time card movement
+- [x] **Heartbeat Runs API** — invoke, list, cancel, stream events, fetch logs
 
 ### Not V1
 
-- Knowledge base - a future plugin
 - Advanced governance models (hiring budgets, multi-member boards)
 - Revenue/expense tracking beyond token costs - a future plugin
 - Public job board / open company features
 
 ---
 
-## 11. Knowledge Base
+## 11. Memory Graph (Agent Knowledge)
 
-**Anti-goal for core.** The knowledge base is not part of the CrewSpace core — it will be a plugin. The task system + comments + agent descriptions provide sufficient shared context.
+**Core feature as of v0.0.1.** Each agent has a persistent knowledge graph that accumulates facts, insights, decisions, patterns, and learnings over time. Memories are retrieved via RAG and injected automatically into every heartbeat run and every Agent Chat message.
 
-The architecture must support adding a knowledge base plugin later (clean API boundaries, hookable lifecycle events) but the core system explicitly does not include one.
+A plugin-based knowledge base for shared company-wide documents remains future work. The Memory Graph covers per-agent persistent state; the task system + comments covers inter-agent communication; a wiki/vector-DB knowledge base is still a plugin use case.
 
 ---
 
@@ -508,7 +517,7 @@ The architecture must support adding a knowledge base plugin later (clean API bo
 Things CrewSpace explicitly does **not** do:
 
 - **Not an Agent runtime** — CrewSpace orchestrates, Agents run elsewhere
-- **Not a knowledge base** — core has no wiki/docs/vector-DB (plugin territory)
+- **Not a shared wiki/vector-DB knowledge base** — per-agent Memory Graph is core; a shared company-wide knowledge base is plugin territory
 - **Not a SaaS** — single-tenant, self-hosted
 - **Not opinionated about Agent implementation** — any language, any framework, any runtime
 - **Not automatically self-healing** — surfaces problems, doesn't silently fix them

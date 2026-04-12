@@ -2,7 +2,7 @@
 
 ## What It Is
 
-CrewSpace is the control plane for autonomous AI companies. One instance of CrewSpace can run multiple companies. A **company** is a first-order object.
+CrewSpace is the control plane for autonomous AI companies. One instance of CrewSpace can run multiple companies. A **company** is a first-order object. As of v0.0.1 the platform includes a persistent **Memory Graph** per agent, a full **Agent Chat** interface (streaming SSE, multi-agent sessions, memory-enriched), a **3D Office** visualization, a **Kanban Board**, and a **Heartbeat Runs API** for invoking, streaming, and cancelling agent runs.
 
 ## Core Concepts
 
@@ -109,11 +109,11 @@ CrewSpace’s core identity is a **control plane for autonomous AI companies**, 
 - Treat **agency / internal team / startup** as the same underlying abstraction with different templates and labels.
 - Make outputs first-class: files, docs, reports, previews, links, screenshots.
 - Provide **hooks into engineering workflows**: worktrees, preview servers, PR links, external review tools.
-- Use **plugins** for edge cases like rich chat, knowledge bases, doc editors, custom tracing.
+- Use **plugins** for edge cases like shared knowledge bases, doc editors, and custom tracing.
 
 **Do not**
 
-- Do not make the core product a general chat app. The current product definition is explicitly task/comment-centric and “not a chatbot,” and that boundary is valuable.
+- Do not make the core product a general-purpose chat app unanchored from work. Agent Chat is core — but every conversation should resolve to tasks, decisions, memory, or approvals. The board-level abstraction always wins: chat stays attached to work objects.
 - Do not build a complete Jira/GitHub replacement. The repo/docs already position CrewSpace as organization orchestration, not focused on pull-request review.
 - Do not build enterprise-grade RBAC first. The current V1 spec still treats multi-board governance and fine-grained human permissions as out of scope, so the first multi-user version should be coarse and company-scoped.
 - Do not lead with raw bash logs and transcripts. Default view should be human-readable intent/progress, with raw detail beneath.

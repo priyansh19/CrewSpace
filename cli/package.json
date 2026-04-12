@@ -1,6 +1,6 @@
 {
   "name": "crewspaceai",
-  "version": "0.3.1",
+  "version": "0.0.1",
   "description": "CrewSpace CLI — orchestrate AI agent teams to run a business",
   "type": "module",
   "bin": {
