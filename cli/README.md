@@ -23,7 +23,7 @@
 
 CrewSpace is a Node.js server and React UI that orchestrates a team of AI agents to run a business. Bring your own agents, assign goals, and track your agents' work and costs from one dashboard.
 
-It looks like a task manager — but under the hood it has org charts, budgets, governance, goal alignment, and agent coordination.
+It looks like a task manager — but under the hood it has org charts, budgets, governance, goal alignment, agent coordination, persistent memory graphs, streaming agent chat, a live 3D office, and a Kanban board.
 
 **Manage business goals, not pull requests.**
 

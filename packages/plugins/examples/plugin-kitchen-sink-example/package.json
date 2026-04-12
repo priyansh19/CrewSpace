@@ -1,6 +1,6 @@
 {
   "name": "@crewspaceai/plugin-kitchen-sink-example",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Reference plugin that demonstrates the full CrewSpace plugin surface area in one package",
   "type": "module",
   "private": true,
