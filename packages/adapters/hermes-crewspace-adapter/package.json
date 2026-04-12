@@ -24,6 +24,14 @@
       "import": "./dist/cli/index.js"
     }
   },
+  "typesVersions": {
+    "*": {
+      ".": ["./dist/index.d.ts"],
+      "server": ["./dist/server/index.d.ts"],
+      "ui": ["./dist/ui/index.d.ts"],
+      "cli": ["./dist/cli/index.d.ts"]
+    }
+  },
   "files": [
     "dist"
   ],
