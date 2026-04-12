@@ -30,7 +30,8 @@ async function openOnboarding(page: Page) {
 
   await expect(wizardHeading.or(startButton).first()).toBeVisible({ timeout: 20_000 });
 
-  if (await startButton.isVisible()) {
+  // Only click "Start Onboarding" if the wizard heading isn't already showing
+  if (!await wizardHeading.isVisible() && await startButton.isVisible()) {
     await startButton.click();
   }
 
