@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { readPaperclipRuntimeSkillEntries, resolvePaperclipDesiredSkillNames, } from "@crewspaceai/adapter-utils/server-utils";
+import { readCrewSpaceRuntimeSkillEntries as readPaperclipRuntimeSkillEntries, resolveCrewSpaceDesiredSkillNames as resolvePaperclipDesiredSkillNames, } from "@crewspaceai/adapter-utils/server-utils";
 import { fileURLToPath } from "node:url";
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------

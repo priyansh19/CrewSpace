@@ -15,7 +15,7 @@
  *   -v/--verbose       verbose output
  *   --checkpoints      filesystem checkpoints
  */
-import { runChildProcess, buildPaperclipEnv, renderTemplate, ensureAbsoluteDirectory, } from "@crewspaceai/adapter-utils/server-utils";
+import { runChildProcess, buildCrewSpaceEnv as buildPaperclipEnv, renderTemplate, ensureAbsoluteDirectory, } from "@crewspaceai/adapter-utils/server-utils";
 import { HERMES_CLI, DEFAULT_TIMEOUT_SEC, DEFAULT_GRACE_SEC, VALID_PROVIDERS, } from "../shared/constants.js";
 // ---------------------------------------------------------------------------
 // Config helpers
