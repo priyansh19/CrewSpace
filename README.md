@@ -47,18 +47,20 @@ You define the goal → You hire the agents → CrewSpace runs the company
 
 <br/>
 
-## Paperclip vs CrewSpace
+## Without CrewSpace vs With CrewSpace
 
-| Paperclip | CrewSpace |
+| Without CrewSpace | With CrewSpace |
 | --- | --- |
-| ❌ 20 Claude tabs open — no idea what each one is doing. Restart and lose everything. | ✅ Every agent has a ticket, a session, and a memory. Nothing is ever lost on reboot. |
-| ❌ You manually paste context into each agent before every run. | ✅ Context flows automatically — task → project → company goal. Agents always know the why. |
-| ❌ Config folders scattered everywhere. You re-invent coordination every time. | ✅ Org charts, ticketing, delegation, and governance out of the box. Run a company, not a pile of scripts. |
-| ❌ Runaway loops burn hundreds of dollars before you notice. | ✅ Per-agent budgets enforced atomically. Agents stop when they hit the limit. |
-| ❌ No way to see what your agents remember or have learned. | ✅ Persistent memory graph per agent — facts, decisions, learnings — injected into every run. |
-| ❌ No visibility into what agents are doing right now. | ✅ Live 3D office — watch agents work, collaborate, and idle in real time. |
-| ❌ Recurring jobs need to be manually kicked off every time. | ✅ Heartbeat scheduler handles regular work automatically. Management supervises. |
-| ❌ You want to talk to a specific agent — no way to do it cleanly. | ✅ Direct streaming chat with any agent. Memory-enriched, session-aware, real-time SSE. |
+| ❌ Dozens of AI tabs open with no shared context. Restart and lose every conversation. | ✅ Every agent has a persistent session, a ticket, and a memory. Nothing is lost on reboot. |
+| ❌ Copy-paste the same background into every agent before each run. | ✅ Context flows automatically — task → project → company goal. Agents always know the why. |
+| ❌ Scripts and config folders scattered everywhere. You reinvent coordination from scratch every time. | ✅ Org chart, ticketing, delegation, and governance built in. Run a company, not a pile of scripts. |
+| ❌ Runaway agent loops rack up hundreds of dollars before you notice. | ✅ Per-agent token and cost budgets enforced atomically. Agents stop the moment they hit the limit. |
+| ❌ No record of what your agents decided, learned, or remembered between runs. | ✅ Persistent memory graph per agent — facts, decisions, and learnings injected into every run. |
+| ❌ No way to see which agents are working, idle, or stuck right now. | ✅ Live 3D office — watch agents collaborate in real time, see who's busy and who's waiting. |
+| ❌ Scheduled work requires manual kickoff or fragile cron glue outside your AI stack. | ✅ Built-in heartbeat scheduler triggers agents automatically. Managers supervise and escalate. |
+| ❌ Talking to a specific agent means opening yet another tab and losing all history. | ✅ Direct streaming chat with any agent — memory-enriched, session-aware, real-time SSE. |
+| ❌ Agents can't delegate, escalate, or spawn sub-agents without custom scaffolding. | ✅ Native delegation and org hierarchy — a CEO agent can spin up and supervise a full team. |
+| ❌ Plugin integrations require hacking prompts or tool wrappers by hand. | ✅ First-class plugin SDK — ship sandboxed integrations with typed APIs and UI components. |
 
 <br/>
 
@@ -66,89 +68,145 @@ You define the goal → You hire the agents → CrewSpace runs the company
 
 ### 🏙️ 3D Office — See Your Agents Work
 
-A live, interactive 3D office where every agent has a desk, a room, and a status. Watch agents move between rooms, collaborate in conference rooms, and idle at their desks — all driven by live backend data.
+A live, interactive 3D office where every agent has a desk, a room, and a real-time status. Driven entirely by backend data — not a visualization, but a live window into your running company.
 
-- Agents assigned to rooms by role (CEO cabin, dev workstations, server room, conference rooms)
-- Real-time status: working, meeting, idle, collaborating
-- Click any agent to open their profile and task history
+- Agents assigned to rooms by role (CEO cabin, dev workstations, server room, conference rooms, kitchen)
+- Real-time status badges: `working`, `meeting`, `idle`, `collaborating`
+- Click any agent to open their profile, task history, and memory graph
 - Org-aware layout — managers in meeting rooms, engineers at workstations
 
 ### 💬 Agent Chat — Talk to Any Agent
 
-Full streaming chat interface with any agent in your company. Not a simple prompt — a real conversational session with memory, history, and context.
+Full streaming chat with any agent. A real conversational session with memory, history, and context — not a one-shot prompt.
 
-- **Multi-agent sessions** — start conversations that include multiple agents
-- **SSE token streaming** — responses appear word-by-word in real time
-- **Memory injection** — every message automatically enriched with the agent's knowledge graph
-- **Session persistence** — chat history survives restarts and picks up where you left off
-- **Sidebar with all sessions** — browse past conversations across all agents
+- **Multi-agent sessions** — pull multiple agents into the same conversation
+- **SSE token streaming** — responses stream word-by-word in real time
+- **Memory injection** — every message automatically enriched with the agent's knowledge graph via RAG
+- **Session persistence** — history survives restarts and resumes from where you left off
+- **Sidebar with all sessions** — browse past conversations across all agents at a glance
 
-### 🧠 Memory Graph — Agents That Learn
+### 🧠 Memory Graph — Agents That Learn and Remember
 
-Every agent builds a persistent knowledge graph over time. Facts, decisions, patterns, and learnings are stored and retrieved automatically.
+Every agent builds a persistent knowledge graph across runs. Facts, decisions, patterns, and learnings accumulate automatically.
 
 - Memory types: `fact`, `insight`, `decision`, `pattern`, `learning`
-- **RAG-powered retrieval** — semantically similar memories injected into every run and chat
-- **Task solution memory** — successful task approaches saved for reuse
-- **Visual memory browser** — explore an agent's full knowledge graph from the UI
-- REST API for full CRUD on memory entries and graph links
+- **RAG-powered retrieval** — semantically relevant memories injected into every run and chat message
+- **Task-scoped memory** — specific learnings linked to the task that produced them
+- **Auto-extraction** — memories automatically extracted from completed task outputs
+- **Visual memory browser** — explore and edit an agent's full knowledge graph from the UI
+- Full REST API for CRUD on memory entries and graph links
 
 ### 📋 Kanban Board — Agile for AI Teams
 
-A full agile task board where you assign work to agents and they execute at their own pace.
+A full task board where you create work and agents execute it at their own pace.
 
-- Drag-and-drop board with status columns (backlog, in progress, review, done)
-- Assign tasks to any agent in the org chart
-- Agents pick up assigned tasks on next heartbeat or immediately
+- Columns: `backlog → in progress → review → done`
+- Assign tasks to any agent; agents pick them up on next heartbeat or immediately
+- **Atomic checkout** — prevents two agents from picking up the same task simultaneously
+- **Sub-tasks and parent-child hierarchy** — break epics into child tasks
+- **Comments, approvals, and work products** — agents attach outputs and request reviews directly on the card
 - Priority, labels, estimates, and due dates
 - Real-time board updates as agents move their own cards
 
 ### 💓 Heartbeat Scheduler — Autonomous 24/7 Execution
 
-Agents don't wait to be prompted. They wake on a schedule, check for work, and act.
+Agents don't wait to be prompted. They wake on a schedule, check for assigned work, and act.
 
-- Cron-based heartbeat per agent
-- Delegation flows up and down the org chart
-- Agents self-report blockers to their manager
-- Configurable interval per agent role
+- **Cron-based heartbeat** per agent — configurable interval per role
+- **Routines** — define recurring agent invocations with `queue`, `drop`, or `catch-up` policies
+- Delegation flows up and down the org chart automatically
+- Agents self-report blockers to their manager on the next heartbeat
+- Managers re-prioritize and reassign when sub-agents are stuck
+
+### ✅ Approvals — Human in the Loop
+
+Board-level governance gates for critical agent actions.
+
+- Agents submit **hire proposals**, **strategy changes**, and **CEO-level decisions** for human review
+- Board members approve, reject, or request revisions with comments
+- All approvals are logged in the immutable activity trail
+- Approval gates can be required before agents proceed with high-stakes tasks
+
+### 🎯 Goals & Projects — Every Agent Knows Why
+
+Tasks carry the full goal ancestry from company mission down to the individual ticket.
+
+- **Company mission** injected into every run automatically
+- **Project goals** propagate context to all child tasks
+- **Goal hierarchy**: company mission → project goal → task description
+- Agents consistently explain decisions relative to the goal, not just the ticket title
 
 ### 📊 Org Chart — A Real Company Structure
 
 Build a proper AI company with reporting lines, roles, and titles.
 
 - CEO → CMO / CTO → VPs → Engineers / QA / SRE hierarchy
-- Every agent has a title, role, manager, and team
-- Governance gates: approve hires, override strategy, terminate any agent
-- Export org chart as JSON, SVG, or PNG
+- Every agent has a title, role, assigned manager, and team
+- Governance gates: approve hires, override strategy, pause or terminate any agent
+- Export org chart as **JSON**, **SVG**, or **PNG**
 
-### 🎯 Goal Alignment — Every Agent Knows Why
+### 🏃 Execution Workspaces — Sandboxed Agent Runtime
 
-Tasks carry the full goal ancestry — company mission → project goal → task. Agents always have context.
+Every agent task runs in a managed execution workspace with policy enforcement and full observability.
 
-- Company-level mission injected into every run
-- Project goals propagate to all child tasks
-- Agents explain their decisions relative to the goal
+- Isolated runtime sandbox per task execution
+- Operation logging — every tool call, file access, and sub-process recorded
+- State management across runs — agents resume where they left off
+- Policy enforcement — budgets, rate limits, and capability restrictions applied atomically
 
 ### 💰 Cost Control — No Runaway Spend
 
-- Monthly token budget per agent
-- Real-time cost tracking per run
-- Agents hard-stop when budget is exhausted
-- Management agents re-prioritize work when teams hit limits
+- **Monthly token and dollar budget per agent** — enforced atomically at checkout
+- Real-time cost tracking per run, task, project, and company
+- Billable vs. non-billable cost splits
+- Agents **hard-stop** the moment they hit their budget limit
+- Manager agents re-prioritize and redistribute work when teams hit limits
+- Spend trend charts and breakdowns across your entire AI portfolio
 
-### 🏢 Multi-Company — One Deployment, Many Companies
+### 📜 Activity Log — Full Audit Trail
 
-- Complete data isolation between companies
+Every mutation in the system is recorded in an immutable, queryable activity log.
+
+- Tracks agent actions, board decisions, config changes, cost events, and task transitions
+- Scoped per company — no cross-company data leakage
+- Filterable by agent, event type, and time range
+- Powers compliance, debugging, and post-mortems
+
+### 📥 Agent Inbox — Work Queue for Agents
+
+Agents have a structured inbox of tasks assigned to them, with checkout semantics and priority filtering.
+
+- Tasks surface in the inbox sorted by priority and deadline
+- Agents claim tasks atomically — no double-execution
+- Blocked tasks escalate automatically to the reporting manager
+- Human operators can view any agent's current queue
+
+### 🔌 Plugin System — Extend Everything
+
+Ship new capabilities as sandboxed plugins without touching core code.
+
+- **Plugin SDK** (`@crewspaceai/plugin-sdk`) with typed APIs, worker context, and UI bridge hooks
+- **UI slots**: dashboard panels, sidebar widgets, entity detail extensions, launcher placements
+- **Plugin capabilities**: webhooks, scheduled jobs, persistent state, event subscriptions, tool registration
+- Plugin lifecycle management: install, enable/disable, configure, uninstall
+- Full dev server and testing utilities included in the SDK
+
+### 🏢 Multi-Company — One Deployment, Many Orgs
+
+- Complete data isolation between companies in a single deployment
 - One control plane for your entire AI portfolio
-- Export/import entire company structures (agents, configs, skills) with secret scrubbing
+- **Export/import entire companies** — agents, configs, skills, goals — with automatic secret scrubbing and collision handling
+- Company branding, custom domains, and isolated audit trails
 
 ### 🔌 Bring Your Own Agent
 
-Any agent, any runtime. If it can receive a prompt and return a result, it's hired.
+Any agent, any runtime. If it can receive a prompt and return a result, it works in CrewSpace.
 
-- Built-in adapters: **Claude Code**, **OpenClaw / Hermes**, **Codex**, **Cursor**, **Gemini**, **Pi**, **HTTP**, **Bash**
-- Plugin SDK for custom adapters
-- Skill injection — agents get CrewSpace workflows at runtime, no retraining needed
+- Built-in adapters: **Claude Code**, **OpenClaw / Hermes**, **Codex**, **Cursor**, **Gemini**, **Pi**, **OpenCode**, **HTTP / Bash**
+- **Skill injection** — agents receive CrewSpace-specific capabilities at runtime, no retraining needed
+- **Skills Manager** — toggle which skills are active per agent and per company
+- **Agent instructions** — dynamic instruction bundles with path-based overrides and full revision history
+- Plugin SDK for building and publishing custom adapters
 
 <br/>
 
@@ -254,23 +312,23 @@ See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
 
 | Status | Feature |
 | --- | --- |
-| ✅ | Plugin system (custom adapters, knowledge bases, queues) |
-| ✅ | OpenClaw / Hermes agent support |
-| ✅ | Company import / export (portable orgs) |
-| ✅ | Skills Manager — agent capability management |
-| ✅ | Heartbeat Scheduler — autonomous 24/7 execution |
-| ✅ | Cost tracking and per-agent budgets |
-| ✅ | Memory Graph — persistent agent knowledge with RAG |
-| ✅ | Agent Chat — streaming direct chat with any agent |
-| ✅ | 3D Office — live visualization of your agent workforce |
-| ✅ | Kanban Board — agile task management with agent assignment |
-| ✅ | Multi-agent chat sessions |
-| ⚪ | Crewmart — one-click company templates marketplace |
-| ⚪ | Artifacts & Deployments |
-| ⚪ | Multiple Human Users |
-| ⚪ | Cloud / Sandbox agents (e2b, Cursor cloud) |
-| ⚪ | Desktop App |
-| ⚪ | MAXIMIZER MODE |
+| ✅ | 3D Office — live visualization of your entire agent workforce |
+| ✅ | Agent Chat — streaming direct chat with any agent, session-aware and memory-enriched |
+| ✅ | Multi-agent chat sessions — bring multiple agents into a single conversation |
+| ✅ | Kanban Board — agile task management with per-agent assignment and status tracking |
+| ✅ | Heartbeat Scheduler — autonomous 24/7 task execution without manual kickoff |
+| ✅ | Memory Graph — persistent agent knowledge (facts, decisions, learnings) with RAG retrieval |
+| ✅ | Cost tracking and per-agent token budgets — enforced atomically, no runaway spend |
+| ✅ | Skills Manager — manage and toggle agent capabilities per company |
+| ✅ | Plugin system — custom adapters, knowledge bases, tool queues via typed SDK |
+| ✅ | Company import / export — portable org snapshots, share or migrate entire companies |
+| ✅ | Multi-adapter support — Claude Code, OpenClaw / Hermes, Codex, Cursor, Gemini, Pi, HTTP |
+| 🔨 | Crewmart — one-click marketplace to install pre-built agent company templates |
+| 🔨 | Artifacts & Deployments — agents that ship code, files, and live previews as first-class outputs |
+| 🔨 | Multiple Human Users — invite teammates, assign roles, collaborate inside one CrewSpace company |
+| 🔨 | Cloud / Sandbox agents — isolated execution via e2b, Cursor cloud, and hosted sandboxes |
+| 🔨 | Desktop App — native macOS / Windows app with tray agent status and offline support |
+| 🔨 | MAXIMIZER MODE — fully autonomous company that self-assigns, self-schedules, and self-improves |
 
 <br/>
 
