@@ -22,8 +22,8 @@ if [ "$(id -g node)" -ne "$PGID" ]; then
     changed=1
 fi
 
-if [ "$changed" = "1" ]; then
-    chown -R node:node /crewspace
-fi
+# Always fix ownership of the data volume so named volumes (which mount as root-owned)
+# and files created by earlier root processes are accessible to the node user.
+chown -R node:node /crewspace
 
 exec gosu node "$@"

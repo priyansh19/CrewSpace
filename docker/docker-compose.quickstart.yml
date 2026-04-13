@@ -2,7 +2,8 @@ services:
   crewspace:
     build:
       context: ..
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
     ports:
       - "${CREWSPACE_PORT:-3100}:3100"
     environment:
@@ -16,4 +17,13 @@ services:
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
       CREWSPACE_AGENT_JWT_SECRET: "${CREWSPACE_AGENT_JWT_SECRET:-}"
     volumes:
-      - "${CREWSPACE_DATA_DIR:-../data/docker-crewspace}:/crewspace"
+      - crewspace-data:/crewspace
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3100/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  crewspace-data:

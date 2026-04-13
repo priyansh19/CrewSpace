@@ -336,9 +336,20 @@ export async function startServer(): Promise<StartedServer> {
     };
   
     const runningPid = getRunningPid();
+    // Verify the "running" postgres process actually responds — PIDs reuse across container
+    // restarts, so process.kill(pid, 0) can return true for an unrelated process.
+    let postgresActuallyRunning = false;
     if (runningPid) {
-      logger.warn(`Embedded PostgreSQL already running; reusing existing process (pid=${runningPid}, port=${port})`);
-    } else {
+      try {
+        await ensurePostgresDatabase(`postgres://crewspace:crewspace@127.0.0.1:${port}/postgres`, "crewspace");
+        postgresActuallyRunning = true;
+        logger.warn(`Embedded PostgreSQL already running; reusing existing process (pid=${runningPid}, port=${port})`);
+      } catch {
+        logger.warn(`Embedded PostgreSQL pid file references pid=${runningPid} but port ${port} is not responding; treating as stale`);
+        rmSync(postmasterPidFile, { force: true });
+      }
+    }
+    if (!postgresActuallyRunning) {
       const configuredAdminConnectionString = `postgres://crewspace:crewspace@127.0.0.1:${configuredPort}/postgres`;
       try {
         const actualDataDir = await getPostgresDataDirectory(configuredAdminConnectionString);
