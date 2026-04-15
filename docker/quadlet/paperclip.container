@@ -1,0 +1,23 @@
+[Unit]
+Description=CrewSpace AI Agent Orchestrator
+Requires=crewspace-db.service
+After=crewspace-db.service
+
+[Container]
+Image=crewspace-local
+ContainerName=crewspace
+Pod=crewspace.pod
+Volume=%h/.local/share/crewspace:/crewspace:Z
+Environment=HOST=0.0.0.0
+Environment=CREWSPACE_HOME=/crewspace
+Environment=CREWSPACE_DEPLOYMENT_MODE=authenticated
+Environment=CREWSPACE_DEPLOYMENT_EXPOSURE=private
+Environment=CREWSPACE_PUBLIC_URL=http://localhost:3100
+EnvironmentFile=%h/.config/containers/systemd/crewspace.env
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target
