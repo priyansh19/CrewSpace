@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useOfficeStore } from "@/stores/officeStore";
 import OfficeScene from "./office/OfficeScene";
 import LiveDataBridge from "./office/LiveDataBridge";
+import { AgentListPanel } from "./office/AgentListPanel";
 import { Users, Wifi, WifiOff } from "lucide-react";
 
 export function Office() {
@@ -49,6 +50,13 @@ export function Office() {
           <span style={{ color: "#4ade80" }}>{workingCount} active</span>
         </div>
       </div>
+
+      {/* Floating agent list panel */}
+      <AgentListPanel
+        agents={officeAgents}
+        selectedAgentId={selectedAgentId}
+        onSelectAgent={selectAgent}
+      />
 
       {/* Selected agent detail card */}
       {selectedAgentId && (() => {
