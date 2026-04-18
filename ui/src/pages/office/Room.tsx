@@ -44,10 +44,7 @@ function edgesGeo(w: number, h: number, d: number): THREE.EdgesGeometry {
 }
 
 const WireBox = ({ args, position, color }: { args: [number, number, number]; position: [number, number, number]; color: string }) => (
-  <mesh position={position} castShadow receiveShadow>
-    <boxGeometry args={args} />
-    <primitive object={solidMat(color, 0.7)} attach="material" />
-  </mesh>
+  <lineSegments position={position} geometry={edgesGeo(...args)} material={lineMat(color)} />
 );
 
 // Door gap helpers
