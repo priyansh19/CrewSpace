@@ -1320,7 +1320,7 @@ export function Inbox() {
         <>
           {showSeparatorBefore("work_items") && <Separator />}
           <div>
-            <div ref={listRef} className="overflow-hidden rounded-xl bg-card">
+            <div ref={listRef} className="overflow-hidden bg-card">
               {workItemsToRender.flatMap((item, index) => {
                 const wrapItem = (key: string, isSelected: boolean, child: ReactNode) => (
                   <div
@@ -1369,13 +1369,11 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(approvalKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(approvalKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={cn(
+                      className={
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-xl",
-                        isLastItem && "rounded-b-xl"
-                      )}
+                          : "transition-all duration-200 ease-out"
+                      }
                     />
                   );
                   elements.push(wrapItem(approvalKey, isSelected, canArchiveFromTab ? (
@@ -1411,13 +1409,11 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(runKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(runKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={cn(
+                      className={
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-xl",
-                        isLastItem && "rounded-b-xl"
-                      )}
+                          : "transition-all duration-200 ease-out"
+                      }
                     />
                   );
                   elements.push(wrapItem(runKey, isSelected, canArchiveFromTab ? (
@@ -1450,13 +1446,11 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(joinKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(joinKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={cn(
+                      className={
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-xl",
-                        isLastItem && "rounded-b-xl"
-                      )}
+                          : "transition-all duration-200 ease-out"
+                      }
                     />
                   );
                   elements.push(wrapItem(joinKey, isSelected, canArchiveFromTab ? (
@@ -1484,13 +1478,11 @@ export function Inbox() {
                     issue={issue}
                     issueLinkState={issueLinkState}
                     selected={isSelected}
-                    className={cn(
+                    className={
                       isArchiving
                         ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                        : "transition-all duration-200 ease-out",
-                      isFirstItem && "rounded-t-xl",
-                      isLastItem && "rounded-b-xl"
-                    )}
+                        : "transition-all duration-200 ease-out"
+                    }
                     desktopMetaLeading={
                       <InboxIssueMetaLeading
                         issue={issue}
