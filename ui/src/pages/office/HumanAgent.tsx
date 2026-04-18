@@ -168,7 +168,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
     }
     if (settled.current) return;
 
-    const tgtY  = agent.status === "sleeping" ? 0.4 : agent.isSitting ? 0.0 : 0;
+    const tgtY  = agent.status === "sleeping" ? 0.75 : agent.isSitting ? 0.0 : 0;
     const tgtRx = agent.status === "sleeping" ? -Math.PI / 2 : 0;
 
     let tgtRy: number;
