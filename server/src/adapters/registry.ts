@@ -67,18 +67,21 @@ import {
 import {
   agentConfigurationDoc as piAgentConfigurationDoc,
 } from "@crewspaceai/adapter-pi-local";
-import {
-  execute as hermesExecute,
-  testEnvironment as hermesTestEnvironment,
-  sessionCodec as hermesSessionCodec,
-  listSkills as hermesListSkills,
-  syncSkills as hermesSyncSkills,
-  detectModel as detectModelFromHermes,
-} from "hermes-crewspace-adapter/server";
-import {
-  agentConfigurationDoc as hermesAgentConfigurationDoc,
-  models as hermesModels,
-} from "hermes-crewspace-adapter";
+// TODO: Fix hermes-crewspace-adapter export issue
+// import {
+//   execute as hermesExecute,
+//   testEnvironment as hermesTestEnvironment,
+//   sessionCodec as hermesSessionCodec,
+//   listSkills as hermesListSkills,
+//   syncSkills as hermesSyncSkills,
+//   detectModel as detectModelFromHermes,
+// } from "hermes-crewspace-adapter/server";
+// import {
+//   agentConfigurationDoc as hermesAgentConfigurationDoc,
+//   models as hermesModels,
+// } from "hermes-crewspace-adapter";
+const hermesAgentConfigurationDoc = "";
+const hermesModels = [];
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
 
@@ -175,18 +178,19 @@ const piLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: piAgentConfigurationDoc,
 };
 
-const hermesLocalAdapter: ServerAdapterModule = {
-  type: "hermes_local",
-  execute: hermesExecute,
-  testEnvironment: hermesTestEnvironment,
-  sessionCodec: hermesSessionCodec,
-  listSkills: hermesListSkills,
-  syncSkills: hermesSyncSkills,
-  models: hermesModels,
-  supportsLocalAgentJwt: true,
-  agentConfigurationDoc: hermesAgentConfigurationDoc,
-  detectModel: () => detectModelFromHermes(),
-};
+// TODO: Fix hermes-crewspace-adapter export issue before re-enabling
+// const hermesLocalAdapter: ServerAdapterModule = {
+//   type: "hermes_local",
+//   execute: hermesExecute,
+//   testEnvironment: hermesTestEnvironment,
+//   sessionCodec: hermesSessionCodec,
+//   listSkills: hermesListSkills,
+//   syncSkills: hermesSyncSkills,
+//   models: hermesModels,
+//   supportsLocalAgentJwt: true,
+//   agentConfigurationDoc: hermesAgentConfigurationDoc,
+//   detectModel: () => detectModelFromHermes(),
+// };
 
 const adaptersByType = new Map<string, ServerAdapterModule>(
   [
@@ -197,7 +201,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     cursorLocalAdapter,
     geminiLocalAdapter,
     openclawGatewayAdapter,
-    hermesLocalAdapter,
+    // hermesLocalAdapter, // TODO: Fix hermes-crewspace-adapter export issue before re-enabling
     processAdapter,
     httpAdapter,
   ].map((a) => [a.type, a]),
