@@ -140,24 +140,10 @@ const Room = ({
         <DoorFrame key={i} dc={dc} z={halfD} color={accentColor} />
       ))}
 
-      {/* Ceiling outline */}
-      <WireBox args={[width, 0.06, depth]} position={[0, wallHeight, 0]} color={accentColor} />
-
       {/* Accent strip */}
       <mesh position={[0, 0.04, halfD]}>
         <boxGeometry args={[width, 0.03, 0.12]} />
         <primitive object={solidMat(accentColor, 0.7)} attach="material" />
-      </mesh>
-
-      {/* Emissive ceiling light (replaces per-room point lights) */}
-      <mesh position={[0, wallHeight - 0.05, 0]}>
-        <boxGeometry args={[width * 0.6, 0.04, depth * 0.4]} />
-        <meshStandardMaterial
-          color="#fffde8"
-          emissive="#fffde8"
-          emissiveIntensity={0.15}
-          roughness={0.5}
-        />
       </mesh>
 
       {/* Room label */}
