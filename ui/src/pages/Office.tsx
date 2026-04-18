@@ -17,25 +17,6 @@ export function Office() {
     [officeAgents],
   );
 
-  const activityBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {
-      W: 0, S: 0, P: 0, Sh: 0, E: 0, C: 0, I: 0,
-    };
-    officeAgents.forEach((a) => {
-      if (a.status === "working" || a.status === "meeting") counts.W++;
-      else if (a.status === "sleeping") counts.S++;
-      else if (a.status === "playing") counts.P++;
-      else if (a.status === "shopping") counts.Sh++;
-      else if (a.status === "eating") counts.E++;
-      else if (a.status === "collaborating") counts.C++;
-      else if (a.status === "standing-up" || a.status === "idle") counts.I++;
-    });
-    return Object.entries(counts)
-      .filter(([, count]) => count > 0)
-      .map(([key, count]) => `${count}${key}`)
-      .join(" ");
-  }, [officeAgents]);
-
   const hud = {
     background:    "rgba(255,250,240,0.88)",
     color:         "#5a4a3a",
@@ -65,8 +46,6 @@ export function Office() {
           <span className="opacity-50">·</span>
           <Users className="h-3.5 w-3.5" />
           <span>{agents.length > 0 ? agents.length : officeAgents.length} agents</span>
-          <span className="opacity-50">·</span>
-          <span style={{ color: "#4ade80" }}>{activityBreakdown || "idle"}</span>
         </div>
       </div>
 
