@@ -2,11 +2,9 @@ import { useMemo } from "react";
 import { useOfficeStore } from "@/stores/officeStore";
 import OfficeScene from "./office/OfficeScene";
 import LiveDataBridge from "./office/LiveDataBridge";
-import { Moon, Sun, Users, Wifi, WifiOff } from "lucide-react";
+import { Users, Wifi, WifiOff } from "lucide-react";
 
 export function Office() {
-  const isNightMode     = useOfficeStore((s) => s.isNightMode);
-  const toggleNightMode = useOfficeStore((s) => s.toggleNightMode);
   const liveMode        = useOfficeStore((s) => s.liveMode);
   const agents          = useOfficeStore((s) => s.agents);
   const officeAgents    = useOfficeStore((s) => s.officeAgents);
@@ -19,16 +17,16 @@ export function Office() {
   );
 
   const hud = {
-    background:    isNightMode ? "rgba(8,10,24,0.88)"      : "rgba(255,250,240,0.88)",
-    color:         isNightMode ? "#a0b0d0"                  : "#5a4a3a",
+    background:    "rgba(255,250,240,0.88)",
+    color:         "#5a4a3a",
     backdropFilter: "blur(10px)",
-    border:        isNightMode ? "1px solid rgba(80,120,200,0.3)" : "1px solid rgba(180,160,120,0.4)",
+    border:        "1px solid rgba(180,160,120,0.4)",
   } as const;
 
   return (
     <div
       className="absolute inset-0 overflow-hidden"
-      style={{ background: isNightMode ? "#1a1a2e" : "#f5efe6" }}
+      style={{ background: "#f5efe6" }}
     >
       <LiveDataBridge />
 
@@ -50,18 +48,6 @@ export function Office() {
           <span className="opacity-50">·</span>
           <span style={{ color: "#4ade80" }}>{workingCount} active</span>
         </div>
-      </div>
-
-      {/* Night / Day toggle */}
-      <div className="absolute top-4 right-4 z-10">
-        <button
-          onClick={toggleNightMode}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
-          style={hud}
-        >
-          {isNightMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          {isNightMode ? "Day" : "Night"}
-        </button>
       </div>
 
       {/* Selected agent detail card */}

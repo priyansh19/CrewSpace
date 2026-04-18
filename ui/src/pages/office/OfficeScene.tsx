@@ -59,7 +59,6 @@ const OfficeScene = () => {
   const agentIds    = useOfficeStore(useShallow((s) => s.officeAgents.map((a) => a.id)));
   const selectedId  = useOfficeStore((s) => s.selectedAgentId);
   const selectAgent = useOfficeStore((s) => s.selectAgent);
-  const isNight     = useOfficeStore((s) => s.isNightMode);
   const controlsRef = useRef<any>(null);
 
   return (
@@ -72,16 +71,16 @@ const OfficeScene = () => {
         toneMappingExposure: 1.05,
       }}
       performance={{ min: 0.5 }}
-      style={{ background: isNight ? "#1a1a2e" : "#f5efe6", width: "100%", height: "100%" }}
+      style={{ background: "#f0e8e0", width: "100%", height: "100%" }}
       onPointerMissed={() => selectAgent(null)}
       frameloop="always"
       shadows="soft"
     >
-      <ambientLight intensity={isNight ? 0.35 : 1.2} color={isNight ? "#8090c0" : "#fff5e8"} />
+      <ambientLight intensity={0.85} color="#ffd9a8" />
       <directionalLight
         position={[20, 30, 15]}
-        intensity={isNight ? 0.5 : 1.6}
-        color={isNight ? "#6080c0" : "#fff0d8"}
+        intensity={1.2}
+        color="#ffd4a8"
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-far={120}
@@ -93,9 +92,9 @@ const OfficeScene = () => {
       />
       <hemisphereLight
         args={[
-          isNight ? "#2a2a4e" : "#ffeedd",
-          isNight ? "#1a1a2a" : "#e8ddd0",
-          isNight ? 0.25 : 0.6,
+          "#ffe8cc",
+          "#d8cfc0",
+          0.5,
         ]}
       />
 
