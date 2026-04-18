@@ -143,7 +143,13 @@ const OfficeScene = () => {
 };
 
 const RenderComplete = ({ onReady }: { onReady: () => void }) => {
-  useFrame(() => onReady(), { once: true });
+  const hasRun = useRef(false);
+  useFrame(() => {
+    if (!hasRun.current) {
+      hasRun.current = true;
+      onReady();
+    }
+  });
   return null;
 };
 

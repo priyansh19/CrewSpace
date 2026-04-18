@@ -41,6 +41,7 @@ function ringMat(role: AgentRole) {
 const STATUS_ICONS: Record<string, string> = {
   working: "💻", collaborating: "💬", sleeping: "😴",
   idle: "☕", meeting: "🗣️", walking: "🚶", "standing-up": "🧍",
+  shopping: "🛍️", playing: "🎮", eating: "🍽️",
 };
 
 function getAnim(status: string, isSitting: boolean): string {
@@ -51,6 +52,9 @@ function getAnim(status: string, isSitting: boolean): string {
     case "collaborating": return "Wave";
     case "meeting":       return "ThumbsUp";
     case "standing-up":   return "Standing";
+    case "shopping":      return "Idle";
+    case "playing":       return "Standing";
+    case "eating":        return "Idle";
     default:              return "Idle";
   }
 }
@@ -147,6 +151,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
   const lastTgtX = useRef(initPos[0]);
   const lastTgtZ = useRef(initPos[2]);
   const settled   = useRef(false);
+  const prevRoom  = useRef(currentRoom);
 
   // ── useFrame: ALL position/rotation lerps — reads store via getState() (no React re-render) ──
   useFrame(() => {
@@ -160,6 +165,13 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
     const tgtX = agent.targetPosition[0];
     const tgtZ = agent.targetPosition[2];
 
+    // Detect room change and trigger walking animation
+    const roomChanged = prevRoom.current !== agent.currentRoom;
+    if (roomChanged) {
+      prevRoom.current = agent.currentRoom;
+      settled.current = false;
+    }
+
     // Unsettled when target changes
     if (lastTgtX.current !== tgtX || lastTgtZ.current !== tgtZ) {
       lastTgtX.current = tgtX;
@@ -168,9 +180,13 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
     }
     if (settled.current) return;
 
+    // Determine effective status (walking if moving between rooms)
+    const isMoving = Math.abs(g.position.x - tgtX) > 0.01 || Math.abs(g.position.z - tgtZ) > 0.01;
+    const effectiveStatus = isMoving && agent.currentRoom !== agent.targetRoom ? "walking" : agent.status;
+
     const tgtY  = agent.status === "sleeping" ? 1.4 : agent.isSitting ? 0.0 : 0;
     const tgtRx = agent.status === "sleeping" ? Math.PI / 2 : 0;
-    const tgtRy = agent.status === "sleeping" ? seatRot : (agent.status === "walking" ? Math.atan2(tgtX - g.position.x, tgtZ - g.position.z) : seatRot);
+    const tgtRy = agent.status === "sleeping" ? seatRot : (effectiveStatus === "walking" ? Math.atan2(tgtX - g.position.x, tgtZ - g.position.z) : seatRot);
     const tgtRz = agent.status === "sleeping" ? Math.PI / 2 : 0;
 
     if (agent.status !== "sleeping") {
@@ -190,7 +206,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
     }
 
     if (
-      agent.status !== "walking" &&
+      effectiveStatus !== "walking" &&
       agent.status !== "sleeping" &&
       Math.abs(g.position.x - tgtX) < 0.005 &&
       Math.abs(g.position.z - tgtZ) < 0.005 &&

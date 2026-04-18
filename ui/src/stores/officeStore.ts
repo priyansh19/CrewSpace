@@ -17,7 +17,10 @@ export type AgentStatus =
   | "idle"
   | "meeting"
   | "collaborating"
-  | "standing-up";
+  | "standing-up"
+  | "shopping"
+  | "playing"
+  | "eating";
 
 export type RoomId =
   | "ceo-cabin"
@@ -321,6 +324,10 @@ function deriveStatus(
 
 function deriveRoom(role: AgentRole, status: AgentStatus, hash: number): RoomId {
   if (status === "sleeping") return "sleeping-room";
+  if (status === "shopping") return "nike-store";
+  if (status === "playing") return "gaming-room";
+  if (status === "eating") return "food-court";
+  if (status === "standing-up") return "kitchen";
   if (status === "meeting") {
     if (role === "ceo") return "ceo-cabin";
     return hash % 2 === 0 ? "scrum-room" : "conf-product";
@@ -375,6 +382,25 @@ function deriveTask(agent: BackendSnapshot["agents"][number], issues: MissionIss
   return "Standing by";
 }
 
+function distributionActivities(
+  agents: BackendSnapshot["agents"],
+  statuses: Map<string, AgentStatus>,
+): Map<string, AgentStatus> {
+  const idleAgents = agents.filter((a) => statuses.get(a.id) === "idle");
+  if (idleAgents.length === 0) return statuses;
+
+  const activities: AgentStatus[] = ["sleeping", "shopping", "playing", "eating", "collaborating", "standing-up", "idle"];
+  const result = new Map(statuses);
+
+  idleAgents.forEach((agent, idx) => {
+    const hash = hashString(agent.id);
+    const activityIdx = hash % activities.length;
+    result.set(agent.id, activities[activityIdx]);
+  });
+
+  return result;
+}
+
 function buildAgents(snapshot: BackendSnapshot, existingAgents: OfficeAgent[]) {
   const occupiedSeats = new Map<RoomId, number[]>();
   const existingById = new Map(existingAgents.map((a) => [a.id, a]));
@@ -384,13 +410,24 @@ function buildAgents(snapshot: BackendSnapshot, existingAgents: OfficeAgent[]) {
     liveRunsByAgent.set(run.agentId, (liveRunsByAgent.get(run.agentId) ?? 0) + 1);
   }
 
+  // First pass: derive initial statuses
+  const statusMap = new Map<string, AgentStatus>();
+  for (const agent of snapshot.agents) {
+    const liveRunCount = liveRunsByAgent.get(agent.id) ?? 0;
+    const status = deriveStatus(agent, snapshot.issues, liveRunCount);
+    statusMap.set(agent.id, status);
+  }
+
+  // Apply activity distribution to idle agents
+  const distributedStatuses = distributionActivities(snapshot.agents, statusMap);
+
   return [...snapshot.agents]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((backendAgent) => {
       const hash = hashString(backendAgent.id);
       const role = normalizeRole(backendAgent.role);
       const liveRunCount = liveRunsByAgent.get(backendAgent.id) ?? 0;
-      const status = deriveStatus(backendAgent, snapshot.issues, liveRunCount);
+      const status = distributedStatuses.get(backendAgent.id) ?? "idle";
       const room = deriveRoom(role, status, hash);
       const seatIndex = findSeat(room, occupiedSeats, hash);
       occupiedSeats.set(room, [...(occupiedSeats.get(room) ?? []), seatIndex]);
@@ -417,7 +454,7 @@ function buildAgents(snapshot: BackendSnapshot, existingAgents: OfficeAgent[]) {
         waypoints: [],
         task: deriveTask(backendAgent, snapshot.issues),
         stateTimer: 0,
-        isSitting: status !== "idle" && status !== "walking",
+        isSitting: status !== "idle" && status !== "walking" && status !== "standing-up" && status !== "shopping" && status !== "playing" && status !== "eating",
         seatIndex,
         standUpTimer: 0,
         assignedWorkstation: room === "workstations" ? seatIndex : -1,
@@ -521,8 +558,10 @@ export const useOfficeStore = create<OfficeStore>((set) => {
     officeAgents: [],
     issues: [],
     selectedAgentId: null,
+    isNightMode: false,
     liveMode: false,
     selectAgent: (id) => set({ selectedAgentId: id }),
+    toggleNightMode: () => set((state) => ({ isNightMode: !state.isNightMode })),
     setBackendSnapshot: (snapshot) =>
       set((state) => {
         const agents = buildAgents(snapshot, state.agents);
