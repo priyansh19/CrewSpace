@@ -15,9 +15,12 @@ function edgesGeo(w: number, h: number, d: number) {
     _edgesCache.set(key, new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)));
   return _edgesCache.get(key)!;
 }
-const _boundaryMat = new THREE.LineBasicMaterial({ color: "#b8a080" });
+const _boundaryMat = new THREE.MeshStandardMaterial({ color: "#b8a080", roughness: 0.75 });
 const BoundaryWall = ({ args, position }: { args: [number,number,number]; position: [number,number,number] }) => (
-  <lineSegments position={position} geometry={edgesGeo(...args)} material={_boundaryMat} />
+  <mesh position={position} castShadow receiveShadow>
+    <boxGeometry args={args} />
+    <primitive object={_boundaryMat} attach="material" />
+  </mesh>
 );
 
 // ─── Shared floor / outdoor materials ────────────────────────────────────────
