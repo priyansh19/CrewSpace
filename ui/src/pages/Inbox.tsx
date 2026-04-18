@@ -200,7 +200,7 @@ export function FailedRunInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
       style={{borderRadius: "0.75rem"}}
@@ -359,7 +359,7 @@ function ApprovalInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
       style={{borderRadius: "0.75rem"}}
@@ -501,7 +501,7 @@ function JoinRequestInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
       style={{borderRadius: "0.75rem"}}
