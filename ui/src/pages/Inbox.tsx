@@ -203,7 +203,6 @@ export function FailedRunInboxRow({
         "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
-      style={{borderRadius: "0.75rem"}}
     >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
@@ -362,7 +361,6 @@ function ApprovalInboxRow({
         "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
-      style={{borderRadius: "0.75rem"}}
     >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
@@ -504,7 +502,6 @@ function JoinRequestInboxRow({
         "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
-      style={{borderRadius: "0.75rem"}}
     >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
