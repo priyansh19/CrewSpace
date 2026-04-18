@@ -1348,6 +1348,8 @@ export function Inbox() {
                 if (item.kind === "approval") {
                   const approvalKey = `approval:${item.approval.id}`;
                   const isArchiving = archivingNonIssueIds.has(approvalKey);
+                  const isFirstItem = index === 0;
+                  const isLastItem = index === workItemsToRender.length - 1;
                   const row = (
                     <ApprovalInboxRow
                       key={approvalKey}
@@ -1361,11 +1363,13 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(approvalKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(approvalKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={
+                      className={cn(
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out"
-                      }
+                          : "transition-all duration-200 ease-out",
+                        isFirstItem && "rounded-t-xl",
+                        isLastItem && "rounded-b-xl"
+                      )}
                     />
                   );
                   elements.push(wrapItem(approvalKey, isSelected, canArchiveFromTab ? (
@@ -1384,6 +1388,8 @@ export function Inbox() {
                 if (item.kind === "failed_run") {
                   const runKey = `run:${item.run.id}`;
                   const isArchiving = archivingNonIssueIds.has(runKey);
+                  const isFirstItem = index === 0;
+                  const isLastItem = index === workItemsToRender.length - 1;
                   const row = (
                     <FailedRunInboxRow
                       key={runKey}
@@ -1399,11 +1405,13 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(runKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(runKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={
+                      className={cn(
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out"
-                      }
+                          : "transition-all duration-200 ease-out",
+                        isFirstItem && "rounded-t-xl",
+                        isLastItem && "rounded-b-xl"
+                      )}
                     />
                   );
                   elements.push(wrapItem(runKey, isSelected, canArchiveFromTab ? (
@@ -1422,6 +1430,8 @@ export function Inbox() {
                 if (item.kind === "join_request") {
                   const joinKey = `join:${item.joinRequest.id}`;
                   const isArchiving = archivingNonIssueIds.has(joinKey);
+                  const isFirstItem = index === 0;
+                  const isLastItem = index === workItemsToRender.length - 1;
                   const row = (
                     <JoinRequestInboxRow
                       key={joinKey}
@@ -1434,11 +1444,13 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(joinKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(joinKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={
+                      className={cn(
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out"
-                      }
+                          : "transition-all duration-200 ease-out",
+                        isFirstItem && "rounded-t-xl",
+                        isLastItem && "rounded-b-xl"
+                      )}
                     />
                   );
                   elements.push(wrapItem(joinKey, isSelected, canArchiveFromTab ? (
@@ -1458,17 +1470,21 @@ export function Inbox() {
                 const isUnread = issue.isUnreadForMe && !fadingOutIssues.has(issue.id);
                 const isFading = fadingOutIssues.has(issue.id);
                 const isArchiving = archivingIssueIds.has(issue.id);
+                const isFirstItem = index === 0;
+                const isLastItem = index === workItemsToRender.length - 1;
                 const row = (
                   <IssueRow
                     key={`issue:${issue.id}`}
                     issue={issue}
                     issueLinkState={issueLinkState}
                     selected={isSelected}
-                    className={
+                    className={cn(
                       isArchiving
                         ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                        : "transition-all duration-200 ease-out"
-                    }
+                        : "transition-all duration-200 ease-out",
+                      isFirstItem && "rounded-t-xl",
+                      isLastItem && "rounded-b-xl"
+                    )}
                     desktopMetaLeading={
                       <InboxIssueMetaLeading
                         issue={issue}
