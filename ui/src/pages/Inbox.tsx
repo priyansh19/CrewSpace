@@ -1367,8 +1367,8 @@ export function Inbox() {
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
                           : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-xl",
-                        isLastItem && "rounded-b-xl"
+                        isFirstItem && "rounded-t-2xl",
+                        isLastItem && "rounded-b-2xl"
                       )}
                     />
                   );
@@ -1409,8 +1409,8 @@ export function Inbox() {
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
                           : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-xl",
-                        isLastItem && "rounded-b-xl"
+                        isFirstItem && "rounded-t-2xl",
+                        isLastItem && "rounded-b-2xl"
                       )}
                     />
                   );
@@ -1448,8 +1448,8 @@ export function Inbox() {
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
                           : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-xl",
-                        isLastItem && "rounded-b-xl"
+                        isFirstItem && "rounded-t-2xl",
+                        isLastItem && "rounded-b-2xl"
                       )}
                     />
                   );
