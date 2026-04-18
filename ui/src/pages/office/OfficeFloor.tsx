@@ -15,10 +15,70 @@ function edgesGeo(w: number, h: number, d: number) {
     _edgesCache.set(key, new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)));
   return _edgesCache.get(key)!;
 }
-const _boundaryMat = new THREE.LineBasicMaterial({ color: "#b8a080" });
-const BoundaryWall = ({ args, position }: { args: [number,number,number]; position: [number,number,number] }) => (
-  <lineSegments position={position} geometry={edgesGeo(...args)} material={_boundaryMat} />
-);
+const _boundaryMat = new THREE.MeshStandardMaterial({ color: "#b8a080", roughness: 0.7 });
+const BoundaryWall = ({ args, position }: { args: [number,number,number]; position: [number,number,number] }) => {
+  const [w, h, d] = args;
+  const hw = w / 2, hh = h / 2, hd = d / 2;
+  const BEAM_SIZE = 0.08;
+
+  return (
+    <group position={position}>
+      {/* Vertical beams */}
+      <mesh position={[hw - BEAM_SIZE/2, 0, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, 0, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, 0, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, 0, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+
+      {/* Top horizontal beams */}
+      <mesh position={[0, hh - BEAM_SIZE/2, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[0, hh - BEAM_SIZE/2, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, hh - BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, hh - BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+
+      {/* Bottom horizontal beams */}
+      <mesh position={[0, -hh + BEAM_SIZE/2, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[0, -hh + BEAM_SIZE/2, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, -hh + BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, -hh + BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+    </group>
+  );
+};
 
 // ─── Shared floor / outdoor materials ────────────────────────────────────────
 const FLOOR_MAT       = new THREE.MeshStandardMaterial({ color: "#d8ccb8", roughness: 0.95 });
@@ -58,7 +118,6 @@ const _ALL_LAMP_POSITIONS: [number,number,number][] = [
 ];
 
 const AllLampPosts = () => {
-  const isNight  = useOfficeStore((s) => s.isNightMode);
   const poleRef  = useRef<THREE.InstancedMesh>(null);
   const headRef  = useRef<THREE.InstancedMesh>(null);
 
@@ -79,21 +138,13 @@ const AllLampPosts = () => {
     hm.instanceMatrix.needsUpdate = true;
   }, []);
 
-  // Update shared head material when night mode changes (1 material update = all 30 heads)
-  useEffect(() => {
-    _headMatShared.color.set(isNight ? "#fff7cc" : "#fffde8");
-    _headMatShared.emissive.set(isNight ? "#fff4b0" : "#fffde8");
-    _headMatShared.emissiveIntensity = isNight ? 2.2 : 0.65;
-    _headMatShared.needsUpdate = true;
-  }, [isNight]);
-
   return (
     <>
       <instancedMesh ref={poleRef} args={[_poleGeo, _poleMat, _ALL_LAMP_POSITIONS.length]} />
       <instancedMesh ref={headRef} args={[_headGeo, _headMatShared, _ALL_LAMP_POSITIONS.length]} />
-      {/* Only entrance lamps emit point lights (max 6) */}
-      {isNight && ENTRANCE_LAMPS.map((pos, i) => (
-        <pointLight key={i} position={[pos[0], 3.1, pos[2]]} intensity={1.4} distance={8} decay={2} color="#ffe7a8" />
+      {/* Entrance lamps emit point lights for ambient lighting (max 6) */}
+      {ENTRANCE_LAMPS.map((pos, i) => (
+        <pointLight key={i} position={[pos[0], 3.1, pos[2]]} intensity={0.8} distance={6} decay={2} color="#ffe8c0" />
       ))}
     </>
   );

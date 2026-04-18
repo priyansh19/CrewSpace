@@ -520,10 +520,8 @@ export const useOfficeStore = create<OfficeStore>((set) => ({
   officeAgents: buildMockOfficeAgents([]),
   issues: [],
   selectedAgentId: null,
-  isNightMode: false,
   liveMode: false,
   selectAgent: (id) => set({ selectedAgentId: id }),
-  toggleNightMode: () => set((state) => ({ isNightMode: !state.isNightMode })),
   setBackendSnapshot: (snapshot) =>
     set((state) => {
       const agents = buildAgents(snapshot, state.agents);

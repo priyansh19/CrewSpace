@@ -198,10 +198,12 @@ export function FailedRunInboxRow({
   const showUnreadDot = unreadState === "visible" || unreadState === "fading";
 
   return (
-    <div className={cn(
-      "group border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
-      className,
-    )}>
+    <div
+      className={cn(
+        "group px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        className,
+      )}
+    >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
           <span className="hidden sm:inline-flex h-4 w-4 shrink-0 items-center justify-center self-center">
@@ -354,10 +356,12 @@ function ApprovalInboxRow({
   const showUnreadDot = unreadState === "visible" || unreadState === "fading";
 
   return (
-    <div className={cn(
-      "group border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
-      className,
-    )}>
+    <div
+      className={cn(
+        "group px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        className,
+      )}
+    >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
           <span className="hidden sm:inline-flex h-4 w-4 shrink-0 items-center justify-center self-center">
@@ -493,10 +497,12 @@ function JoinRequestInboxRow({
   const showUnreadDot = unreadState === "visible" || unreadState === "fading";
 
   return (
-    <div className={cn(
-      "group border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
-      className,
-    )}>
+    <div
+      className={cn(
+        "group px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        className,
+      )}
+    >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
           <span className="hidden sm:inline-flex h-4 w-4 shrink-0 items-center justify-center self-center">
@@ -1314,7 +1320,7 @@ export function Inbox() {
         <>
           {showSeparatorBefore("work_items") && <Separator />}
           <div>
-            <div ref={listRef} className="overflow-hidden rounded-xl border border-border bg-card">
+            <div ref={listRef} className="overflow-hidden bg-card">
               {workItemsToRender.flatMap((item, index) => {
                 const wrapItem = (key: string, isSelected: boolean, child: ReactNode) => (
                   <div
@@ -1348,6 +1354,8 @@ export function Inbox() {
                 if (item.kind === "approval") {
                   const approvalKey = `approval:${item.approval.id}`;
                   const isArchiving = archivingNonIssueIds.has(approvalKey);
+                  const isFirstItem = index === 0;
+                  const isLastItem = index === workItemsToRender.length - 1;
                   const row = (
                     <ApprovalInboxRow
                       key={approvalKey}
@@ -1384,6 +1392,8 @@ export function Inbox() {
                 if (item.kind === "failed_run") {
                   const runKey = `run:${item.run.id}`;
                   const isArchiving = archivingNonIssueIds.has(runKey);
+                  const isFirstItem = index === 0;
+                  const isLastItem = index === workItemsToRender.length - 1;
                   const row = (
                     <FailedRunInboxRow
                       key={runKey}
@@ -1422,6 +1432,8 @@ export function Inbox() {
                 if (item.kind === "join_request") {
                   const joinKey = `join:${item.joinRequest.id}`;
                   const isArchiving = archivingNonIssueIds.has(joinKey);
+                  const isFirstItem = index === 0;
+                  const isLastItem = index === workItemsToRender.length - 1;
                   const row = (
                     <JoinRequestInboxRow
                       key={joinKey}
@@ -1458,6 +1470,8 @@ export function Inbox() {
                 const isUnread = issue.isUnreadForMe && !fadingOutIssues.has(issue.id);
                 const isFading = fadingOutIssues.has(issue.id);
                 const isArchiving = archivingIssueIds.has(issue.id);
+                const isFirstItem = index === 0;
+                const isLastItem = index === workItemsToRender.length - 1;
                 const row = (
                   <IssueRow
                     key={`issue:${issue.id}`}
