@@ -173,7 +173,6 @@ export function AgentListPanel({
                       fontSize: "13px",
                       fontWeight: 600,
                       color: isSelected ? "#ffffff" : "#c0d0f0",
-                      truncate: "ellipsis",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -185,7 +184,6 @@ export function AgentListPanel({
                     style={{
                       fontSize: "11px",
                       color: "rgba(192,208,240,0.6)",
-                      capitalize: "true",
                       textTransform: "capitalize",
                     }}
                   >
