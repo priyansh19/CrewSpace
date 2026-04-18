@@ -168,32 +168,36 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
     }
     if (settled.current) return;
 
-    const tgtY  = agent.status === "sleeping" ? 0.95 : agent.isSitting ? 0.0 : 0;
-    const tgtRx = agent.status === "sleeping" ? -Math.PI / 2 : 0;
+    const tgtY  = agent.status === "sleeping" ? 1.4 : agent.isSitting ? 0.0 : 0;
+    const tgtRx = agent.status === "sleeping" ? Math.PI / 2 : 0;
+    const tgtRy = agent.status === "sleeping" ? seatRot : (agent.status === "walking" ? Math.atan2(tgtX - g.position.x, tgtZ - g.position.z) : seatRot);
+    const tgtRz = agent.status === "sleeping" ? Math.PI / 2 : 0;
 
-    let tgtRy: number;
-    if (agent.status === "walking") {
-      const dx = tgtX - g.position.x;
-      const dz = tgtZ - g.position.z;
-      tgtRy = (Math.abs(dx) > 0.1 || Math.abs(dz) > 0.1) ? Math.atan2(dx, dz) : g.rotation.y;
+    if (agent.status !== "sleeping") {
+      g.position.x = THREE.MathUtils.lerp(g.position.x, tgtX, 0.04);
+      g.position.z = THREE.MathUtils.lerp(g.position.z, tgtZ, 0.04);
+      g.position.y = THREE.MathUtils.lerp(g.position.y, tgtY, 0.08);
+      g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, tgtRx, 0.07);
+      g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, tgtRy, 0.07);
+      g.rotation.z = THREE.MathUtils.lerp(g.rotation.z, tgtRz, 0.07);
     } else {
-      tgtRy = seatRot;
+      g.position.x = tgtX;
+      g.position.z = tgtZ;
+      g.position.y = THREE.MathUtils.lerp(g.position.y, tgtY, 0.04);
+      g.rotation.x = tgtRx;
+      g.rotation.y = tgtRy;
+      g.rotation.z = tgtRz;
     }
 
-    g.position.x = THREE.MathUtils.lerp(g.position.x, tgtX, 0.04);
-    g.position.z = THREE.MathUtils.lerp(g.position.z, tgtZ, 0.04);
-    g.position.y = THREE.MathUtils.lerp(g.position.y, tgtY, agent.status === "sleeping" ? 0.04 : 0.08);
-    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, tgtRx, agent.status === "sleeping" ? 0.04 : 0.07);
-    g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, tgtRy, 0.07);
-
     if (
+      agent.status !== "walking" &&
+      agent.status !== "sleeping" &&
       Math.abs(g.position.x - tgtX) < 0.005 &&
       Math.abs(g.position.z - tgtZ) < 0.005 &&
-      Math.abs(g.position.y - tgtY) < 0.005 &&
-      agent.status !== "walking"
+      Math.abs(g.position.y - tgtY) < 0.005
     ) {
       g.position.set(tgtX, tgtY, tgtZ);
-      g.rotation.set(tgtRx, tgtRy, 0);
+      g.rotation.set(tgtRx, tgtRy, tgtRz);
       settled.current = true;
     }
   });
@@ -208,8 +212,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} geometry={RING_GEO} material={ringMat(role)} />
       )}
       <primitive object={clone} scale={0.25} />
-      {/* Tooltip disabled — will be re-enabled later */}
-      {/* <Html position={[0, 0.7, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
+      <Html position={[0, 0.7, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
         <div style={{
           whiteSpace: "nowrap", fontSize: "10px", padding: "2px 6px", borderRadius: "4px",
           color: outfit.shirt, background: isSelected ? "#fff" : "#faf5ee",
@@ -219,7 +222,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
         }}>
           {STATUS_ICONS[status] || "🧍"} {name}
         </div>
-      </Html> */}
+      </Html>
       {isSelected && (
         <Html position={[0, 1.2, 0]} center distanceFactor={8} style={{ pointerEvents: "none" }}>
           <div style={{

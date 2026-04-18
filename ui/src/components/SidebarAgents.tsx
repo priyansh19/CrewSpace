@@ -21,6 +21,7 @@ import {
 import type { Agent } from "@crewspaceai/shared";
 export function SidebarAgents() {
   const [open, setOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const { selectedCompanyId } = useCompany();
   const { openNewAgent } = useDialog();
   const { isMobile, setSidebarOpen } = useSidebar();
@@ -99,7 +100,7 @@ export function SidebarAgents() {
 
       <CollapsibleContent>
         <div className="flex flex-col gap-0.5 mt-0.5">
-          {orderedAgents.map((agent: Agent) => {
+          {(showAll ? orderedAgents : orderedAgents.slice(0, 3)).map((agent: Agent) => {
             const runCount = liveCountByAgent.get(agent.id) ?? 0;
             return (
               <NavLink
@@ -138,6 +139,22 @@ export function SidebarAgents() {
               </NavLink>
             );
           })}
+          {orderedAgents.length > 3 && !showAll && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="px-3 py-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors text-left"
+            >
+              Show more ({orderedAgents.length - 3})
+            </button>
+          )}
+          {showAll && orderedAgents.length > 3 && (
+            <button
+              onClick={() => setShowAll(false)}
+              className="px-3 py-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors text-left"
+            >
+              Show less
+            </button>
+          )}
         </div>
       </CollapsibleContent>
     </Collapsible>
