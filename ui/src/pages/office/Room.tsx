@@ -43,9 +43,70 @@ function edgesGeo(w: number, h: number, d: number): THREE.EdgesGeometry {
   return _edgesCache.get(key)!;
 }
 
-const WireBox = ({ args, position, color }: { args: [number, number, number]; position: [number, number, number]; color: string }) => (
-  <lineSegments position={position} geometry={edgesGeo(...args)} material={lineMat(color)} />
-);
+const WireBox = ({ args, position, color }: { args: [number, number, number]; position: [number, number, number]; color: string }) => {
+  const [w, h, d] = args;
+  const hw = w / 2, hh = h / 2, hd = d / 2;
+  const BEAM_SIZE = 0.08;
+  const mat = solidMat(color, 0.6);
+
+  return (
+    <group position={position}>
+      {/* Vertical beams */}
+      <mesh position={[hw - BEAM_SIZE/2, 0, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, 0, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, 0, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, 0, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+
+      {/* Top horizontal beams */}
+      <mesh position={[0, hh - BEAM_SIZE/2, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[0, hh - BEAM_SIZE/2, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, hh - BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, hh - BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+
+      {/* Bottom horizontal beams */}
+      <mesh position={[0, -hh + BEAM_SIZE/2, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[0, -hh + BEAM_SIZE/2, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, -hh + BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, -hh + BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={mat} attach="material" />
+      </mesh>
+    </group>
+  );
+};
 
 // Door gap helpers
 function doorSegments(halfW: number, doorOffsets: number[]): { x: number; w: number }[] {

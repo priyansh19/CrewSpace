@@ -15,10 +15,70 @@ function edgesGeo(w: number, h: number, d: number) {
     _edgesCache.set(key, new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)));
   return _edgesCache.get(key)!;
 }
-const _boundaryMat = new THREE.LineBasicMaterial({ color: "#b8a080" });
-const BoundaryWall = ({ args, position }: { args: [number,number,number]; position: [number,number,number] }) => (
-  <lineSegments position={position} geometry={edgesGeo(...args)} material={_boundaryMat} />
-);
+const _boundaryMat = new THREE.MeshStandardMaterial({ color: "#b8a080", roughness: 0.7 });
+const BoundaryWall = ({ args, position }: { args: [number,number,number]; position: [number,number,number] }) => {
+  const [w, h, d] = args;
+  const hw = w / 2, hh = h / 2, hd = d / 2;
+  const BEAM_SIZE = 0.08;
+
+  return (
+    <group position={position}>
+      {/* Vertical beams */}
+      <mesh position={[hw - BEAM_SIZE/2, 0, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, 0, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, 0, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, 0, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, h, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+
+      {/* Top horizontal beams */}
+      <mesh position={[0, hh - BEAM_SIZE/2, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[0, hh - BEAM_SIZE/2, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, hh - BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, hh - BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+
+      {/* Bottom horizontal beams */}
+      <mesh position={[0, -hh + BEAM_SIZE/2, hd - BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[0, -hh + BEAM_SIZE/2, -hd + BEAM_SIZE/2]} castShadow>
+        <boxGeometry args={[w - BEAM_SIZE, BEAM_SIZE, BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[hw - BEAM_SIZE/2, -hh + BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+      <mesh position={[-hw + BEAM_SIZE/2, -hh + BEAM_SIZE/2, 0]} castShadow>
+        <boxGeometry args={[BEAM_SIZE, BEAM_SIZE, d - BEAM_SIZE]} />
+        <primitive object={_boundaryMat} attach="material" />
+      </mesh>
+    </group>
+  );
+};
 
 // ─── Shared floor / outdoor materials ────────────────────────────────────────
 const FLOOR_MAT       = new THREE.MeshStandardMaterial({ color: "#d8ccb8", roughness: 0.95 });
