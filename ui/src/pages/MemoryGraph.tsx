@@ -393,10 +393,10 @@ function use3DRenderer({
         }
       };
 
-      // Outer sphere (memory shell) — faint
-      drawWireframe(r, 0.055, 6, 6);
-      // Inner sphere (agent shell) — slightly brighter to distinguish
-      drawWireframe(agentR, 0.10, 4, 4);
+      // Outer sphere (memory shell) — hidden
+      // drawWireframe(r, 0.055, 6, 6);
+      // Inner sphere (agent shell) — hidden
+      // drawWireframe(agentR, 0.10, 4, 4);
 
       // Center gravity glow
       const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, agentR * 0.3);
@@ -430,8 +430,7 @@ function use3DRenderer({
       }
 
       // ── Draw mem-to-agent radial lines ──
-      // Always draw faint lines from outer memory to inner agent — this IS the
-      // "linked to agent in the outer circle" visual. Throttle alpha by depth.
+      // Lines always show full length when agent is clicked
       ctx.setLineDash([2, 3]);
       for (let i = 0; i < mems.length; i++) {
         const m = mems[i];
@@ -443,14 +442,23 @@ function use3DRenderer({
         const visFilter = !fAgent || m.agentId === fAgent;
         const visSearch = !q || m.title.toLowerCase().includes(q);
         if (!visFilter && !visSearch) continue;
+
         const isActive = m.id === activeId || m.agentId === activeId;
+        // If agent is selected, show full line; otherwise variable length
+        let endX = ap.sx, endY = ap.sy;
+        if (!isActive) {
+          const varLength = 0.4 + Math.sin(i * 1.3 + t) * 0.25;
+          endX = ap.sx + (mp.sx - ap.sx) * varLength;
+          endY = ap.sy + (mp.sy - ap.sy) * varLength;
+        }
+
         const depthFade = Math.min(1, (mp.scale * 0.7 + ap.scale * 0.3));
-        const baseAlpha = isActive ? 0.55 : 0.10;
+        const baseAlpha = isActive ? 0.75 : 0.10;
         ctx.beginPath();
         ctx.moveTo(mp.sx, mp.sy);
-        ctx.lineTo(ap.sx, ap.sy);
+        ctx.lineTo(endX, endY);
         ctx.strokeStyle = rgba(m.agentColor, baseAlpha * depthFade);
-        ctx.lineWidth = isActive ? 1.2 : 0.4;
+        ctx.lineWidth = isActive ? 2 : 0.4;
         ctx.stroke();
       }
       ctx.setLineDash([]);

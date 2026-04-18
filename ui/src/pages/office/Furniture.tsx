@@ -77,6 +77,72 @@ const Monitor = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }
   return <Clone object={scene} position={pos} rotation={[0, rot, 0]} />;
 };
 
+// Keyboard
+const Keyboard = ({ pos }: { pos: [number,number,number] }) => {
+  const geo = new THREE.BoxGeometry(0.35, 0.02, 0.15);
+  const mat = new THREE.MeshStandardMaterial({ color: "#1a1a1a", metalness: 0.3, roughness: 0.7 });
+  return <mesh geometry={geo} material={mat} position={pos} />;
+};
+
+// Mouse
+const Mouse = ({ pos }: { pos: [number,number,number] }) => {
+  const geo = new THREE.SphereGeometry(0.03, 16, 16);
+  const mat = new THREE.MeshStandardMaterial({ color: "#2a2a2a", metalness: 0.2, roughness: 0.6 });
+  return <mesh geometry={geo} material={mat} position={pos} />;
+};
+
+// Monitor stack for workstations — realistic big monitors
+const MonitorStack = ({ pos, rot = 0 }: { pos: [number,number,number]; rot?: number }) => {
+  // Main display (center, large)
+  const mainMonGeo = new THREE.BoxGeometry(0.5, 0.35, 0.03);
+  // Secondary displays (smaller)
+  const secMonGeo = new THREE.BoxGeometry(0.35, 0.25, 0.03);
+
+  const screenMat = new THREE.MeshStandardMaterial({
+    color: "#0f0f0f",
+    emissive: "#1a1a1a",
+    metalness: 0.15,
+    roughness: 0.85,
+  });
+
+  const standMat = new THREE.MeshStandardMaterial({
+    color: "#2a2a2a",
+    metalness: 0.4,
+    roughness: 0.6,
+  });
+
+  return (
+    <group position={pos} rotation={[0, rot, 0]}>
+      {/* Center main monitor */}
+      <mesh geometry={mainMonGeo} material={screenMat} position={[0, 0.2, 0]} rotation={[0.08, 0, 0]} />
+
+      {/* Left secondary monitor */}
+      <mesh geometry={secMonGeo} material={screenMat} position={[-0.3, 0.15, -0.08]} rotation={[0.1, 0.25, 0]} />
+
+      {/* Right secondary monitor */}
+      <mesh geometry={secMonGeo} material={screenMat} position={[0.3, 0.15, -0.08]} rotation={[0.1, -0.25, 0]} />
+
+      {/* Monitor stands (simple cylinders) */}
+      <mesh position={[0, 0.05, 0]}>
+        <cylinderGeometry args={[0.08, 0.1, 0.1, 8]} />
+        <meshStandardMaterial {...standMat} />
+      </mesh>
+      <mesh position={[-0.3, 0.04, -0.08]}>
+        <cylinderGeometry args={[0.06, 0.07, 0.08, 8]} />
+        <meshStandardMaterial {...standMat} />
+      </mesh>
+      <mesh position={[0.3, 0.04, -0.08]}>
+        <cylinderGeometry args={[0.06, 0.07, 0.08, 8]} />
+        <meshStandardMaterial {...standMat} />
+      </mesh>
+
+      {/* Keyboard and mouse */}
+      <Keyboard pos={[-0.15, 0.01, 0.2]} />
+      <Mouse pos={[0.15, 0.015, 0.18]} />
+    </group>
+  );
+};
+
 // Base model is 2×1 units; scale X and Z to match requested size
 const Table = ({ pos, size = [2, 0.06, 1] as [number,number,number] }: { pos: [number,number,number]; size?: [number,number,number] }) => {
   const { scene } = useGLTF("/models/table.glb");
@@ -257,15 +323,13 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
           {[-12.5,-10,-7.5,-5,-2.5,0,2.5,5,7.5,10,12.5].map((xOff,i) => (
             <group key={`ws1${i}`}>
               <Table          pos={[px+xOff, py, pz-2.1]} size={[2.4, 0.06, 1.1]} />
-              <DevWorkstation pos={[px+xOff, 0.73, pz-2.1]} rot={0} scale={0.14} />
-              <DevChair       pos={[px+xOff, py, pz-0.65]} rot={Math.PI + Math.PI/2} />
+              <MonitorStack   pos={[px+xOff, 0.73, pz-2.1]} rot={0} />
             </group>
           ))}
           {[-12.5,-10,-7.5,-5,-2.5,0,2.5,5,7.5,10,12.5].map((xOff,i) => (
             <group key={`ws2${i}`}>
               <Table          pos={[px+xOff, py, pz+2.1]} size={[2.4, 0.06, 1.1]} />
-              <DevWorkstation pos={[px+xOff, 0.73, pz+2.1]} rot={Math.PI} scale={0.14} />
-              <DevChair       pos={[px+xOff, py, pz+0.65]} rot={Math.PI/2} />
+              <MonitorStack   pos={[px+xOff, 0.73, pz+2.1]} rot={0} />
             </group>
           ))}
           <Whiteboard pos={[px+12.5, py, pz-3.8]} />

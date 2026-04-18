@@ -1,6 +1,6 @@
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import * as THREE from "three";
 import { useOfficeStore } from "@/stores/officeStore";
@@ -55,13 +55,36 @@ const CameraController = ({ controlsRef }: { controlsRef: React.RefObject<any> }
 };
 
 const OfficeScene = () => {
-  // Subscribe only to agent IDs — shallow comparison prevents re-render when agent moves
+  const [isLoading, setIsLoading] = useState(true);
   const agentIds    = useOfficeStore(useShallow((s) => s.officeAgents.map((a) => a.id)));
   const selectedId  = useOfficeStore((s) => s.selectedAgentId);
   const selectAgent = useOfficeStore((s) => s.selectAgent);
   const controlsRef = useRef<any>(null);
 
+  const handleSceneReady = () => setIsLoading(false);
+
   return (
+    <>
+      {isLoading && (
+        <div style={{
+          position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(15, 23, 42, 0.95)", display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)"
+        }}>
+          <div style={{ textAlign: "center", color: "#fff" }}>
+            <div style={{ fontSize: "24px", fontWeight: 600, marginBottom: "20px" }}>
+              Loading your interactive 3D office
+            </div>
+            <div style={{
+              width: "40px", height: "40px", border: "3px solid rgba(255,255,255,0.2)",
+              borderTop: "3px solid #fff", borderRadius: "50%",
+              animation: "spin 1s linear infinite", margin: "0 auto"
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        </div>
+      )}
+
     <Canvas
       camera={{ position: DEFAULT_CAM, fov: 50, near: 0.5, far: 180 }}
       gl={{
@@ -102,6 +125,7 @@ const OfficeScene = () => {
       {agentIds.map((id) => (
         <HumanAgent key={id} agentId={id} isSelected={id === selectedId} />
       ))}
+      <RenderComplete onReady={handleSceneReady} />
       <OrbitControls
         ref={controlsRef}
         makeDefault
@@ -114,7 +138,13 @@ const OfficeScene = () => {
       />
       <CameraController controlsRef={controlsRef} />
     </Canvas>
+    </>
   );
+};
+
+const RenderComplete = ({ onReady }: { onReady: () => void }) => {
+  useFrame(() => onReady(), { once: true });
+  return null;
 };
 
 export default OfficeScene;
