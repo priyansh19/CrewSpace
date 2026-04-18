@@ -200,10 +200,10 @@ export function FailedRunInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 bg-blue-500/10",
+        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
-      style={{borderRadius: "1rem", border: "2px solid rgb(59, 130, 246)"}}
+      style={{borderRadius: "0.75rem"}}
     >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
@@ -359,10 +359,10 @@ function ApprovalInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 bg-blue-500/10",
+        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
-      style={{borderRadius: "1rem", border: "2px solid rgb(59, 130, 246)"}}
+      style={{borderRadius: "0.75rem"}}
     >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
@@ -501,10 +501,10 @@ function JoinRequestInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 bg-blue-500/10",
+        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
-      style={{borderRadius: "1rem", border: "2px solid rgb(59, 130, 246)"}}
+      style={{borderRadius: "0.75rem"}}
     >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
