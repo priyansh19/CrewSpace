@@ -168,7 +168,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
     }
     if (settled.current) return;
 
-    const tgtY  = agent.status === "sleeping" ? 0.75 : agent.isSitting ? 0.0 : 0;
+    const tgtY  = agent.status === "sleeping" ? 0.95 : agent.isSitting ? 0.0 : 0;
     const tgtRx = agent.status === "sleeping" ? -Math.PI / 2 : 0;
 
     let tgtRy: number;
@@ -208,7 +208,8 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} geometry={RING_GEO} material={ringMat(role)} />
       )}
       <primitive object={clone} scale={0.25} />
-      <Html position={[0, 0.7, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
+      {/* Tooltip disabled — will be re-enabled later */}
+      {/* <Html position={[0, 0.7, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
         <div style={{
           whiteSpace: "nowrap", fontSize: "10px", padding: "2px 6px", borderRadius: "4px",
           color: outfit.shirt, background: isSelected ? "#fff" : "#faf5ee",
@@ -218,7 +219,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
         }}>
           {STATUS_ICONS[status] || "🧍"} {name}
         </div>
-      </Html>
+      </Html> */}
       {isSelected && (
         <Html position={[0, 1.2, 0]} center distanceFactor={8} style={{ pointerEvents: "none" }}>
           <div style={{
