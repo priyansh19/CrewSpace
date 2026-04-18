@@ -199,7 +199,7 @@ export function FailedRunInboxRow({
 
   return (
     <div className={cn(
-      "group overflow-hidden border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
+      "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 rounded-t-2xl rounded-b-2xl",
       className,
     )}>
       <div className="flex items-start gap-2 sm:items-center">
@@ -355,7 +355,7 @@ function ApprovalInboxRow({
 
   return (
     <div className={cn(
-      "group overflow-hidden border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
+      "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 rounded-t-2xl rounded-b-2xl",
       className,
     )}>
       <div className="flex items-start gap-2 sm:items-center">
@@ -494,7 +494,7 @@ function JoinRequestInboxRow({
 
   return (
     <div className={cn(
-      "group overflow-hidden border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
+      "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 rounded-t-2xl rounded-b-2xl",
       className,
     )}>
       <div className="flex items-start gap-2 sm:items-center">
@@ -1363,13 +1363,11 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(approvalKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(approvalKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={cn(
+                      className={
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-2xl",
-                        isLastItem && "rounded-b-2xl"
-                      )}
+                          : "transition-all duration-200 ease-out"
+                      }
                     />
                   );
                   elements.push(wrapItem(approvalKey, isSelected, canArchiveFromTab ? (
@@ -1405,13 +1403,11 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(runKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(runKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={cn(
+                      className={
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-2xl",
-                        isLastItem && "rounded-b-2xl"
-                      )}
+                          : "transition-all duration-200 ease-out"
+                      }
                     />
                   );
                   elements.push(wrapItem(runKey, isSelected, canArchiveFromTab ? (
@@ -1444,13 +1440,11 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(joinKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(joinKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={cn(
+                      className={
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out",
-                        isFirstItem && "rounded-t-2xl",
-                        isLastItem && "rounded-b-2xl"
-                      )}
+                          : "transition-all duration-200 ease-out"
+                      }
                     />
                   );
                   elements.push(wrapItem(joinKey, isSelected, canArchiveFromTab ? (
