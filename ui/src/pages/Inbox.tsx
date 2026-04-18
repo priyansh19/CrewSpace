@@ -199,7 +199,7 @@ export function FailedRunInboxRow({
 
   return (
     <div className={cn(
-      "group border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
+      "group overflow-hidden border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
       className,
     )}>
       <div className="flex items-start gap-2 sm:items-center">
@@ -355,7 +355,7 @@ function ApprovalInboxRow({
 
   return (
     <div className={cn(
-      "group border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
+      "group overflow-hidden border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
       className,
     )}>
       <div className="flex items-start gap-2 sm:items-center">
@@ -494,7 +494,7 @@ function JoinRequestInboxRow({
 
   return (
     <div className={cn(
-      "group border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
+      "group overflow-hidden border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:pr-3 sm:py-2",
       className,
     )}>
       <div className="flex items-start gap-2 sm:items-center">
