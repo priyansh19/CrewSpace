@@ -198,10 +198,13 @@ export function FailedRunInboxRow({
   const showUnreadDot = unreadState === "visible" || unreadState === "fading";
 
   return (
-    <div className={cn(
-      "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 rounded-t-2xl rounded-b-2xl",
-      className,
-    )}>
+    <div
+      className={cn(
+        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30",
+        className,
+      )}
+      style={{borderRadius: "1rem"}}
+    >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
           <span className="hidden sm:inline-flex h-4 w-4 shrink-0 items-center justify-center self-center">
@@ -354,10 +357,13 @@ function ApprovalInboxRow({
   const showUnreadDot = unreadState === "visible" || unreadState === "fading";
 
   return (
-    <div className={cn(
-      "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 rounded-t-2xl rounded-b-2xl",
-      className,
-    )}>
+    <div
+      className={cn(
+        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30",
+        className,
+      )}
+      style={{borderRadius: "1rem"}}
+    >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
           <span className="hidden sm:inline-flex h-4 w-4 shrink-0 items-center justify-center self-center">
@@ -493,10 +499,13 @@ function JoinRequestInboxRow({
   const showUnreadDot = unreadState === "visible" || unreadState === "fading";
 
   return (
-    <div className={cn(
-      "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30 rounded-t-2xl rounded-b-2xl",
-      className,
-    )}>
+    <div
+      className={cn(
+        "group overflow-hidden border-b border-border/50 px-3 py-3 last:border-b-0 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/30",
+        className,
+      )}
+      style={{borderRadius: "1rem"}}
+    >
       <div className="flex items-start gap-2 sm:items-center">
         {showUnreadSlot ? (
           <span className="hidden sm:inline-flex h-4 w-4 shrink-0 items-center justify-center self-center">
