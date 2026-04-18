@@ -17,12 +17,12 @@ interface ThemeContextValue {
 }
 
 const THEME_STORAGE_KEY = "crewspace.theme";
-const DARK_THEME_COLOR = "#18181b";
-const LIGHT_THEME_COLOR = "#ffffff";
+const DARK_THEME_COLOR = "#0f172a";
+const LIGHT_THEME_COLOR = "#f8fafc";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 function resolveThemeFromDocument(): Theme {
-  if (typeof document === "undefined") return "dark";
+  if (typeof document === "undefined") return "light";
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
@@ -39,7 +39,13 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => resolveThemeFromDocument());
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(THEME_STORAGE_KEY);
+      if (stored === "dark" || stored === "light") return stored;
+    }
+    return "light";
+  });
 
   const setTheme = useCallback((nextTheme: Theme) => {
     setThemeState(nextTheme);
