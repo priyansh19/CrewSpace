@@ -20,14 +20,12 @@ import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
 import { cn, formatCents } from "../lib/utils";
-import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, CheckCircle2, XCircle, Clock, GitBranch, Zap, User, Flag, Calendar } from "lucide-react";
+import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, CheckCircle2, XCircle, Clock, GitBranch, Zap, User } from "lucide-react";
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
-import { SprintBurndownChart, AgentBurndownChart, SprintProgressRing } from "../components/SprintCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
 import type { Agent, Issue, Approval, HeartbeatRun } from "@crewspaceai/shared";
 import { PluginSlotOutlet } from "@/plugins/slots";
-import { sprintsApi } from "../api/sprints";
 
 function getRecentIssues(issues: Issue[]): Issue[] {
   return [...issues]
@@ -302,22 +300,6 @@ export function Dashboard() {
   const recentIssues = issues ? getRecentIssues(issues) : [];
   const recentActivity = useMemo(() => (activity ?? []).slice(0, 10), [activity]);
 
-  // Sprint data for dashboard
-  const { data: sprints = [] } = useQuery({
-    queryKey: ["sprints", selectedCompanyId!],
-    queryFn: () => sprintsApi.list(selectedCompanyId!),
-    enabled: !!selectedCompanyId,
-    staleTime: 30_000,
-  });
-  const activeSprint = sprints.find((s) => s.status === "active") ?? null;
-  const { data: activeSprintBurndown } = useQuery({
-    queryKey: ["sprint-burndown", activeSprint?.id],
-    queryFn: () => sprintsApi.burndown(activeSprint!.id),
-    enabled: !!activeSprint,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
-  });
-
   useEffect(() => {
     for (const timer of activityAnimationTimersRef.current) {
       window.clearTimeout(timer);
@@ -532,108 +514,6 @@ export function Dashboard() {
               <SuccessRateChart runs={runs ?? []} />
             </ChartCard>
           </div>
-
-          {/* ── Active Sprint Overview ── */}
-          {activeSprint && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5 text-violet-500" />
-                  Active Sprint
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
-                </h3>
-                <Link to="/board" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
-                  Open board
-                </Link>
-              </div>
-
-              <div className="border border-border rounded-lg bg-card overflow-hidden">
-                {/* Sprint header */}
-                <div className="px-4 py-3 border-b border-border bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-950/20">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{activeSprint.name}</p>
-                      {activeSprint.goal && <p className="text-xs text-muted-foreground mt-0.5 truncate">{activeSprint.goal}</p>}
-                      {(activeSprint.startDate || activeSprint.endDate) && (
-                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-1">
-                          <Calendar className="h-3 w-3" />
-                          {activeSprint.startDate ? new Date(activeSprint.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"}
-                          {" – "}
-                          {activeSprint.endDate ? new Date(activeSprint.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"}
-                        </p>
-                      )}
-                    </div>
-                    {activeSprintBurndown && (
-                      <div className="flex items-center gap-3 shrink-0">
-                        <SprintProgressRing
-                          pct={activeSprintBurndown.totalIssues > 0
-                            ? Math.round(((activeSprintBurndown.statusCounts["done"] ?? 0) / activeSprintBurndown.totalIssues) * 100)
-                            : 0}
-                          size={52}
-                        />
-                        <div>
-                          <p className="text-lg font-bold text-foreground tabular-nums">
-                            {activeSprintBurndown.totalIssues > 0
-                              ? `${Math.round(((activeSprintBurndown.statusCounts["done"] ?? 0) / activeSprintBurndown.totalIssues) * 100)}%`
-                              : "0%"}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {activeSprintBurndown.statusCounts["done"] ?? 0}/{activeSprintBurndown.totalIssues} done
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Status pill counts */}
-                  {activeSprintBurndown && (
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {[
-                        { key: "in_progress", label: "In Progress", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
-                        { key: "todo", label: "Todo", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-                        { key: "backlog", label: "Backlog", color: "bg-muted text-muted-foreground" },
-                        { key: "blocked", label: "Blocked", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
-                        { key: "done", label: "Done", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-                      ].map(({ key, label, color }) => (activeSprintBurndown.statusCounts[key] ?? 0) > 0 ? (
-                        <span key={key} className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", color)}>
-                          {activeSprintBurndown.statusCounts[key]} {label}
-                        </span>
-                      ) : null)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Charts grid */}
-                {activeSprintBurndown && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
-                    {/* Burndown chart */}
-                    <div className="p-4">
-                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-3">
-                        <Flag className="h-3 w-3" /> Sprint Burndown
-                      </p>
-                      <SprintBurndownChart data={activeSprintBurndown} />
-                    </div>
-
-                    {/* Per-agent breakdown */}
-                    <div className="p-4">
-                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-3">
-                        <Zap className="h-3 w-3" /> Agent Breakdown
-                      </p>
-                      {activeSprintBurndown.agentBreakdown.length > 0 ? (
-                        <AgentBurndownChart agents={activeSprintBurndown.agentBreakdown} />
-                      ) : (
-                        <p className="text-xs text-muted-foreground">No agents assigned</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {!activeSprintBurndown && (
-                  <div className="p-4 text-xs text-muted-foreground text-center">Loading sprint data…</div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* ── Workflow Execution Graph ── */}
           <div>
