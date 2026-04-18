@@ -200,7 +200,7 @@ export function FailedRunInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        "group px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
     >
@@ -358,7 +358,7 @@ function ApprovalInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        "group px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
     >
@@ -499,7 +499,7 @@ function JoinRequestInboxRow({
   return (
     <div
       className={cn(
-        "group overflow-hidden px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
+        "group px-3 py-3 sm:px-2 sm:pr-4 sm:py-3 transition-colors hover:bg-muted/40",
         className,
       )}
     >
@@ -1369,11 +1369,13 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(approvalKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(approvalKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={
+                      className={cn(
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out"
-                      }
+                          : "transition-all duration-200 ease-out",
+                        isFirstItem && "rounded-t-xl",
+                        isLastItem && "rounded-b-xl"
+                      )}
                     />
                   );
                   elements.push(wrapItem(approvalKey, isSelected, canArchiveFromTab ? (
@@ -1409,11 +1411,13 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(runKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(runKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={
+                      className={cn(
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out"
-                      }
+                          : "transition-all duration-200 ease-out",
+                        isFirstItem && "rounded-t-xl",
+                        isLastItem && "rounded-b-xl"
+                      )}
                     />
                   );
                   elements.push(wrapItem(runKey, isSelected, canArchiveFromTab ? (
@@ -1446,11 +1450,13 @@ export function Inbox() {
                       onMarkRead={() => handleMarkNonIssueRead(joinKey)}
                       onArchive={canArchiveFromTab ? () => handleArchiveNonIssue(joinKey) : undefined}
                       archiveDisabled={isArchiving}
-                      className={
+                      className={cn(
                         isArchiving
                           ? "pointer-events-none -translate-x-4 scale-[0.98] opacity-0 transition-all duration-200 ease-out"
-                          : "transition-all duration-200 ease-out"
-                      }
+                          : "transition-all duration-200 ease-out",
+                        isFirstItem && "rounded-t-xl",
+                        isLastItem && "rounded-b-xl"
+                      )}
                     />
                   );
                   elements.push(wrapItem(joinKey, isSelected, canArchiveFromTab ? (
