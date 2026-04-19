@@ -30,7 +30,8 @@ if ("serviceWorker" in navigator) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
+      staleTime: 60_000,
+      gcTime: 600_000,
       refetchOnWindowFocus: true,
     },
   },
