@@ -18,6 +18,7 @@ import {
   Zap,
   ChevronRight,
   Building2,
+  TerminalSquare,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -149,6 +150,7 @@ export function Sidebar() {
             badge={sessions.length > 0 ? sessions.length : undefined}
           />
           <SidebarNavItem to="/office" label="3D Office" icon={Building2} />
+          <SidebarNavItem to="/terminal" label="CEO Terminal" icon={TerminalSquare} />
         </SidebarSection>
 
         {/* System */}
