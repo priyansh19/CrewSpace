@@ -47,7 +47,7 @@ export async function provisionAgentUser(agent: {
 
   try {
     await execAsync(
-      `useradd --create-home --shell /bin/bash --comment "crewspace-agent:${agent.id}" "${username}"`,
+      `sudo useradd --create-home --shell /bin/bash --comment "crewspace-agent:${agent.id}" "${username}"`,
     );
     logger.info({ username, agentId: agent.id, role: agent.role }, "filesystem-users: created OS user");
   } catch (err) {
@@ -61,7 +61,7 @@ export async function provisionAgentUser(agent: {
     for (const group of ["sudo", "wheel"]) {
       try {
         await execAsync(`getent group "${group}"`);
-        await execAsync(`usermod -aG "${group}" "${username}"`);
+        await execAsync(`sudo usermod -aG "${group}" "${username}"`);
         logger.info({ username, group }, "filesystem-users: granted elevated access to CEO agent");
         granted = true;
         break;
@@ -90,7 +90,7 @@ export async function deprovisionAgentUser(agent: {
   }
 
   try {
-    await execAsync(`userdel --remove "${username}"`);
+    await execAsync(`sudo userdel --remove "${username}"`);
     logger.info({ username, agentId: agent.id }, "filesystem-users: removed OS user");
   } catch (err) {
     logger.error({ err, username, agentId: agent.id }, "filesystem-users: failed to remove OS user");
