@@ -5,6 +5,7 @@ import type { HireApprovedPayload } from "@crewspaceai/adapter-utils";
 import { findServerAdapter } from "../adapters/registry.js";
 import { logger } from "../middleware/logger.js";
 import { logActivity } from "./activity-log.js";
+import { provisionAgentUser } from "./filesystem-users.js";
 
 const HIRE_APPROVED_MESSAGE =
   "Tell your user that your hire was approved, now they should assign you a task in CrewSpace or ask you to create issues.";
@@ -38,6 +39,8 @@ export async function notifyHireApproved(
     logger.warn({ companyId, agentId, source, sourceId }, "hire hook: agent not found in company, skipping");
     return;
   }
+
+  void provisionAgentUser({ id: row.id, name: row.name, role: row.role ?? "general" }).catch(() => {});
 
   const adapterType = row.adapterType ?? "process";
   const adapter = findServerAdapter(adapterType);
