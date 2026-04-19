@@ -64,6 +64,7 @@ import {
   loadDefaultAgentInstructionsBundle,
   resolveDefaultAgentInstructionsBundleRole,
 } from "../services/default-agent-instructions.js";
+import { provisionAgentUser, deprovisionAgentUser } from "../services/filesystem-users.js";
 
 export function agentRoutes(db: Db) {
   const DEFAULT_INSTRUCTIONS_PATH_KEYS: Record<string, string> = {
@@ -1417,6 +1418,8 @@ export function agentRoutes(db: Db) {
       );
     }
 
+    void provisionAgentUser({ id: agent.id, name: agent.name, role: agent.role }).catch(() => {});
+
     res.status(201).json(agent);
   });
 
@@ -1903,6 +1906,8 @@ export function agentRoutes(db: Db) {
       entityId: agent.id,
     });
 
+    void deprovisionAgentUser({ id: agent.id, name: agent.name }).catch(() => {});
+
     res.json(agent);
   });
 
@@ -1923,6 +1928,8 @@ export function agentRoutes(db: Db) {
       entityType: "agent",
       entityId: agent.id,
     });
+
+    void deprovisionAgentUser({ id: agent.id, name: agent.name }).catch(() => {});
 
     res.json({ ok: true });
   });
