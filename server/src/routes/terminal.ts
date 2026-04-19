@@ -54,8 +54,8 @@ export function terminalRoutes(db: Db) {
     const { command, cwd } = req.body as { command: string; cwd: string };
     const actorId = resolveActorId(req);
 
-    // Wrap command in a subshell so cd persists: capture new cwd as last line via sentinel.
-    const wrapped = `cd ${JSON.stringify(cwd)} 2>/dev/null; ${command}; echo "${CWD_SENTINEL}$(pwd)"`;
+    // Wrap command: save exit code before sentinel echo so it isn't masked by echo's success.
+    const wrapped = `cd ${JSON.stringify(cwd)} 2>/dev/null; ${command}; _cs_exit=$?; echo "${CWD_SENTINEL}$(pwd)"; exit $_cs_exit`;
 
     exec(wrapped, { shell: "/bin/bash", timeout: EXEC_TIMEOUT_MS }, (err, stdout, stderr) => {
       const sentinelIdx = stdout.lastIndexOf(CWD_SENTINEL);
