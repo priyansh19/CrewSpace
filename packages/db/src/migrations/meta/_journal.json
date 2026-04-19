@@ -337,6 +337,20 @@
       "when": 1775319945669,
       "tag": "0047_agent_memories",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1775319945670,
+      "tag": "0048_sprints",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1775319945671,
+      "tag": "0049_terminal_history",
+      "breakpoints": true
     }
   ]
 }

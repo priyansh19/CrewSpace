@@ -58,3 +58,4 @@ export { pluginWebhookDeliveries } from "./plugin_webhooks.js";
 export { pluginLogs } from "./plugin_logs.js";
 export { agentMemories, agentMemoryAgents, agentMemoryLinks } from "./agent_memories.js";
 export { sprints, sprintIssues } from "./sprints.js";
+export { terminalHistory } from "./terminal_history.js";
