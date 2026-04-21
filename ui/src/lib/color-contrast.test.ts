@@ -62,7 +62,7 @@ describe("pickTextColorForSolidBg", () => {
 describe("pickTextColorForPillBg", () => {
   it("returns a text color string", () => {
     const result = pickTextColorForPillBg("#3b82f6");
-    expect([" #f8fafc", "#111827"]).toContain(result.trim());
+    expect(["#f8fafc", "#111827"]).toContain(result.trim());
   });
 
   it("uses custom alpha", () => {

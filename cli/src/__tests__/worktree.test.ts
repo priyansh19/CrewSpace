@@ -516,6 +516,7 @@ describe("worktree helpers", () => {
       execFileSync("git", ["init"], { cwd: repoRoot, stdio: "ignore" });
       execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: repoRoot, stdio: "ignore" });
       execFileSync("git", ["config", "user.name", "Test User"], { cwd: repoRoot, stdio: "ignore" });
+      execFileSync("git", ["config", "commit.gpgsign", "false"], { cwd: repoRoot, stdio: "ignore" });
       fs.writeFileSync(path.join(repoRoot, "README.md"), "# temp\n", "utf8");
       execFileSync("git", ["add", "README.md"], { cwd: repoRoot, stdio: "ignore" });
       execFileSync("git", ["commit", "-m", "Initial commit"], { cwd: repoRoot, stdio: "ignore" });
@@ -568,6 +569,7 @@ describe("worktree helpers", () => {
       execFileSync("git", ["init"], { cwd: repoRoot, stdio: "ignore" });
       execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: repoRoot, stdio: "ignore" });
       execFileSync("git", ["config", "user.name", "Test User"], { cwd: repoRoot, stdio: "ignore" });
+      execFileSync("git", ["config", "commit.gpgsign", "false"], { cwd: repoRoot, stdio: "ignore" });
       fs.writeFileSync(path.join(repoRoot, "README.md"), "# temp\n", "utf8");
       execFileSync("git", ["add", "README.md"], { cwd: repoRoot, stdio: "ignore" });
       execFileSync("git", ["commit", "-m", "Initial commit"], { cwd: repoRoot, stdio: "ignore" });

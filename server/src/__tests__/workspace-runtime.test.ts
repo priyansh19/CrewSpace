@@ -56,6 +56,7 @@ async function createTempRepo() {
   await runGit(repoRoot, ["init"]);
   await runGit(repoRoot, ["config", "user.email", "crewspace@example.com"]);
   await runGit(repoRoot, ["config", "user.name", "CrewSpace Test"]);
+  await runGit(repoRoot, ["config", "commit.gpgsign", "false"]);
   await fs.writeFile(path.join(repoRoot, "README.md"), "hello\n", "utf8");
   await runGit(repoRoot, ["add", "README.md"]);
   await runGit(repoRoot, ["commit", "-m", "Initial commit"]);
@@ -662,6 +663,7 @@ describe("realizeExecutionWorkspace", () => {
     await runGit(repoRoot, ["init", "-b", "master"]);
     await runGit(repoRoot, ["config", "user.email", "crewspace@example.com"]);
     await runGit(repoRoot, ["config", "user.name", "CrewSpace Test"]);
+    await runGit(repoRoot, ["config", "commit.gpgsign", "false"]);
     await fs.writeFile(path.join(repoRoot, "README.md"), "hello\n", "utf8");
     await runGit(repoRoot, ["add", "README.md"]);
     await runGit(repoRoot, ["commit", "-m", "Initial commit"]);
@@ -720,6 +722,7 @@ describe("realizeExecutionWorkspace", () => {
     await runGit(repoRoot, ["init", "-b", "master"]);
     await runGit(repoRoot, ["config", "user.email", "crewspace@example.com"]);
     await runGit(repoRoot, ["config", "user.name", "CrewSpace Test"]);
+    await runGit(repoRoot, ["config", "commit.gpgsign", "false"]);
     await fs.writeFile(path.join(repoRoot, "README.md"), "hello\n", "utf8");
     await runGit(repoRoot, ["add", "README.md"]);
     await runGit(repoRoot, ["commit", "-m", "Initial commit"]);

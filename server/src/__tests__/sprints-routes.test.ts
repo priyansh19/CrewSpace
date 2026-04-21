@@ -22,7 +22,7 @@ const sprint = {
   updatedAt: new Date("2026-01-01T00:00:00Z"),
 };
 
-const mockDb = vi.hoisted(() => ({
+const mockDb = {
   select: vi.fn().mockReturnThis(),
   from: vi.fn().mockReturnThis(),
   where: vi.fn().mockReturnThis(),
@@ -34,7 +34,7 @@ const mockDb = vi.hoisted(() => ({
   set: vi.fn().mockReturnThis(),
   delete: vi.fn().mockReturnThis(),
   then: vi.fn(),
-}));
+};
 
 function createApp(actor: Record<string, unknown>) {
   const app = express();
