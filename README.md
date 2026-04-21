@@ -7,7 +7,6 @@
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
   <a href="#features"><strong>Features</strong></a> &middot;
   <a href="#roadmap"><strong>Roadmap</strong></a> &middot;
-  <a href="https://discord.gg/m4HZY7xNG3"><strong>Discord</strong></a>
 </p>
 
 <p align="center">
