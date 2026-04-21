@@ -228,36 +228,56 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} geometry={RING_GEO} material={ringMat(role)} />
       )}
       <primitive object={clone} scale={0.25} />
-      <Html position={[0, 0.7, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
-        <div style={{
-          whiteSpace: "nowrap", fontSize: "10px", padding: "2px 6px", borderRadius: "4px",
-          color: outfit.shirt, background: isSelected ? "#fff" : "#faf5ee",
-          border: `1.5px solid ${isSelected ? outfit.shirt : outfit.shirt + "60"}`,
-          fontWeight: 600, fontFamily: "monospace",
-          boxShadow: isSelected ? `0 0 8px ${outfit.shirt}40` : "0 1px 4px rgba(0,0,0,0.08)",
-        }}>
-          {STATUS_ICONS[status] || "🧍"} {name}
+      {/* Name tag — floats above the head with a small gap */}
+      <Html position={[0, 1.75, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <div style={{
+            whiteSpace: "nowrap", fontSize: "10px", padding: "2px 8px", borderRadius: "4px",
+            color: outfit.shirt, background: isSelected ? "#fff" : "#faf5ee",
+            border: `1.5px solid ${isSelected ? outfit.shirt : outfit.shirt + "60"}`,
+            fontWeight: 600, fontFamily: "monospace",
+            boxShadow: isSelected ? `0 0 8px ${outfit.shirt}40` : "0 1px 4px rgba(0,0,0,0.08)",
+          }}>
+            {STATUS_ICONS[status] || "🧍"} {name}
+          </div>
+          {/* Caret pointing down toward the head */}
+          <div style={{
+            position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
+            borderTop: `5px solid ${isSelected ? outfit.shirt : outfit.shirt + "90"}`,
+          }} />
         </div>
       </Html>
+      {/* Detail card — shown above name tag when selected */}
       {isSelected && (
-        <Html position={[0, 1.2, 0]} center distanceFactor={8} style={{ pointerEvents: "none" }}>
-          <div style={{
-            whiteSpace: "nowrap", padding: "8px 12px", borderRadius: "10px",
-            background: "rgba(255,255,255,0.95)", border: `2px solid ${outfit.shirt}`,
-            boxShadow: `0 4px 20px rgba(0,0,0,0.12), 0 0 12px ${outfit.shirt}20`,
-            fontSize: "11px", color: "#5a5a6a", lineHeight: 1.6,
-          }}>
-            <div style={{ fontWeight: 800, fontSize: "13px", color: "#2a2a3a", marginBottom: 4 }}>{name}</div>
-            <div>📍 {currentRoom.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</div>
-            <div>⚡ {task}</div>
+        <Html position={[0, 2.55, 0]} center distanceFactor={12} style={{ pointerEvents: "none" }}>
+          <div style={{ position: "relative", display: "inline-block" }}>
             <div style={{
-              marginTop: 4, padding: "1px 5px", borderRadius: 3,
-              fontSize: "9px", fontWeight: 600, textTransform: "uppercase", display: "inline-block",
-              background: status === "working" ? "#dcfce7" : status === "sleeping" ? "#ede9fe" : "#dbeafe",
-              color:      status === "working" ? "#166534" : status === "sleeping" ? "#5b21b6" : "#1e40af",
+              whiteSpace: "nowrap", padding: "8px 12px", borderRadius: "10px",
+              background: "rgba(255,255,255,0.95)", border: `2px solid ${outfit.shirt}`,
+              boxShadow: `0 4px 20px rgba(0,0,0,0.12), 0 0 12px ${outfit.shirt}20`,
+              fontSize: "11px", color: "#5a5a6a", lineHeight: 1.6,
             }}>
-              {status}
+              <div style={{ fontWeight: 800, fontSize: "13px", color: "#2a2a3a", marginBottom: 4 }}>{name}</div>
+              <div>📍 {currentRoom.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</div>
+              <div>⚡ {task}</div>
+              <div style={{
+                marginTop: 4, padding: "1px 5px", borderRadius: 3,
+                fontSize: "9px", fontWeight: 600, textTransform: "uppercase", display: "inline-block",
+                background: status === "working" ? "#dcfce7" : status === "sleeping" ? "#ede9fe" : "#dbeafe",
+                color:      status === "working" ? "#166534" : status === "sleeping" ? "#5b21b6" : "#1e40af",
+              }}>
+                {status}
+              </div>
             </div>
+            {/* Caret pointing down toward the name tag */}
+            <div style={{
+              position: "absolute", bottom: -7, left: "50%", transform: "translateX(-50%)",
+              width: 0, height: 0,
+              borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+              borderTop: `7px solid ${outfit.shirt}`,
+            }} />
           </div>
         </Html>
       )}

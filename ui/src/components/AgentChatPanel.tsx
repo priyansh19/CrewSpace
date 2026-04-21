@@ -343,17 +343,7 @@ export function AgentChatPanel({
     initialParticipants?.length ? initialParticipants : [initialAgent],
   );
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    initialMessages?.length
-      ? initialMessages
-      : [
-          {
-            id: "welcome",
-            role: "agent",
-            agentId: initialAgent.id,
-            content: `Hi! I'm ${initialAgent.name}. How can I help?`,
-            ts: new Date(),
-          },
-        ],
+    initialMessages?.length ? initialMessages : [],
   );
   const [input, setInput] = useState("");
   const [typingAgentId, setTypingAgentId] = useState<string | null>(null);

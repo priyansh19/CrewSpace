@@ -398,21 +398,7 @@ function use3DRenderer({
       // Inner sphere (agent shell) — hidden
       // drawWireframe(agentR, 0.10, 4, 4);
 
-      // Center gravity glow
-      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, agentR * 0.3);
-      cg.addColorStop(0, "rgba(99,102,241,0.18)");
-      cg.addColorStop(0.5, "rgba(99,102,241,0.06)");
-      cg.addColorStop(1, "rgba(99,102,241,0)");
-      ctx.fillStyle = cg;
-      ctx.beginPath();
-      ctx.arc(cx, cy, agentR * 0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Center dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(99,102,241,0.6)";
-      ctx.fill();
+      // Center glow and dot removed — invisible origin
 
       // ── Draw agent-to-agent edges ──
       for (const [ai, bi] of agentEdges) {

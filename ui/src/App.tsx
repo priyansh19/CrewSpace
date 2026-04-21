@@ -112,6 +112,10 @@ function CloudAccessGate() {
   }
 
   if (isAuthenticatedMode && healthQuery.data?.bootstrapStatus === "bootstrap_pending") {
+    const token = healthQuery.data.bootstrapInviteToken;
+    if (token) {
+      return <Navigate to={`/invite/${token}`} replace />;
+    }
     return <BootstrapPendingPage hasActiveInvite={healthQuery.data.bootstrapInviteActive} />;
   }
 

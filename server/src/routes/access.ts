@@ -2167,7 +2167,17 @@ export function accessRoutes(
         : null;
 
       if (invite.inviteType === "bootstrap_ceo") {
-        if (inviteAlreadyAccepted) throw notFound("Invite not found");
+        if (inviteAlreadyAccepted) {
+          // Idempotent: if the user is already an admin, return success
+          if (req.actor.type === "board" && req.actor.userId) {
+            const isAlreadyAdmin = await access.isInstanceAdmin(req.actor.userId);
+            if (isAlreadyAdmin) {
+              res.status(202).json({ inviteId: invite.id, inviteType: invite.inviteType, bootstrapAccepted: true, userId: req.actor.userId });
+              return;
+            }
+          }
+          throw notFound("Invite not found");
+        }
         if (req.body.requestType !== "human") {
           throw badRequest("Bootstrap invite requires human request type");
         }

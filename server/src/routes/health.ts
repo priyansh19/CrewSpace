@@ -6,6 +6,7 @@ import type { DeploymentExposure, DeploymentMode } from "@crewspaceai/shared";
 import { readPersistedDevServerStatus, toDevServerHealthStatus } from "../dev-server-status.js";
 import { instanceSettingsService } from "../services/instance-settings.js";
 import { serverVersion } from "../version.js";
+import { getActiveBootstrapToken } from "../bootstrap-invite.js";
 
 export function healthRoutes(
   db?: Db,
@@ -42,6 +43,7 @@ export function healthRoutes(
 
     let bootstrapStatus: "ready" | "bootstrap_pending" = "ready";
     let bootstrapInviteActive = false;
+    let bootstrapInviteToken: string | null = null;
     if (opts.deploymentMode === "authenticated") {
       const roleCount = await db
         .select({ count: count() })
@@ -65,6 +67,7 @@ export function healthRoutes(
           )
           .then((rows) => Number(rows[0]?.count ?? 0));
         bootstrapInviteActive = inviteCount > 0;
+        bootstrapInviteToken = getActiveBootstrapToken();
       }
     }
 
@@ -93,6 +96,7 @@ export function healthRoutes(
       authReady: opts.authReady,
       bootstrapStatus,
       bootstrapInviteActive,
+      bootstrapInviteToken,
       features: {
         companyDeletionEnabled: opts.companyDeletionEnabled,
       },

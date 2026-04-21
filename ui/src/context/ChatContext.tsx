@@ -17,6 +17,7 @@ export interface ChatSession {
   participants: Agent[];
   messages: ChatMessage[];
   updatedAt: Date;
+  name?: string;
 }
 
 interface ChatContextValue {
@@ -26,7 +27,8 @@ interface ChatContextValue {
   openChatWithAgent: (agent: Agent) => void;
   openChatWithAgents: (agents: Agent[]) => void;
   updateSession: (id: string, messages: ChatMessage[], participants: Agent[]) => void;
-  bulkInitSessions: (agents: Agent[]) => void;
+  deleteSession: (id: string) => void;
+  renameSession: (id: string, name: string) => void;
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
 }
@@ -94,23 +96,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // Creates one session per agent — only runs when sessions list is empty (first load)
-  const bulkInitSessions = useCallback((agents: Agent[]) => {
-    setSessions((prev) => {
-      if (prev.length > 0) return prev;
-      return agents.map((agent, i) => ({
-        id: `session-init-${agent.id}`,
-        primaryAgentId: agent.id,
-        participants: [agent],
-        messages: [],
-        updatedAt: new Date(Date.now() - i * 1000),
-      }));
-    });
+  const deleteSession = useCallback((id: string) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    setActiveSessionId((prev) => (prev === id ? null : prev));
+  }, []);
+
+  const renameSession = useCallback((id: string, name: string) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, name: name.trim() || undefined } : s)),
+    );
   }, []);
 
   return (
     <ChatContext.Provider
-      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, updateSession, bulkInitSessions, isChatOpen, setIsChatOpen }}
+      value={{ sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, updateSession, deleteSession, renameSession, isChatOpen, setIsChatOpen }}
     >
       {children}
     </ChatContext.Provider>

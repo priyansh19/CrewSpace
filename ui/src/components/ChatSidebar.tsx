@@ -344,15 +344,7 @@ function ChatArea({
     if (session.messages.length > 0) {
       setMessages(session.messages);
     } else {
-      setMessages([
-        {
-          id: "welcome",
-          role: "agent",
-          agentId: session.primaryAgentId,
-          content: `Hi! I'm ${session.participants[0]?.name ?? "here"}. How can I help?`,
-          ts: new Date(),
-        },
-      ]);
+      setMessages([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id]);

@@ -33,6 +33,7 @@ import { createStorageServiceFromConfig } from "./storage/index.js";
 import { printStartupBanner } from "./startup-banner.js";
 import { getBoardClaimWarningUrl, initializeBoardClaimChallenge } from "./board-claim.js";
 import { maybePersistWorktreeRuntimePorts } from "./worktree-config.js";
+import { ensureBootstrapInvite } from "./bootstrap-invite.js";
 
 type BetterAuthSessionUser = {
   id: string;
@@ -509,6 +510,15 @@ export async function startServer(): Promise<StartedServer> {
     resolveSessionFromHeaders = (headers) => resolveBetterAuthSessionFromHeaders(auth, headers);
     await initializeBoardClaimChallenge(db as any, { deploymentMode: config.deploymentMode });
     authReady = true;
+
+    const publicBaseUrl = (
+      process.env.CREWSPACE_PUBLIC_URL?.trim() ||
+      config.authPublicBaseUrl ||
+      `http://localhost:${config.port}`
+    ).replace(/\/+$/, "");
+    await ensureBootstrapInvite(db as any, publicBaseUrl).catch((err) => {
+      logger.error({ err }, "Failed to auto-create bootstrap invite");
+    });
   }
   
   const listenPort = await detectPort(config.port);

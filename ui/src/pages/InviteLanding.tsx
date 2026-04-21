@@ -106,10 +106,19 @@ export function InviteLandingPage() {
     },
     onSuccess: async (payload) => {
       setError(null);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
       const asBootstrap =
         payload && typeof payload === "object" && "bootstrapAccepted" in (payload as Record<string, unknown>);
+      if (asBootstrap) {
+        // Immediately update health cache so CloudAccessGate doesn't redirect back to the invite
+        queryClient.setQueryData(queryKeys.health, (old: Record<string, unknown> | undefined) => ({
+          ...old,
+          bootstrapStatus: "ready",
+          bootstrapInviteActive: false,
+          bootstrapInviteToken: null,
+        }));
+      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
       setResult({ kind: asBootstrap ? "bootstrap" : "join", payload });
     },
     onError: (err) => {
@@ -301,7 +310,9 @@ export function InviteLandingPage() {
             Sign in or create an account before submitting a human join request.
             <div className="mt-2">
               <Button asChild size="sm" variant="outline">
-                <Link to={`/auth?next=${encodeURIComponent(`/invite/${token}`)}`}>Sign in / Create account</Link>
+                <Link to={`/auth?next=${encodeURIComponent(`/invite/${token}`)}${invite?.inviteType === "bootstrap_ceo" ? "&signup=1" : ""}`}>
+          {invite?.inviteType === "bootstrap_ceo" ? "Create account" : "Sign in / Create account"}
+        </Link>
               </Button>
             </div>
           </div>

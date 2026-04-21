@@ -20,3 +20,25 @@ export function AttachIcon(props: SVGProps<SVGSVGElement>) {
     }),
   });
 }
+
+// CrewSpace brand logo — three nodes connected in a triangle representing crew collaboration
+export function CrewSpaceIcon(props: SVGProps<SVGSVGElement>) {
+  return createElement("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    ...props,
+    children: [
+      // Connecting lines (triangle)
+      createElement("line", { key: "l1", x1: "12", y1: "3.5", x2: "20.5", y2: "18", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }),
+      createElement("line", { key: "l2", x1: "12", y1: "3.5", x2: "3.5", y2: "18", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }),
+      createElement("line", { key: "l3", x1: "3.5", y1: "18", x2: "20.5", y2: "18", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }),
+      // Nodes
+      createElement("circle", { key: "c1", cx: "12", cy: "3.5", r: "2.5", fill: "currentColor" }),
+      createElement("circle", { key: "c2", cx: "20.5", cy: "18", r: "2.5", fill: "currentColor" }),
+      createElement("circle", { key: "c3", cx: "3.5", cy: "18", r: "2.5", fill: "currentColor" }),
+    ],
+  });
+}

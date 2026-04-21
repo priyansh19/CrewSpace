@@ -52,7 +52,7 @@ import {
   Save,
   Search,
 } from "lucide-react";
-import { AttachIcon } from "../lib/icons";
+import { CrewSpaceIcon } from "../lib/icons";
 
 type SkillTreeNode = {
   name: string;
@@ -159,7 +159,7 @@ function sourceMeta(sourceBadge: CompanySkillSourceBadge, sourceLabel: string | 
     case "local":
       return { icon: Folder, label: sourceLabel ?? "Folder", managedLabel: "Folder managed" };
     case "crewspace":
-      return { icon: AttachIcon, label: sourceLabel ?? "CrewSpace", managedLabel: "CrewSpace managed" };
+      return { icon: CrewSpaceIcon, label: sourceLabel ?? "CrewSpace", managedLabel: "CrewSpace managed" };
     default:
       return { icon: Boxes, label: sourceLabel ?? "Catalog", managedLabel: "Catalog managed" };
   }

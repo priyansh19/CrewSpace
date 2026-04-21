@@ -29,6 +29,7 @@ services:
       CREWSPACE_DEPLOYMENT_EXPOSURE: "private"
       CREWSPACE_PUBLIC_URL: "${CREWSPACE_PUBLIC_URL:-http://localhost:3100}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
+      CREWSPACE_AGENT_JWT_SECRET: "${CREWSPACE_AGENT_JWT_SECRET}"
     volumes:
       - crewspace-data:/crewspace
     depends_on:

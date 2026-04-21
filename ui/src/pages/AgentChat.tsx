@@ -8,7 +8,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Send, X, Search, MessageCircle, AlertCircle,
-  Users, CircleDot, Brain, Check,
+  Users, CircleDot, Brain, Check, Trash2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -182,21 +182,44 @@ function AddParticipantMenu({ allAgents, participants, onAdd }: {
 
 // ── Session List Item ─────────────────────────────────────────────────────────
 
-function SessionListItem({ session, isActive, onSelect }: {
+function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
   session: ChatSession;
   isActive: boolean;
   onSelect: () => void;
+  onDelete: () => void;
+  onRename: (name: string) => void;
 }) {
   const lastMsg = session.messages[session.messages.length - 1];
   const shown = session.participants.slice(0, 3);
   const extra = session.participants.length - 3;
+  const isGroup = session.participants.length > 1;
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isGroup) return;
+    setEditVal(session.name ?? session.participants.map((p) => p.name).join(", "));
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitEdit = () => {
+    onRename(editVal);
+    setEditing(false);
+  };
+
+  const displayName = session.name ?? session.participants.map((p) => p.name).join(", ");
 
   return (
-    <button onClick={onSelect}
+    <div
       className={cn(
-        "w-full flex items-start gap-3 px-4 py-3 hover:bg-accent/40 transition-colors text-left border-b border-border/30",
+        "group relative flex items-start gap-3 px-4 py-3 hover:bg-accent/40 transition-colors border-b border-border/30 cursor-pointer",
         isActive && "bg-primary/6 border-l-2 border-l-primary",
-      )}>
+      )}
+      onClick={onSelect}
+    >
       {/* Stacked avatars */}
       <div className="relative shrink-0 h-8 w-10 mt-0.5">
         {shown.map((agent, i) => (
@@ -216,20 +239,59 @@ function SessionListItem({ session, isActive, onSelect }: {
 
       <div className="flex flex-col min-w-0 flex-1 gap-0.5">
         <div className="flex items-center justify-between gap-1">
-          <span className="text-sm font-medium text-foreground truncate leading-tight">
-            {session.participants.map((p) => p.name).join(", ")}
-          </span>
-          <span className="text-[10px] text-muted-foreground/50 shrink-0 tabular-nums">
-            {timeAgoShort(session.updatedAt)}
-          </span>
+          {editing ? (
+            <input
+              ref={inputRef}
+              value={editVal}
+              onChange={(e) => setEditVal(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitEdit();
+                if (e.key === "Escape") setEditing(false);
+                e.stopPropagation();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 text-sm font-medium bg-transparent border-b border-primary outline-none text-foreground leading-tight min-w-0"
+              autoFocus
+            />
+          ) : (
+            <span className="text-sm font-medium text-foreground truncate leading-tight flex-1 min-w-0">
+              {displayName}
+            </span>
+          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {!editing && (
+              <span className="text-[10px] text-muted-foreground/50 tabular-nums group-hover:hidden">
+                {timeAgoShort(session.updatedAt)}
+              </span>
+            )}
+            {!editing && isGroup && (
+              <button
+                onClick={startEdit}
+                className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-accent text-muted-foreground/50 hover:text-foreground transition-colors"
+                title="Rename chat"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
+            {!editing && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-destructive/20 text-muted-foreground/50 hover:text-destructive transition-colors"
+                title="Delete chat"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground truncate leading-snug">
-          {lastMsg
-            ? `${lastMsg.role === "user" ? "You: " : ""}${lastMsg.content}`
-            : "No messages yet"}
-        </span>
+        {lastMsg ? (
+          <span className="text-xs text-muted-foreground truncate leading-snug">
+            {lastMsg.role === "user" ? "You: " : ""}{lastMsg.content}
+          </span>
+        ) : null}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -261,13 +323,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
     if (session.messages.length > 0) {
       setMessages(session.messages);
     } else {
-      setMessages([{
-        id: "welcome",
-        role: "agent",
-        agentId: session.primaryAgentId,
-        content: `Hi! I'm ${session.participants[0]?.name ?? "here"}. How can I help?`,
-        ts: new Date(),
-      }]);
+      setMessages([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id]);

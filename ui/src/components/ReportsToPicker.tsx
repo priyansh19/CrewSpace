@@ -75,7 +75,7 @@ export function ReportsToPicker({
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-48 p-1" align="start">
+      <PopoverContent className="w-48 p-1 max-h-60 overflow-y-auto" align="start" side="bottom" avoidCollisions collisionPadding={8}>
         <button
           type="button"
           className={cn(

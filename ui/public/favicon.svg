@@ -1,9 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
   <style>
-    path { stroke: #18181b; }
+    .node { fill: #18181b; }
+    .edge { stroke: #18181b; }
     @media (prefers-color-scheme: dark) {
-      path { stroke: #e4e4e7; }
+      .node { fill: #e4e4e7; }
+      .edge { stroke: #e4e4e7; }
     }
   </style>
-  <path stroke-width="2" d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>
+  <!-- Triangle edges -->
+  <line class="edge" x1="12" y1="3.5" x2="20.5" y2="18" stroke-width="1.5" stroke-linecap="round"/>
+  <line class="edge" x1="12" y1="3.5" x2="3.5" y2="18" stroke-width="1.5" stroke-linecap="round"/>
+  <line class="edge" x1="3.5" y1="18" x2="20.5" y2="18" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Nodes -->
+  <circle class="node" cx="12" cy="3.5" r="2.5"/>
+  <circle class="node" cx="20.5" cy="18" r="2.5"/>
+  <circle class="node" cx="3.5" cy="18" r="2.5"/>
 </svg>
