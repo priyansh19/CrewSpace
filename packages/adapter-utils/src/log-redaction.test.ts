@@ -85,14 +85,14 @@ describe("redactHomePathUserSegmentsInValue", () => {
 
 describe("redactTranscriptEntryPaths", () => {
   it("redacts text in assistant entry", () => {
-    const entry = { kind: "assistant" as const, text: "/Users/frank/work" };
+    const entry = { kind: "assistant" as const, ts: "", text: "/Users/frank/work" };
     const result = redactTranscriptEntryPaths(entry);
     expect(result.kind).toBe("assistant");
     expect((result as any).text).not.toContain("frank");
   });
 
   it("redacts text in user entry", () => {
-    const entry = { kind: "user" as const, text: "/home/grace/project" };
+    const entry = { kind: "user" as const, ts: "", text: "/home/grace/project" };
     const result = redactTranscriptEntryPaths(entry);
     expect((result as any).text).not.toContain("grace");
   });
@@ -100,6 +100,7 @@ describe("redactTranscriptEntryPaths", () => {
   it("redacts name and input in tool_call entry", () => {
     const entry = {
       kind: "tool_call" as const,
+      ts: "",
       name: "/Users/henry/tool",
       input: { path: "/Users/henry/file.txt" },
     };
@@ -109,13 +110,13 @@ describe("redactTranscriptEntryPaths", () => {
   });
 
   it("redacts content in tool_result entry", () => {
-    const entry = { kind: "tool_result" as const, content: "/home/iris/output" };
+    const entry = { kind: "tool_result" as const, ts: "", toolUseId: "", isError: false, content: "/home/iris/output" };
     const result = redactTranscriptEntryPaths(entry);
     expect((result as any).content).not.toContain("iris");
   });
 
   it("redacts model and sessionId in init entry", () => {
-    const entry = { kind: "init" as const, model: "claude", sessionId: "/Users/jack/session" };
+    const entry = { kind: "init" as const, ts: "", model: "claude", sessionId: "/Users/jack/session" };
     const result = redactTranscriptEntryPaths(entry);
     expect((result as any).sessionId).not.toContain("jack");
   });
@@ -123,9 +124,15 @@ describe("redactTranscriptEntryPaths", () => {
   it("redacts text and errors in result entry", () => {
     const entry = {
       kind: "result" as const,
+      ts: "",
       text: "/home/kate/output",
       subtype: "success",
       errors: ["/home/kate/error.log"],
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedTokens: 0,
+      costUsd: 0,
+      isError: false,
     };
     const result = redactTranscriptEntryPaths(entry);
     expect((result as any).text).not.toContain("kate");
@@ -133,7 +140,7 @@ describe("redactTranscriptEntryPaths", () => {
   });
 
   it("returns unknown kind entry unchanged", () => {
-    const entry = { kind: "unknown_kind" as any, data: "x" };
+    const entry = { kind: "unknown_kind" as any, ts: "", text: "", data: "x" };
     const result = redactTranscriptEntryPaths(entry);
     expect(result).toEqual(entry);
   });
