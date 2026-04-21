@@ -146,4 +146,11 @@ export const queryKeys = {
   memories: {
     graph: (companyId: string) => ["memories", "graph", companyId] as const,
   },
+  sprints: {
+    list: (companyId: string) => ["sprints", companyId] as const,
+    detail: (id: string) => ["sprints", "detail", id] as const,
+    issues: (sprintId: string) => ["sprints", "issues", sprintId] as const,
+    burndown: (sprintId: string) => ["sprints", "burndown", sprintId] as const,
+    summary: (sprintId: string) => ["sprints", "summary", sprintId] as const,
+  },
 };

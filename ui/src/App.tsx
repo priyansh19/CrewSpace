@@ -43,7 +43,7 @@ import { AgentChat } from "./pages/AgentChat";
 const Office = lazy(() => import("./pages/Office").then((m) => ({ default: m.Office })));
 import { Blockers } from "./pages/Blockers";
 import { CeoTerminal } from "./pages/CeoTerminal";
-import { Taskboard } from "./pages/Taskboard";
+import { TaskboardV2 } from "./pages/TaskboardV2";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
@@ -147,7 +147,7 @@ function boardRoutes() {
       <Route path="office" element={<Suspense fallback={null}><Office /></Suspense>} />
       <Route path="terminal" element={<CeoTerminal />} />
       <Route path="blockers" element={<Blockers />} />
-      <Route path="taskboard" element={<Taskboard />} />
+      <Route path="taskboard" element={<TaskboardV2 />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />
       <Route path="agents/all" element={<Agents />} />
       <Route path="agents/active" element={<Agents />} />
