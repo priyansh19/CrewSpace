@@ -16,8 +16,13 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "setup",
+      testMatch: /global\.setup\.ts/,
+    },
+    {
       name: "chromium",
       use: { browserName: "chromium" },
+      dependencies: ["setup"],
     },
   ],
   // The webServer directive starts `crewspaceai run` before tests.
