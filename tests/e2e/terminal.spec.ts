@@ -30,7 +30,7 @@ test.describe("CEO Terminal", () => {
     await page.goto(currentUrl.replace(/\/[^/]+$/, "/terminal"));
 
     // Toolbar should be visible
-    await expect(page.locator("text=CEO Terminal")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("text=CEO Terminal").first()).toBeVisible({ timeout: 10_000 });
 
     // Input bar should be present and focused
     const input = page.locator('[data-testid="terminal-input"]');
@@ -96,13 +96,13 @@ test.describe("CEO Terminal", () => {
     await input.press("Enter");
 
     // Verify it appeared
-    await expect(page.locator(`text=${marker}`)).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(`text=${marker}`).first()).toBeVisible({ timeout: 10_000 });
 
     // Refresh the page
     await page.reload();
 
     // History should be restored from the DB
-    await expect(page.locator(`text=${marker}`)).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(`text=${marker}`).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("navigates command history with arrow keys", async ({ page }) => {

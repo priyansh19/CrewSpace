@@ -616,7 +616,7 @@ function EmptyChat({ onNewChat }: { onNewChat: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AgentChat() {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, bulkInitSessions } = useChat();
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, bulkInitSessions, deleteSession, renameSession } = useChat();
   const { selectedCompanyId } = useCompany();
   const newChatRef = useRef<(() => void) | null>(null);
 
@@ -683,6 +683,8 @@ export function AgentChat() {
                 session={session}
                 isActive={session.id === activeSessionId}
                 onSelect={() => setActiveSessionId(session.id === activeSessionId ? null : session.id)}
+                onDelete={() => deleteSession(session.id)}
+                onRename={(name) => renameSession(session.id, name)}
               />
             ))
           )}

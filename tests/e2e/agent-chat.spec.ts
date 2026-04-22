@@ -16,7 +16,7 @@ test.describe("Agent Chat", () => {
     await page.goto(currentUrl.replace(/\/[^/]+$/, "/agent-chat"));
 
     await expect(
-      page.locator("text=Agent Chat").or(page.locator("text=Chat")),
+      page.locator("text=Agent Chat").or(page.locator("text=Chat")).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -37,7 +37,7 @@ test.describe("Agent Chat", () => {
       ),
     );
 
-    await expect(newChatBtn.or(sessionList)).toBeVisible({ timeout: 10_000 });
+    await expect(newChatBtn.or(sessionList).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("shows agent selector when starting a new chat", async ({ page }) => {
@@ -59,11 +59,11 @@ test.describe("Agent Chat", () => {
           page.locator("[placeholder*='Search']").or(
             page.locator("text=agent"),
           ),
-        ),
+        ).first(),
       ).toBeVisible({ timeout: 5_000 });
     } else {
       // No agents yet — just verify page is stable
-      await expect(page.locator("text=Chat").or(page.locator("text=Agent"))).toBeVisible();
+      await expect(page.locator("text=Chat").or(page.locator("text=Agent")).first()).toBeVisible();
     }
   });
 

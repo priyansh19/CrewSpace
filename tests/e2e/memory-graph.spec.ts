@@ -17,7 +17,7 @@ test.describe("Memory Graph", () => {
 
     // Page title in breadcrumb area
     await expect(
-      page.locator("text=Memory Graph").or(page.locator("text=Memory")),
+      page.locator("text=Memory Graph").or(page.locator("text=Memory")).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -36,7 +36,7 @@ test.describe("Memory Graph", () => {
       page.locator("text=Memory"),
     );
 
-    await expect(canvas.or(emptyState)).toBeVisible({ timeout: 15_000 });
+    await expect(canvas.or(emptyState).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test("does not crash on load", async ({ page }) => {

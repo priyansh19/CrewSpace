@@ -78,12 +78,11 @@ describe("GET /terminal/cwd", () => {
     expect(res.status).toBe(403);
   });
 
-  it("rejects unauthenticated requests with 403", async () => {
-    // assertBoard throws forbidden (403) for all non-board actors, including unauthenticated
+  it("rejects unauthenticated requests with 401", async () => {
     const { app } = createApp({ type: "none", source: "none" });
     const res = await request(app).get("/api/terminal/cwd");
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 });
 
