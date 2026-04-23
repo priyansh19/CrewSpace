@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCompany } from "../context/CompanyContext";
 import { agentMemoriesApi, type AgentMemory, type AgentMemoryLink } from "../api/agentMemories";
+import { agentsApi } from "../api/agents";
 import { queryKeys } from "../lib/queryKeys";
+import type { Agent } from "@crewspaceai/shared";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 
 const AGENT_COLORS = [
   "#f59e0b", "#818cf8", "#34d399", "#f472b6",
   "#38bdf8", "#fb923c", "#a78bfa", "#4ade80",
+  "#e879f9", "#67e8f9", "#fbbf24", "#86efac",
 ];
 const MEMORY_TYPE_COLORS: Record<string, string> = {
   fact: "#6366f1", insight: "#8b5cf6", decision: "#ec4899",
@@ -20,211 +23,122 @@ const MEMORY_TYPE_COLORS: Record<string, string> = {
 function typeColor(t: string) { return MEMORY_TYPE_COLORS[t] ?? "#94a3b8"; }
 const MEMORY_TYPES = ["fact", "insight", "decision", "pattern", "task", "observation", "learning"];
 
-// ── 3-D Math ─────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-type Vec3 = [number, number, number];
-
-function rotY([x, y, z]: Vec3, a: number): Vec3 {
-  const c = Math.cos(a), s = Math.sin(a);
-  return [x * c + z * s, y, -x * s + z * c];
-}
-function rotX([x, y, z]: Vec3, a: number): Vec3 {
-  const c = Math.cos(a), s = Math.sin(a);
-  return [x, y * c - z * s, y * s + z * c];
-}
-
-/** Perspective projection — camera at (0,0,-dist), looking at origin */
-function project(v: Vec3, dist: number, cx: number, cy: number) {
-  const z = v[2] + dist;
-  const scale = dist / Math.max(z, 1);
-  return { sx: cx + v[0] * scale, sy: cy + v[1] * scale, scale, depth: v[2] };
-}
-
-/** Fibonacci sphere — evenly distributes n points on unit sphere */
-function fibSphere(n: number): Vec3[] {
-  const phi = Math.PI * (Math.sqrt(5) - 1);
-  return Array.from({ length: n }, (_, i) => {
-    const y = 1 - (i / Math.max(n - 1, 1)) * 2;
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const t = phi * i;
-    return [r * Math.cos(t), y, r * Math.sin(t)] as Vec3;
-  });
-}
-
-/** Cross product */
-function cross([ax, ay, az]: Vec3, [bx, by, bz]: Vec3): Vec3 {
-  return [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
-}
-function normalize([x, y, z]: Vec3): Vec3 {
-  const l = Math.sqrt(x * x + y * y + z * z) || 1;
-  return [x / l, y / l, z / l];
-}
-function scale([x, y, z]: Vec3, s: number): Vec3 { return [x * s, y * s, z * s]; }
-function add([ax, ay, az]: Vec3, [bx, by, bz]: Vec3): Vec3 { return [ax + bx, ay + by, az + bz]; }
-
-/** Rotate vector v around a unit axis by angle (Rodrigues rotation formula) */
-function rotateAroundAxis(v: Vec3, axis: Vec3, angle: number): Vec3 {
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
-  const dot = v[0] * axis[0] + v[1] * axis[1] + v[2] * axis[2];
-  const c = cross(axis, v);
-  return [
-    v[0] * cosA + c[0] * sinA + axis[0] * dot * (1 - cosA),
-    v[1] * cosA + c[1] * sinA + axis[1] * dot * (1 - cosA),
-    v[2] * cosA + c[2] * sinA + axis[2] * dot * (1 - cosA),
-  ];
-}
-
-/**
- * Generate a unit direction within a spherical cap (cone) centered on baseDir.
- * halfAngle in radians — how wide the cone is.
- * seed — deterministic index (uses golden angle spiral for even distribution).
- */
-function coneDir(baseDir: Vec3, halfAngle: number, seed: number): Vec3 {
-  const up: Vec3 = Math.abs(baseDir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-  const t1 = normalize(cross(baseDir, up));
-  const t2 = normalize(cross(baseDir, t1));
-  const phi = seed * 2.399963229; // golden angle — even azimuthal spread
-  const theta = halfAngle * Math.sqrt((seed * 0.618033988) % 1); // √-uniform on cap
-  const sinT = Math.sin(theta);
-  const cosT = Math.cos(theta);
-  return normalize(add(
-    scale(baseDir, cosT),
-    scale(normalize(add(scale(t1, Math.cos(phi)), scale(t2, Math.sin(phi)))), sinT)
-  ));
-}
-
-// ── Node data ─────────────────────────────────────────────────────────────────
-
-interface Agent3D {
+interface AgentNode {
   id: string;
   name: string;
   color: string;
   memCount: number;
-  pos: Vec3;       // unit-sphere position (pre-rotation base)
-  r: number;       // visual radius
+  hasMemories: boolean;
+  r: number;
 }
 
-interface Mem3D {
+interface MemNode {
   id: string;
   title: string;
   content: string;
   memoryType: string;
   agentId: string | null;
   agentColor: string;
-  /** Unit direction on the OUTER sphere — memory lives at r * dir */
-  dir: Vec3;
-  /** Axis for slow drift along the outer sphere surface */
-  driftAxis: Vec3;
-  driftSpeed: number;
-  /** Agent's unit-sphere position (for drawing the connecting line) */
-  agentPos: Vec3;
   r: number;
   raw: AgentMemory;
 }
 
 interface GraphData {
-  agents: Agent3D[];
-  mems: Mem3D[];
-  agentEdges: Array<[number, number]>; // indices
+  agents: AgentNode[];
+  mems: MemNode[];
+  edges: Array<{ source: string; target: string; type: "orbit" | "link" }>;
 }
 
-function buildGraph3D(memories: AgentMemory[], links: AgentMemoryLink[]): GraphData {
-  const agentInfo = new Map<string, { name: string; count: number; colorIdx: number }>();
+// Live node positions — updated every frame from 3D sphere positions
+interface LivePos {
+  id: string;
+  x: number; y: number; // perspective-projected 2D (updated each frame)
+  z: number;            // rotated z-depth (for sorting and depth fade)
+  scale: number;        // perspective scale factor = FOV/(FOV+z)
+  vx: number; vy: number;
+  isAgent: boolean;
+  pinned: boolean;
+}
+
+// ── Graph builder ─────────────────────────────────────────────────────────────
+
+function buildGraphData(
+  memories: AgentMemory[],
+  links: AgentMemoryLink[],
+  allAgents: Agent[],
+): GraphData {
   let colorIdx = 0;
+  const agentColorMap = new Map<string, string>();
+  const agentMemCount = new Map<string, number>();
+
+  // Seed from allAgents first so every agent gets a color
+  for (const a of allAgents) {
+    if (!agentColorMap.has(a.id)) {
+      agentColorMap.set(a.id, AGENT_COLORS[colorIdx++ % AGENT_COLORS.length]);
+      agentMemCount.set(a.id, 0);
+    }
+  }
+  // Also cover any agents found only in memories
   for (const m of memories) {
     for (const a of m.agents) {
-      if (!agentInfo.has(a.agentId)) {
-        agentInfo.set(a.agentId, { name: a.agentName ?? "Agent", count: 0, colorIdx: colorIdx++ });
+      if (!agentColorMap.has(a.agentId)) {
+        agentColorMap.set(a.agentId, AGENT_COLORS[colorIdx++ % AGENT_COLORS.length]);
+        agentMemCount.set(a.agentId, 0);
       }
-      agentInfo.get(a.agentId)!.count++;
+      agentMemCount.set(a.agentId, (agentMemCount.get(a.agentId) ?? 0) + 1);
     }
   }
 
-  const agentIds = [...agentInfo.keys()];
-  const spherePositions = fibSphere(Math.max(agentIds.length, 1));
+  // Build agents — allAgents provides names, fallback for memory-only agents
+  const agentNameMap = new Map<string, string>();
+  for (const a of allAgents) agentNameMap.set(a.id, a.name);
+  for (const m of memories) {
+    for (const a of m.agents) {
+      if (!agentNameMap.has(a.agentId)) agentNameMap.set(a.agentId, a.agentName ?? "Agent");
+    }
+  }
 
-  const agents: Agent3D[] = agentIds.map((id, i) => {
-    const info = agentInfo.get(id)!;
+  const agentIds = [...agentColorMap.keys()];
+  const agents: AgentNode[] = agentIds.map((id) => {
+    const cnt = agentMemCount.get(id) ?? 0;
     return {
-      id, name: info.name,
-      color: AGENT_COLORS[info.colorIdx % AGENT_COLORS.length],
-      memCount: info.count,
-      pos: spherePositions[i],
-      r: 18 + Math.min(info.count * 1.5, 10),
+      id, name: agentNameMap.get(id) ?? "Agent",
+      color: agentColorMap.get(id)!,
+      memCount: cnt,
+      hasMemories: cnt > 0,
+      r: 18 + Math.min(cnt * 1.5, 12),
     };
   });
 
   const agentById = new Map(agents.map((a) => [a.id, a]));
 
-  // Memory nodes grouped by agent
-  const byAgent = new Map<string, AgentMemory[]>();
-  const orphans: AgentMemory[] = [];
-  for (const m of memories) {
+  // Build memory nodes
+  const mems: MemNode[] = memories.map((m) => {
     const owner = m.agents.find((a) => a.isOwner) ?? m.agents[0];
-    if (owner) {
-      const list = byAgent.get(owner.agentId) ?? [];
-      list.push(m);
-      byAgent.set(owner.agentId, list);
-    } else {
-      orphans.push(m);
-    }
-  }
-
-  const mems: Mem3D[] = [];
-
-  // Collect ALL memories in a stable order, then assign Fibonacci sphere positions
-  // across the ENTIRE outer shell — this maximally separates every dot regardless
-  // of which agent owns it. Lines back to agents show the ownership.
-  // Interleave memories across agents so same-agent memories are far apart on
-  // the Fibonacci sphere. Round-robin: slot 0=agent0[0], 1=agent1[0], 2=agent2[0],
-  // ..., N=agent0[1], N+1=agent1[1], etc. With 6 agents every same-agent
-  // neighbour is 6 positions apart → ~spread evenly over the full sphere.
-  const agentMemArrays = agents.map((a) => byAgent.get(a.id) ?? []);
-  const maxPerAgent = Math.max(...agentMemArrays.map((a) => a.length), 0);
-  const interleaved: Array<{ m: AgentMemory; agent: Agent3D }> = [];
-  for (let row = 0; row < maxPerAgent; row++) {
-    for (let ai = 0; ai < agents.length; ai++) {
-      const arr = agentMemArrays[ai];
-      if (row < arr.length) interleaved.push({ m: arr[row], agent: agents[ai] });
-    }
-  }
-
-  const totalMems = interleaved.length;
-  const globalDirs = fibSphere(Math.max(totalMems, 1));
-
-  interleaved.forEach(({ m, agent }, globalIdx) => {
-    const dir = globalDirs[globalIdx];
-    const upRef: Vec3 = Math.abs(dir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-    const driftAxis = normalize(cross(dir, upRef));
-
-    mems.push({
+    const agentId = owner?.agentId ?? null;
+    const agentColor = agentId ? (agentColorMap.get(agentId) ?? "#94a3b8") : "#94a3b8";
+    return {
       id: m.id, title: m.title, content: m.content ?? "",
-      memoryType: m.memoryType, agentId: agent.id, agentColor: agent.color,
-      dir,
-      driftAxis,
-      driftSpeed: (0.006 + ((globalIdx * 0.1618033) % 1) * 0.005) * (globalIdx % 2 === 0 ? 1 : -1),
-      agentPos: agent.pos,
-      r: 3.5 + Math.min((m.content?.length ?? 0) / 120, 2.5),
+      memoryType: m.memoryType, agentId, agentColor,
+      r: 6 + Math.min((m.content?.length ?? 0) / 100, 4),
       raw: m,
-    });
+    };
   });
 
-  // Agent-to-agent edges from memory links
-  const agentEdgeSet = new Set<string>();
-  const agentEdges: Array<[number, number]> = [];
+  // Edges: orbit (mem → agent) + link (mem → mem)
+  const edges: GraphData["edges"] = [];
+  for (const mem of mems) {
+    if (mem.agentId) edges.push({ source: mem.id, target: mem.agentId, type: "orbit" });
+  }
   for (const link of links) {
     const sm = mems.find((n) => n.id === link.sourceMemoryId);
     const tm = mems.find((n) => n.id === link.targetMemoryId);
-    if (!sm?.agentId || !tm?.agentId || sm.agentId === tm.agentId) continue;
-    const ai = agents.findIndex((a) => a.id === sm.agentId);
-    const bi = agents.findIndex((a) => a.id === tm.agentId);
-    if (ai < 0 || bi < 0) continue;
-    const key = [ai, bi].sort().join(":");
-    if (!agentEdgeSet.has(key)) { agentEdgeSet.add(key); agentEdges.push([ai, bi]); }
+    if (sm && tm) edges.push({ source: sm.id, target: tm.id, type: "link" });
   }
 
-  return { agents, mems, agentEdges };
+  return { agents, mems, edges };
 }
 
 // ── Hex helpers ───────────────────────────────────────────────────────────────
@@ -237,13 +151,110 @@ function hexRgb(hex: string) {
 }
 function rgba(hex: string, a: number) { return `rgba(${hexRgb(hex)},${a})`; }
 
-// ── 3D Canvas Renderer ────────────────────────────────────────────────────────
+// ── Force simulation ─────────────────────────────────────────────────────────
 
-const SPHERE_R = 260;   // px radius of the OUTER memory sphere at zoom=1
-const AGENT_FRAC = 0.48; // agents sit at SPHERE_R * AGENT_FRAC (inner shell)
-const CAM_DIST = 900;   // camera distance
+const K_REP = 12000;
+const K_SPR_ORBIT = 0.03;
+const K_SPR_LINK = 0.015;
+const REST_ORBIT = 110;
+const REST_LINK = 180;
+const K_GRAV = 0.006;
+const DAMP = 0.82;
 
-function use3DRenderer({
+function tickForces(positions: Map<string, LivePos>, edges: GraphData["edges"]) {
+  const nodes = [...positions.values()];
+
+  // Repulsion
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d2 = dx * dx + dy * dy + 0.1;
+      const d = Math.sqrt(d2);
+      const f = K_REP / d2;
+      const fx = (f * dx) / d;
+      const fy = (f * dy) / d;
+      a.vx -= fx; a.vy -= fy;
+      b.vx += fx; b.vy += fy;
+    }
+  }
+
+  // Spring attraction
+  for (const edge of edges) {
+    const s = positions.get(edge.source);
+    const t = positions.get(edge.target);
+    if (!s || !t) continue;
+    const dx = t.x - s.x;
+    const dy = t.y - s.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
+    const rest = edge.type === "orbit" ? REST_ORBIT : REST_LINK;
+    const k = edge.type === "orbit" ? K_SPR_ORBIT : K_SPR_LINK;
+    const f = k * (d - rest);
+    const fx = (f * dx) / d;
+    const fy = (f * dy) / d;
+    s.vx += fx; s.vy += fy;
+    t.vx -= fx; t.vy -= fy;
+  }
+
+  // Center gravity + damping + integrate
+  for (const n of nodes) {
+    n.vx += -K_GRAV * n.x;
+    n.vy += -K_GRAV * n.y;
+    n.vx *= DAMP;
+    n.vy *= DAMP;
+    n.x += n.vx;
+    n.y += n.vy;
+  }
+}
+
+function kineticEnergy(positions: Map<string, LivePos>) {
+  let e = 0;
+  for (const n of positions.values()) e += n.vx * n.vx + n.vy * n.vy;
+  return e;
+}
+
+// ── Particle system ───────────────────────────────────────────────────────────
+
+interface Particle { x: number; y: number; vx: number; vy: number; r: number; }
+
+function makeParticles(w: number, h: number, count = 70): Particle[] {
+  return Array.from({ length: count }, () => ({
+    x: (Math.random() - 0.5) * w * 1.2,
+    y: (Math.random() - 0.5) * h * 1.2,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+    r: Math.random() * 1.2 + 0.4,
+  }));
+}
+
+function tickParticles(particles: Particle[], w: number, h: number) {
+  const hw = w * 0.65, hh = h * 0.65;
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x > hw) p.x = -hw;
+    if (p.x < -hw) p.x = hw;
+    if (p.y > hh) p.y = -hh;
+    if (p.y < -hh) p.y = hh;
+  }
+}
+
+// ── 3D helpers ────────────────────────────────────────────────────────────────
+
+function fibonacciSphere(n: number, i: number, radius: number) {
+  const golden = (1 + Math.sqrt(5)) / 2;
+  const theta = (2 * Math.PI * i) / golden;
+  const phi = Math.acos(1 - 2 * (i + 0.5) / Math.max(n, 1));
+  return {
+    x: radius * Math.sin(phi) * Math.cos(theta),
+    y: radius * Math.cos(phi),
+    z: radius * Math.sin(phi) * Math.sin(theta),
+  };
+}
+
+// ── 3D Globe Renderer hook ────────────────────────────────────────────────────
+
+function use2DRenderer({
   graph,
   selectedId,
   hoveredId,
@@ -264,19 +275,28 @@ function use3DRenderer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
 
-  // Rotation state
-  const rotYRef = useRef(0);
-  const rotXRef = useRef(-0.25);
+  // Pan / zoom / 3D rotation
+  const panRef = useRef({ x: 0, y: 0 });
   const zoomRef = useRef(1.0);
-  const timeRef = useRef(0);
+  const rotXRef = useRef(0.3); // slight initial tilt for nice default view
+  const rotYRef = useRef(0);
+
+  // 3D sphere positions (fixed per node, set on graph change)
+  const pos3dRef = useRef<Map<string, { x3d: number; y3d: number; z3d: number }>>(new Map());
+
+  // Live 2D projected positions (updated each frame)
+  const posRef = useRef<Map<string, LivePos>>(new Map());
+  const particlesRef = useRef<Particle[]>([]);
+
   const rafRef = useRef(0);
+  const timeRef = useRef(0);
 
   // Drag
   const dragging = useRef(false);
-  const lastMouse = useRef({ x: 0, y: 0 });
   const hasDragged = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
 
-  // Refs for live values
+  // Live value refs
   const selectedRef = useRef(selectedId);
   const hoveredRef = useRef(hoveredId);
   const filterRef = useRef(filterAgentId);
@@ -286,7 +306,7 @@ function use3DRenderer({
   filterRef.current = filterAgentId;
   searchRef.current = search;
 
-  // Resize
+  // Resize observer
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -298,295 +318,374 @@ function use3DRenderer({
     return () => ro.disconnect();
   }, []);
 
-  // Render loop
+  // Place nodes on 3D Fibonacci sphere when graph changes
+  useEffect(() => {
+    const { agents, mems } = graph;
+    const R_AGENTS = Math.max(80, Math.min(160, 50 + agents.length * 10));
+    const R_MEMS = R_AGENTS * 1.9;
+
+    const pos3d = new Map<string, { x3d: number; y3d: number; z3d: number }>();
+    const positions = new Map<string, LivePos>();
+
+    // Agents on inner Fibonacci sphere
+    agents.forEach((a, i) => {
+      const p = fibonacciSphere(agents.length, i, R_AGENTS);
+      pos3d.set(a.id, { x3d: p.x, y3d: p.y, z3d: p.z });
+      positions.set(a.id, { id: a.id, isAgent: true, pinned: true, x: p.x, y: p.y, z: p.z, scale: 1, vx: 0, vy: 0 });
+    });
+
+    // Group memories by agent, cluster on outer sphere around agent direction
+    const memsByAgent = new Map<string | null, MemNode[]>();
+    for (const m of mems) {
+      const key = m.agentId ?? null;
+      if (!memsByAgent.has(key)) memsByAgent.set(key, []);
+      memsByAgent.get(key)!.push(m);
+    }
+
+    for (const [agentId, agentMems] of memsByAgent) {
+      const agentPos = agentId ? pos3d.get(agentId) : null;
+      agentMems.forEach((m, i) => {
+        let x3d: number, y3d: number, z3d: number;
+        if (agentPos) {
+          // Cluster memories around agent direction on outer sphere
+          const { x3d: ax, y3d: ay, z3d: az } = agentPos;
+          const aN = Math.sqrt(ax * ax + ay * ay + az * az) + 0.001;
+          const nx = ax / aN, ny = ay / aN, nz = az / aN;
+          // Build tangent basis for spreading memories on sphere surface
+          const upX = Math.abs(ny) < 0.9 ? 0 : 1, upY = Math.abs(ny) < 0.9 ? 1 : 0, upZ = 0;
+          const dot = upX * nx + upY * ny + upZ * nz;
+          const tx = upX - dot * nx, ty = upY - dot * ny, tz = upZ - dot * nz;
+          const tN = Math.sqrt(tx * tx + ty * ty + tz * tz) + 0.001;
+          const ux = tx / tN, uy = ty / tN, uz = tz / tN;
+          const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
+          const count = agentMems.length;
+          const maxSpread = Math.min(Math.PI * 0.4, 0.2 + count * 0.1);
+          const angle = (i / Math.max(count, 1)) * Math.PI * 2;
+          const tilt = maxSpread * (0.3 + (i % 4) * 0.18);
+          const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+          const cosA = Math.cos(angle), sinA = Math.sin(angle);
+          const tangX = ux * cosA + vx * sinA, tangY = uy * cosA + vy * sinA, tangZ = uz * cosA + vz * sinA;
+          x3d = (nx * cosT + tangX * sinT) * R_MEMS;
+          y3d = (ny * cosT + tangY * sinT) * R_MEMS;
+          z3d = (nz * cosT + tangZ * sinT) * R_MEMS;
+        } else {
+          const p = fibonacciSphere(mems.length, mems.indexOf(m), R_MEMS);
+          x3d = p.x; y3d = p.y; z3d = p.z;
+        }
+        pos3d.set(m.id, { x3d, y3d, z3d });
+        positions.set(m.id, { id: m.id, isAgent: false, pinned: false, x: x3d, y: y3d, z: z3d, scale: 1, vx: 0, vy: 0 });
+      });
+    }
+
+    pos3dRef.current = pos3d;
+    posRef.current = positions;
+  }, [graph]);
+
+  // Initialize particles when size changes
+  useEffect(() => {
+    particlesRef.current = makeParticles(size.w, size.h);
+  }, [size.w, size.h]);
+
+  // Main render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { agents, mems, agentEdges } = graph;
-    const { w, h } = size;
-    const cx = w / 2, cy = h / 2;
-    const zoom = zoomRef.current;
+    const { agents, mems, edges } = graph;
+    const agentById = new Map(agents.map((a) => [a.id, a]));
+    const memById = new Map(mems.map((m) => [m.id, m]));
 
     const draw = () => {
-      timeRef.current += 0.008;
+      timeRef.current += 0.012;
       const t = timeRef.current;
-      const rY = rotYRef.current;
-      const rX = rotXRef.current;
-      const z = zoomRef.current;
-      const dist = CAM_DIST / z;
-      const r = SPHERE_R * z;
+      const { w, h } = size;
+      const cx = w / 2, cy = h / 2;
+      const pan = panRef.current;
+      const zoom = zoomRef.current;
+      const rotX = rotXRef.current;
+      const rotY = rotYRef.current;
       const sel = selectedRef.current;
       const hov = hoveredRef.current;
       const fAgent = filterRef.current;
       const q = searchRef.current.toLowerCase();
       const activeId = hov ?? sel;
+      const positions = posRef.current;
+      const FOV = 800;
+      const R_AGENTS = Math.max(80, Math.min(160, 50 + agents.length * 10));
+      const R_MEMS = R_AGENTS * 1.9;
+      const R_DEPTH = R_MEMS + 60;
 
+      // ── Project all 3D positions → 2D (runs every frame) ──────────────────────
+      const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      for (const [id, p3d] of pos3dRef.current) {
+        const { x3d, y3d, z3d } = p3d;
+        const rx = x3d * cosY + z3d * sinY;
+        const rz1 = -x3d * sinY + z3d * cosY;
+        const ry = y3d * cosX - rz1 * sinX;
+        const rz = y3d * sinX + rz1 * cosX;
+        const perspScale = FOV / (FOV + rz + 50);
+        const lp = positions.get(id);
+        if (lp) { lp.x = rx * perspScale; lp.y = ry * perspScale; lp.z = rz; lp.scale = perspScale; }
+      }
+
+      // ── Tick particles ─────────────────────────────────────────────────────────
+      tickParticles(particlesRef.current, w, h);
+
+      // ── Background ─────────────────────────────────────────────────────────────
       ctx.clearRect(0, 0, w, h);
-
-      // Dark deep-space background
-      const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.8);
-      bg.addColorStop(0, "#10121a");
-      bg.addColorStop(0.5, "#0b0d14");
-      bg.addColorStop(1, "#06080e");
+      const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
+      bg.addColorStop(0, "#0d0f1a");
+      bg.addColorStop(0.6, "#080a12");
+      bg.addColorStop(1, "#05060e");
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
 
-      // ── Compute all projected positions ──
-      type Projected = { id: string; sx: number; sy: number; scale: number; depth: number; type: "agent" | "mem"; idx: number };
-      const projected: Projected[] = [];
-
-      const agentR = r * AGENT_FRAC; // inner shell radius (agents)
-      // outer shell radius = r (memories)
-
-      // Project agent positions onto INNER sphere
-      const agentProj: Array<{ sx: number; sy: number; scale: number; depth: number }> = agents.map((a) => {
-        let v: Vec3 = scale(a.pos, agentR);
-        v = rotY(v, rY + t * 0.12);
-        v = rotX(v, rX);
-        const p = project(v, dist, cx, cy);
-        projected.push({ id: a.id, sx: p.sx, sy: p.sy, scale: p.scale, depth: p.depth, type: "agent", idx: agents.indexOf(a) });
-        return p;
-      });
-
-      // Project memory positions onto OUTER sphere (each drifts slowly in its cone)
-      const memProj: Array<{ sx: number; sy: number; scale: number; depth: number }> = mems.map((m) => {
-        const drifted = rotateAroundAxis(m.dir, m.driftAxis, t * m.driftSpeed);
-        let v: Vec3 = scale(drifted, r);
-        v = rotY(v, rY + t * 0.12);
-        v = rotX(v, rX);
-        const p = project(v, dist, cx, cy);
-        projected.push({ id: m.id, sx: p.sx, sy: p.sy, scale: p.scale, depth: p.depth, type: "mem", idx: mems.indexOf(m) });
-        return p;
-      });
-
-      const drawWireframe = (wr: number, alpha: number, latN: number, lonN: number) => {
-        ctx.strokeStyle = `rgba(150,170,220,${alpha})`;
-        ctx.lineWidth = 0.5;
-        const segs = 64;
-        for (let li = 1; li < latN; li++) {
-          const phi = (Math.PI * li) / latN;
-          const cr = Math.sin(phi) * wr, cy2 = Math.cos(phi) * wr;
-          ctx.beginPath();
-          for (let si = 0; si <= segs; si++) {
-            const theta = (2 * Math.PI * si) / segs;
-            let v: Vec3 = [cr * Math.cos(theta), cy2, cr * Math.sin(theta)];
-            v = rotY(v, rY + t * 0.12); v = rotX(v, rX);
-            const p = project(v, dist, cx, cy);
-            si === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
-          }
-          ctx.stroke();
-        }
-        for (let li = 0; li < lonN; li++) {
-          const theta = (Math.PI * li) / lonN;
-          ctx.beginPath();
-          for (let si = 0; si <= segs; si++) {
-            const phi = (Math.PI * si) / segs;
-            let v: Vec3 = [Math.sin(phi) * Math.cos(theta) * wr, Math.cos(phi) * wr, Math.sin(phi) * Math.sin(theta) * wr];
-            v = rotY(v, rY + t * 0.12); v = rotX(v, rX);
-            const p = project(v, dist, cx, cy);
-            si === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
-          }
-          ctx.stroke();
-        }
-      };
-
-      // Outer sphere (memory shell) — hidden
-      // drawWireframe(r, 0.055, 6, 6);
-      // Inner sphere (agent shell) — hidden
-      // drawWireframe(agentR, 0.10, 4, 4);
-
-      // Center glow and dot removed — invisible origin
-
-      // ── Draw agent-to-agent edges ──
-      for (const [ai, bi] of agentEdges) {
-        const ap = agentProj[ai], bp = agentProj[bi];
-        if (!ap || !bp) continue;
-        const depthFade = Math.min(1, (ap.scale + bp.scale) / 2);
-        const isActive = agents[ai].id === activeId || agents[bi].id === activeId;
+      // ── Particles (2D background layer) ────────────────────────────────────────
+      const particles = particlesRef.current;
+      const CONN_DIST = 90;
+      ctx.save();
+      ctx.translate(cx + pan.x, cy + pan.y);
+      ctx.scale(zoom, zoom);
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
         ctx.beginPath();
-        ctx.moveTo(ap.sx, ap.sy);
-        ctx.lineTo(bp.sx, bp.sy);
-        ctx.strokeStyle = `rgba(148,163,184,${isActive ? 0.5 * depthFade : 0.15 * depthFade})`;
-        ctx.lineWidth = isActive ? 1.5 : 0.7;
-        ctx.setLineDash([]);
-        ctx.stroke();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(99,102,241,0.25)";
+        ctx.fill();
+        for (let j = i + 1; j < particles.length; j++) {
+          const q2 = particles[j];
+          const dx = q2.x - p.x, dy = q2.y - p.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < CONN_DIST) {
+            const alpha = (1 - d / CONN_DIST) * 0.12;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(q2.x, q2.y);
+            ctx.strokeStyle = `rgba(99,102,241,${alpha})`;
+            ctx.lineWidth = 0.5 / zoom;
+            ctx.stroke();
+          }
+        }
       }
+      ctx.restore();
 
-      // ── Draw mem-to-agent radial lines ──
-      // Lines always show full length when agent is clicked
-      ctx.setLineDash([2, 3]);
-      for (let i = 0; i < mems.length; i++) {
-        const m = mems[i];
-        const agentIdx = agents.findIndex((a) => a.id === m.agentId);
-        if (agentIdx < 0) continue;
-        const ap = agentProj[agentIdx];
-        const mp = memProj[i];
-        if (!ap || !mp) continue;
-        const visFilter = !fAgent || m.agentId === fAgent;
-        const visSearch = !q || m.title.toLowerCase().includes(q);
+      // ── 3D Globe scene ─────────────────────────────────────────────────────────
+      ctx.save();
+      ctx.translate(cx + pan.x, cy + pan.y);
+      ctx.scale(zoom, zoom);
+
+      // Draw orbit edges (mem → agent) with depth fade
+      ctx.setLineDash([4, 5]);
+      for (const edge of edges) {
+        if (edge.type !== "orbit") continue;
+        const sp = positions.get(edge.source);
+        const tp = positions.get(edge.target);
+        if (!sp || !tp) continue;
+        const mem = memById.get(edge.source);
+        if (!mem) continue;
+        const visFilter = !fAgent || mem.agentId === fAgent;
+        const visSearch = !q || mem.title.toLowerCase().includes(q);
         if (!visFilter && !visSearch) continue;
-
-        const isActive = m.id === activeId || m.agentId === activeId;
-        // If agent is selected, show full line; otherwise variable length
-        let endX = ap.sx, endY = ap.sy;
-        if (!isActive) {
-          const varLength = 0.4 + Math.sin(i * 1.3 + t) * 0.25;
-          endX = ap.sx + (mp.sx - ap.sx) * varLength;
-          endY = ap.sy + (mp.sy - ap.sy) * varLength;
-        }
-
-        const depthFade = Math.min(1, (mp.scale * 0.7 + ap.scale * 0.3));
-        const baseAlpha = isActive ? 0.75 : 0.10;
+        const isActive = edge.source === activeId || edge.target === activeId;
+        const midZ = (sp.z + tp.z) / 2;
+        const dAlpha = Math.min(1, Math.max(0.03, 1 - midZ / R_DEPTH * 0.75));
         ctx.beginPath();
-        ctx.moveTo(mp.sx, mp.sy);
-        ctx.lineTo(endX, endY);
-        ctx.strokeStyle = rgba(m.agentColor, baseAlpha * depthFade);
-        ctx.lineWidth = isActive ? 2 : 0.4;
+        ctx.moveTo(sp.x, sp.y);
+        ctx.lineTo(tp.x, tp.y);
+        ctx.strokeStyle = rgba(mem.agentColor, (isActive ? 0.45 : 0.12) * dAlpha);
+        ctx.lineWidth = isActive ? 1.5 : 0.6;
         ctx.stroke();
       }
       ctx.setLineDash([]);
 
-      // ── Sort all for Z-order draw ──
-      const sorted = [...projected].sort((a, b) => a.depth - b.depth);
+      // Draw link edges (mem → mem)
+      for (const edge of edges) {
+        if (edge.type !== "link") continue;
+        const sp = positions.get(edge.source);
+        const tp = positions.get(edge.target);
+        if (!sp || !tp) continue;
+        const sm = memById.get(edge.source);
+        const tm = memById.get(edge.target);
+        if (!sm || !tm) continue;
+        const isActive = edge.source === activeId || edge.target === activeId;
+        const midZ = (sp.z + tp.z) / 2;
+        const dAlpha = Math.min(1, Math.max(0.03, 1 - midZ / R_DEPTH * 0.75));
+        const grad = ctx.createLinearGradient(sp.x, sp.y, tp.x, tp.y);
+        grad.addColorStop(0, rgba(sm.agentColor, (isActive ? 0.7 : 0.25) * dAlpha));
+        grad.addColorStop(1, rgba(tm.agentColor, (isActive ? 0.7 : 0.25) * dAlpha));
+        ctx.beginPath();
+        ctx.moveTo(sp.x, sp.y);
+        ctx.lineTo(tp.x, tp.y);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = isActive ? 2 : 1;
+        ctx.stroke();
+      }
 
-      for (const node of sorted) {
-        if (node.type === "agent") {
-          const a = agents[node.idx];
-          const p = agentProj[node.idx];
-          const isSel = sel === a.id;
-          const isHov = hov === a.id;
-          const memHov = hov ? mems.find((m) => m.id === hov)?.agentId === a.id : false;
-          const isDimmed = !!activeId && !isSel && !isHov && !memHov && !(mems.find((m) => m.id === activeId)?.agentId === a.id);
-          const nodeR = a.r * p.scale * z;
-          const depthAlpha = 0.4 + 0.6 * p.scale;
-          ctx.globalAlpha = isDimmed ? 0.15 : depthAlpha;
+      // Draw all nodes sorted back-to-front (painter's algorithm for correct occlusion)
+      const drawOrder: Array<{ type: "agent"; node: AgentNode } | { type: "mem"; node: MemNode }> = [
+        ...agents.map((a) => ({ type: "agent" as const, node: a })),
+        ...mems.map((m) => ({ type: "mem" as const, node: m })),
+      ];
+      drawOrder.sort((a, b) => (positions.get(b.node.id)?.z ?? 0) - (positions.get(a.node.id)?.z ?? 0));
 
-          // Outer pulse ring
-          const pulseR = nodeR * (1.55 + Math.sin(t * 2.5 + node.idx) * 0.08);
+      for (const item of drawOrder) {
+        if (item.type === "mem") {
+          const mem = item.node;
+          const pos = positions.get(mem.id);
+          if (!pos) continue;
+          const visFilter = !fAgent || mem.agentId === fAgent;
+          const visSearch = !q || mem.title.toLowerCase().includes(q);
+          const vis = visFilter && visSearch;
+          const isHov = hov === mem.id;
+          const isSel = sel === mem.id;
+          const isDimmed = !vis || (!!activeId && activeId !== mem.id && activeId !== mem.agentId);
+          const dAlpha = Math.min(1, Math.max(0.08, 1 - pos.z / R_DEPTH * 0.72));
+          const alpha = (isDimmed ? 0.15 : 0.95) * dAlpha;
+          const color = typeColor(mem.memoryType);
+          const r = mem.r * pos.scale; // perspective-scaled radius
+
+          ctx.globalAlpha = alpha;
+
+          const glowR = r * (isHov || isSel ? 4 : 2.5);
+          const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowR);
+          glow.addColorStop(0, rgba(color, isHov || isSel ? 0.35 : 0.15));
+          glow.addColorStop(1, rgba(color, 0));
           ctx.beginPath();
-          ctx.arc(p.sx, p.sy, pulseR, 0, Math.PI * 2);
-          ctx.strokeStyle = rgba(a.color, 0.22);
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          // Dashed orbit ring
-          ctx.setLineDash([3, 3]);
-          ctx.beginPath();
-          ctx.arc(p.sx, p.sy, nodeR * 1.28, 0, Math.PI * 2);
-          ctx.strokeStyle = rgba(a.color, 0.35);
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // Glow halo
-          const glow = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, nodeR * 2.2);
-          glow.addColorStop(0, rgba(a.color, 0.22));
-          glow.addColorStop(1, rgba(a.color, 0));
-          ctx.beginPath();
-          ctx.arc(p.sx, p.sy, nodeR * 2.2, 0, Math.PI * 2);
+          ctx.arc(pos.x, pos.y, glowR, 0, Math.PI * 2);
           ctx.fillStyle = glow;
           ctx.fill();
 
-          // Main sphere gradient
-          const sphere = ctx.createRadialGradient(p.sx - nodeR * 0.3, p.sy - nodeR * 0.3, 0, p.sx, p.sy, nodeR);
-          sphere.addColorStop(0, rgba(a.color, 0.95));
-          sphere.addColorStop(0.7, rgba(a.color, 0.55));
-          sphere.addColorStop(1, rgba(a.color, 0.2));
+          ctx.shadowBlur = isHov || isSel ? 18 : 8;
+          ctx.shadowColor = color;
           ctx.beginPath();
-          ctx.arc(p.sx, p.sy, nodeR, 0, Math.PI * 2);
-          ctx.fillStyle = sphere;
-          ctx.fill();
-          ctx.strokeStyle = rgba(a.color, isSel ? 1 : 0.7);
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = rgba(color, 0.25);
+          ctx.strokeStyle = rgba(color, isSel ? 1 : isHov ? 0.9 : 0.65);
           ctx.lineWidth = isSel ? 2 : 1.2;
-          ctx.stroke();
-
-          // Inner bright dot
-          ctx.beginPath();
-          ctx.arc(p.sx, p.sy, nodeR * 0.28, 0, Math.PI * 2);
-          ctx.fillStyle = rgba(a.color, 0.95);
           ctx.fill();
+          ctx.stroke();
+          ctx.shadowBlur = 0;
 
-          ctx.globalAlpha = isDimmed ? 0.1 : depthAlpha;
-
-          // Name label
-          const fontSize = Math.max(9, Math.min(13, 11 * p.scale * z));
-          ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
-          ctx.fillStyle = rgba(a.color, isSel || isHov ? 1 : 0.85);
-          ctx.textAlign = "center";
-          ctx.fillText(a.name, p.sx, p.sy + nodeR + fontSize + 2);
-
-          ctx.font = `400 ${Math.max(7, fontSize - 2)}px 'JetBrains Mono', monospace`;
-          ctx.fillStyle = rgba(a.color, 0.4);
-          ctx.fillText(`${a.memCount} mem`, p.sx, p.sy + nodeR + fontSize * 2 + 3);
-
-          ctx.globalAlpha = 1;
-          ctx.textAlign = "left";
-
-        } else {
-          // Memory node
-          const m = mems[node.idx];
-          const p = memProj[node.idx];
-          const visFilter = !fAgent || m.agentId === fAgent;
-          const visSearch = !q || m.title.toLowerCase().includes(q);
-          const vis = visFilter && visSearch;
-          const isHov = hov === m.id;
-          const isSel = sel === m.id;
-          const isDimmed = !vis || (!!activeId && activeId !== m.id && activeId !== m.agentId);
-          const nodeR = m.r * p.scale * z;
-          const depthAlpha = 0.35 + 0.65 * p.scale;
-          ctx.globalAlpha = isDimmed ? 0.08 : depthAlpha;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r * 0.4, 0, Math.PI * 2);
+          ctx.fillStyle = rgba(color, 0.9);
+          ctx.fill();
 
           if (isHov || isSel) {
-            const g = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, nodeR * 3);
-            g.addColorStop(0, rgba(m.agentColor, 0.3));
-            g.addColorStop(1, rgba(m.agentColor, 0));
+            const lbl = mem.title.length > 28 ? mem.title.slice(0, 28) + "…" : mem.title;
+            ctx.font = `500 11px Inter, system-ui, sans-serif`;
+            const tw = ctx.measureText(lbl).width;
+            const lx = pos.x - tw / 2;
+            const ly = pos.y - r - 10;
+            ctx.fillStyle = "rgba(8,10,18,0.9)";
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, nodeR * 3, 0, Math.PI * 2);
-            ctx.fillStyle = g;
+            (ctx as any).roundRect?.(lx - 6, ly - 13, tw + 12, 18, 4);
+            ctx.fill();
+            ctx.fillStyle = color;
+            ctx.textAlign = "center";
+            ctx.fillText(lbl, pos.x, ly);
+            ctx.textAlign = "left";
+          }
+
+          ctx.globalAlpha = 1;
+        } else {
+          const agent = item.node;
+          const pos = positions.get(agent.id);
+          if (!pos) continue;
+          const isHov = hov === agent.id;
+          const isSel = sel === agent.id;
+          const isActive = activeId === agent.id || (activeId ? memById.get(activeId)?.agentId === agent.id : false);
+          const isDimmed = !!activeId && !isActive;
+          const pulse = 1 + Math.sin(t * 2.2 + agents.indexOf(agent)) * 0.06;
+          const dAlpha = Math.min(1, Math.max(0.12, 1 - pos.z / R_DEPTH * 0.7));
+          const r = agent.r * pos.scale * pulse;
+          const color = agent.color;
+
+          ctx.globalAlpha = (isDimmed ? 0.2 : 1) * dAlpha;
+
+          const haloR = r * (isSel || isHov ? 3.2 : 2.5);
+          const halo = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, haloR);
+          halo.addColorStop(0, rgba(color, isSel ? 0.3 : 0.15));
+          halo.addColorStop(1, rgba(color, 0));
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, haloR, 0, Math.PI * 2);
+          ctx.fillStyle = halo;
+          ctx.fill();
+
+          if (!agent.hasMemories) {
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(color, isSel || isHov ? 0.9 : 0.45);
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+          } else {
+            ctx.shadowBlur = isSel || isHov ? 40 : 25;
+            ctx.shadowColor = color;
+            const sphere = ctx.createRadialGradient(
+              pos.x - r * 0.3, pos.y - r * 0.3, 0,
+              pos.x, pos.y, r,
+            );
+            sphere.addColorStop(0, rgba(color, 0.95));
+            sphere.addColorStop(0.6, rgba(color, 0.55));
+            sphere.addColorStop(1, rgba(color, 0.2));
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = sphere;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(color, isSel ? 1 : 0.7);
+            ctx.lineWidth = isSel ? 2.5 : 1.5;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = rgba(color, 0.9);
             ctx.fill();
           }
 
-          // Outer ring
+          ctx.globalAlpha = (isDimmed ? 0.15 : 1) * dAlpha;
+
+          ctx.font = `700 12px Inter, system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          const lbl = agent.name;
+          const tw = ctx.measureText(lbl).width;
+          ctx.fillStyle = "rgba(5,7,14,0.75)";
           ctx.beginPath();
-          ctx.arc(p.sx, p.sy, nodeR, 0, Math.PI * 2);
-          ctx.fillStyle = rgba(m.agentColor, 0.12);
+          (ctx as any).roundRect?.(pos.x - tw / 2 - 5, pos.y + r + 5, tw + 10, 16, 3);
           ctx.fill();
-          ctx.strokeStyle = rgba(m.agentColor, isSel ? 0.95 : isHov ? 0.8 : 0.5);
-          ctx.lineWidth = isSel ? 1.5 : 1;
-          ctx.stroke();
+          ctx.fillStyle = isSel || isHov ? "#ffffff" : rgba(color, 0.95);
+          ctx.fillText(lbl, pos.x, pos.y + r + 17);
+          ctx.textAlign = "left";
 
-          // Inner dot
-          ctx.beginPath();
-          ctx.arc(p.sx, p.sy, nodeR * 0.45, 0, Math.PI * 2);
-          ctx.fillStyle = rgba(m.agentColor, isSel || isHov ? 1 : 0.9);
-          ctx.fill();
-
-          ctx.globalAlpha = isDimmed ? 0.06 : depthAlpha;
-
-          // Hover/select label
-          if (isHov || isSel) {
-            const label = m.title.length > 26 ? m.title.slice(0, 26) + "…" : m.title;
-            const fontSize = Math.max(9, 10 * p.scale * z);
-            ctx.font = `500 ${fontSize}px Inter, system-ui, sans-serif`;
-            const tw = ctx.measureText(label).width;
-            const lx = p.sx - tw / 2;
-            const ly = p.sy - nodeR - 8;
-            ctx.fillStyle = "rgba(12,14,22,0.88)";
-            ctx.beginPath();
-            (ctx as any).roundRect(lx - 5, ly - fontSize, tw + 10, fontSize + 6, 3);
-            ctx.fill();
-            ctx.fillStyle = m.agentColor;
+          if (agent.hasMemories) {
+            ctx.font = `400 10px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = rgba(color, 0.5);
             ctx.textAlign = "center";
-            ctx.fillText(label, p.sx, ly);
+            ctx.fillText(`${agent.memCount} mem`, pos.x, pos.y + r + 31);
+            ctx.textAlign = "left";
+          } else {
+            ctx.font = `400 10px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = rgba(color, 0.35);
+            ctx.textAlign = "center";
+            ctx.fillText("no memories", pos.x, pos.y + r + 31);
             ctx.textAlign = "left";
           }
 
           ctx.globalAlpha = 1;
         }
       }
+
+      ctx.restore();
 
       rafRef.current = requestAnimationFrame(draw);
     };
@@ -595,68 +694,53 @@ function use3DRenderer({
     return () => cancelAnimationFrame(rafRef.current);
   }, [graph, size]);
 
-  // ── Hit testing ──────────────────────────────────────────────────────────────
+  // ── Hit testing (in world coords) ─────────────────────────────────────────────
 
   const hitTest = useCallback((canvasX: number, canvasY: number): string | null => {
     const { agents, mems } = graph;
-    const r = SPHERE_R * zoomRef.current;
-    const rY = rotYRef.current;
-    const rX = rotXRef.current;
-    const t = timeRef.current;
-    const dist = CAM_DIST / zoomRef.current;
     const { w, h } = size;
-    const cx = w / 2, cy = h / 2;
-    const z = zoomRef.current;
+    const pan = panRef.current;
+    const zoom = zoomRef.current;
+    const positions = posRef.current;
+    // pos.x/y are already perspective-projected; just undo translate+scale
+    const wx = (canvasX - w / 2 - pan.x) / zoom;
+    const wy = (canvasY - h / 2 - pan.y) / zoom;
 
-    let best: { id: string; distSq: number } | null = null;
-
-    // Check agents (inner sphere)
-    const agentRHit = r * AGENT_FRAC;
+    let best: { id: string; d2: number } | null = null;
     for (const a of agents) {
-      let v: Vec3 = scale(a.pos, agentRHit);
-      v = rotY(v, rY + t * 0.12);
-      v = rotX(v, rX);
-      const p = project(v, dist, cx, cy);
-      const nodeR = a.r * p.scale * z;
-      const dx = canvasX - p.sx, dy = canvasY - p.sy;
+      const pos = positions.get(a.id);
+      if (!pos) continue;
+      const dx = wx - pos.x, dy = wy - pos.y;
       const d2 = dx * dx + dy * dy;
-      if (d2 <= (nodeR + 4) * (nodeR + 4)) {
-        if (!best || d2 < best.distSq) best = { id: a.id, distSq: d2 };
-      }
+      const hitR = a.r * pos.scale + 6;
+      if (d2 <= hitR * hitR && (!best || d2 < best.d2)) best = { id: a.id, d2 };
     }
-
-    // Check memories (outer sphere)
-    for (let i = 0; i < mems.length; i++) {
-      const m = mems[i];
-      const drifted = rotateAroundAxis(m.dir, m.driftAxis, t * m.driftSpeed);
-      let v: Vec3 = scale(drifted, r);
-      v = rotY(v, rY + t * 0.12);
-      v = rotX(v, rX);
-      const p = project(v, dist, cx, cy);
-      const nodeR = m.r * p.scale * z;
-      const dx = canvasX - p.sx, dy = canvasY - p.sy;
+    for (const m of mems) {
+      const pos = positions.get(m.id);
+      if (!pos) continue;
+      const dx = wx - pos.x, dy = wy - pos.y;
       const d2 = dx * dx + dy * dy;
-      const hitR = Math.max(nodeR + 6, 12);
-      if (d2 <= hitR * hitR) {
-        if (!best || d2 < best.distSq) best = { id: m.id, distSq: d2 };
-      }
+      const hitR = Math.max(m.r * pos.scale + 5, 8);
+      if (d2 <= hitR * hitR && (!best || d2 < best.d2)) best = { id: m.id, d2 };
     }
-
     return best?.id ?? null;
   }, [graph, size]);
 
-  // ── Mouse events ─────────────────────────────────────────────────────────────
+  // ── Mouse events ──────────────────────────────────────────────────────────────
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     dragging.current = true;
     hasDragged.current = false;
     lastMouse.current = { x: e.clientX, y: e.clientY };
+
     const onMove = (ev: MouseEvent) => {
       const dx = ev.clientX - lastMouse.current.x;
       const dy = ev.clientY - lastMouse.current.y;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged.current = true;
-      rotYRef.current += dx * 0.006;
-      rotXRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotXRef.current + dy * 0.006));
+      // Drag rotates the 3D globe: horizontal → yaw, vertical → pitch
+      const ROT_SPEED = 0.005;
+      rotYRef.current += dx * ROT_SPEED;
+      rotXRef.current += dy * ROT_SPEED;
       lastMouse.current = { x: ev.clientX, y: ev.clientY };
     };
     const onUp = () => {
@@ -687,14 +771,15 @@ function use3DRenderer({
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.91;
-    zoomRef.current = Math.max(0.3, Math.min(3, zoomRef.current * factor));
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    zoomRef.current = Math.max(0.2, Math.min(4, zoomRef.current * factor));
   }, []);
 
   const resetView = useCallback(() => {
-    rotYRef.current = 0;
-    rotXRef.current = -0.25;
+    panRef.current = { x: 0, y: 0 };
     zoomRef.current = 1.0;
+    rotXRef.current = 0.3;
+    rotYRef.current = 0;
   }, []);
 
   return { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView };
@@ -732,27 +817,23 @@ function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, 
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Memory Clusters</p>
-          <div className="flex flex-col gap-1">
-            {mems.map((m) => (
-              <button key={m.id} onClick={() => onSelectNode(m.id)}
-                className="flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs hover:bg-accent transition-colors">
-                <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: typeColor(m.memoryType) }} />
-                <span className="flex-1 truncate text-foreground/80">{m.title}</span>
-                <span className="text-[10px] capitalize rounded-full px-1.5 py-0.5"
-                  style={{ color: typeColor(m.memoryType), background: `${typeColor(m.memoryType)}18` }}>
-                  {m.memoryType}
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mt-2">Activity</p>
-          <div className="flex items-end gap-0.5 h-10">
-            {Array.from({ length: 14 }, (_, i) => {
-              const h = 18 + Math.sin(i * 1.3 + agent.id.length) * 12;
-              return <div key={i} className="flex-1 rounded-t-sm"
-                style={{ height: `${h}px`, background: agent.color, opacity: 0.25 + (i / 14) * 0.55 }} />;
-            })}
-          </div>
+          {mems.length === 0 ? (
+            <p className="text-xs text-muted-foreground/50 italic">No memories yet</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {mems.map((m) => (
+                <button key={m.id} onClick={() => onSelectNode(m.id)}
+                  className="flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs hover:bg-accent transition-colors">
+                  <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: typeColor(m.memoryType) }} />
+                  <span className="flex-1 truncate text-foreground/80">{m.title}</span>
+                  <span className="text-[10px] capitalize rounded-full px-1.5 py-0.5"
+                    style={{ color: typeColor(m.memoryType), background: `${typeColor(m.memoryType)}18` }}>
+                    {m.memoryType}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </aside>
     );
@@ -793,16 +874,6 @@ function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, 
               <p className="text-foreground/75 leading-relaxed whitespace-pre-wrap">{mem.content}</p>
             </div>
           )}
-          <div className="rounded-lg border border-border bg-muted/30 p-3 font-mono text-[10px] leading-relaxed whitespace-pre">
-            <span className="text-muted-foreground/40">// </span>
-            {ownerAgent && <span style={{ color: ownerAgent.color }}>@{ownerAgent.name}</span>}
-            {"\n"}
-            <span className="text-muted-foreground/60">type: </span>
-            <span style={{ color: typeColor(mem.memoryType) }}>"{mem.memoryType}"</span>
-            {"\n"}
-            <span className="text-muted-foreground/60">active: </span>
-            <span className="text-emerald-500">true</span>
-          </div>
           {connected.length > 0 && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Linked ({connected.length})</p>
@@ -923,13 +994,22 @@ export function MemoryGraph() {
     refetchInterval: 30_000,
   });
 
+  const { data: allAgents = [] } = useQuery({
+    queryKey: queryKeys.agents.list(selectedCompanyId!),
+    queryFn: () => agentsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
   const memories = graph?.memories ?? [];
   const links = graph?.links ?? [];
 
-  const graphData = useMemo(() => buildGraph3D(memories, links), [memories, links]);
+  const graphData = useMemo(
+    () => buildGraphData(memories, links, allAgents),
+    [memories, links, allAgents],
+  );
 
   const { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView } =
-    use3DRenderer({ graph: graphData, selectedId, hoveredId, filterAgentId, search, onSelect: setSelectedId, onHover: setHoveredId });
+    use2DRenderer({ graph: graphData, selectedId, hoveredId, filterAgentId, search, onSelect: setSelectedId, onHover: setHoveredId });
 
   const addMutation = useMutation({
     mutationFn: (d: { title: string; content: string; memoryType: string }) => agentMemoriesApi.create(selectedCompanyId!, d),
@@ -952,29 +1032,30 @@ export function MemoryGraph() {
   const linkSourceMemory = linkSourceId ? memories.find((m) => m.id === linkSourceId) ?? null : null;
   const { agents } = graphData;
   const showPanel = selectedId && (agents.some((a) => a.id === selectedId) || graphData.mems.some((m) => m.id === selectedId));
+  const isEmpty = memories.length === 0 && allAgents.length === 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5 flex-wrap">
         <div className="flex items-center gap-2">
           <Brain className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Memory Graph</span>
-          {memories.length > 0 && (
+          {(agents.length > 0 || memories.length > 0) && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground tabular-nums">
               {agents.length} agents · {memories.length} nodes
             </span>
           )}
         </div>
 
-        {memories.length > 0 && (
+        {agents.length > 0 && (
           <>
             <div className="relative max-w-48">
               <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search memories…"
                 className="w-full rounded-md border border-border bg-muted/40 pl-7 pr-3 py-1.5 text-xs outline-none placeholder:text-muted-foreground/40 focus:border-primary/50" />
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               <button onClick={() => setFilterAgentId(null)}
                 className={cn("rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border",
                   !filterAgentId ? "bg-foreground text-background border-transparent" : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground")}>
@@ -994,7 +1075,7 @@ export function MemoryGraph() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {memories.length > 0 && (
+          {(agents.length > 0 || memories.length > 0) && (
             <button onClick={resetView} title="Reset view"
               className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
               <RotateCcw className="h-3 w-3" />Reset
@@ -1013,7 +1094,7 @@ export function MemoryGraph() {
             <div className="absolute inset-0 flex items-center justify-center">
               <Brain className="h-8 w-8 animate-pulse text-primary/40" />
             </div>
-          ) : memories.length === 0 ? (
+          ) : isEmpty ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex flex-col items-center gap-4 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
@@ -1037,22 +1118,22 @@ export function MemoryGraph() {
             />
           )}
 
-          {memories.length > 0 && (
+          {!isEmpty && (
             <>
               <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-lg border border-border bg-background/90 px-3 py-2.5 text-[10px] backdrop-blur">
                 <p className="font-semibold text-foreground/70 mb-0.5">Legend</p>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-3 w-3 rounded-full border border-amber-400 bg-amber-400/20" /><span>Agent Node</span>
+                  <div className="h-3 w-3 rounded-full border border-amber-400 bg-amber-400/30" /><span>Agent (with memories)</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-2 w-2 rounded-full border border-indigo-400 bg-indigo-400/20" /><span>Memory Node</span>
+                  <div className="h-3 w-3 rounded-full border border-dashed border-violet-400" /><span>Agent (no memories)</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="w-4 border-t border-dashed border-muted-foreground/40" /><span>Orbit link</span>
+                  <div className="h-2 w-2 rounded-full border border-indigo-400 bg-indigo-400/20" /><span>Memory node</span>
                 </div>
               </div>
               <p className="pointer-events-none absolute bottom-3 right-3 text-[10px] text-muted-foreground/40">
-                Drag to rotate · Scroll to zoom · Click to inspect
+                Drag nodes · Scroll to zoom · Click to inspect
               </p>
             </>
           )}

@@ -15,50 +15,58 @@ export interface StatusConfig {
   borderColor: string;
   headerBg: string;
   badgeCls: string;
+  accentColor: string;
 }
 
 export const STATUS_CONFIG: Record<string, StatusConfig> = {
   backlog: {
     label: "Backlog",
     borderColor: "border-border",
-    headerBg: "bg-muted/40",
+    headerBg: "bg-muted/60 dark:bg-slate-800/70",
     badgeCls: "bg-muted text-muted-foreground",
+    accentColor: "#64748b",
   },
   todo: {
     label: "Todo",
-    borderColor: "border-blue-200 dark:border-blue-900/50",
-    headerBg: "bg-blue-50 dark:bg-blue-950/30",
-    badgeCls: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    borderColor: "border-blue-300 dark:border-blue-700",
+    headerBg: "bg-blue-50 dark:bg-blue-900/50",
+    badgeCls: "bg-blue-100 text-blue-700 dark:bg-blue-800/60 dark:text-blue-200",
+    accentColor: "#3b82f6",
   },
   in_progress: {
     label: "In Progress",
-    borderColor: "border-yellow-200 dark:border-yellow-900/50",
-    headerBg: "bg-yellow-50 dark:bg-yellow-950/30",
-    badgeCls: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+    borderColor: "border-yellow-300 dark:border-yellow-700",
+    headerBg: "bg-yellow-50 dark:bg-yellow-900/50",
+    badgeCls: "bg-yellow-100 text-yellow-700 dark:bg-yellow-800/60 dark:text-yellow-200",
+    accentColor: "#eab308",
   },
   in_review: {
     label: "In Review",
-    borderColor: "border-violet-200 dark:border-violet-900/50",
-    headerBg: "bg-violet-50 dark:bg-violet-950/30",
-    badgeCls: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+    borderColor: "border-violet-300 dark:border-violet-700",
+    headerBg: "bg-violet-50 dark:bg-violet-900/50",
+    badgeCls: "bg-violet-100 text-violet-700 dark:bg-violet-800/60 dark:text-violet-200",
+    accentColor: "#8b5cf6",
   },
   blocked: {
     label: "Blocked",
-    borderColor: "border-red-200 dark:border-red-900/50",
-    headerBg: "bg-red-50 dark:bg-red-950/30",
-    badgeCls: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    borderColor: "border-red-300 dark:border-red-700",
+    headerBg: "bg-red-50 dark:bg-red-900/50",
+    badgeCls: "bg-red-100 text-red-700 dark:bg-red-800/60 dark:text-red-200",
+    accentColor: "#ef4444",
   },
   done: {
     label: "Done",
-    borderColor: "border-green-200 dark:border-green-900/50",
-    headerBg: "bg-green-50 dark:bg-green-950/30",
-    badgeCls: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+    borderColor: "border-green-300 dark:border-green-700",
+    headerBg: "bg-green-50 dark:bg-green-900/50",
+    badgeCls: "bg-green-100 text-green-700 dark:bg-green-800/60 dark:text-green-200",
+    accentColor: "#22c55e",
   },
   cancelled: {
     label: "Cancelled",
     borderColor: "border-border",
-    headerBg: "bg-muted/20",
+    headerBg: "bg-muted/40 dark:bg-slate-800/50",
     badgeCls: "bg-muted text-muted-foreground",
+    accentColor: "#94a3b8",
   },
 };
 
