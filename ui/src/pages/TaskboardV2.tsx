@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
+import { useBreadcrumbs } from "@/context/BreadcrumbContext";
+import { STATUS_CONFIG } from "@/components/taskboard/constants";
 import { issuesApi } from "@/api/issues";
 import { sprintsApi, type Sprint } from "@/api/sprints";
 import { agentsApi } from "@/api/agents";
@@ -19,12 +21,29 @@ import type { Issue } from "@crewspaceai/shared";
 export function TaskboardV2() {
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
+  const { setBreadcrumbs } = useBreadcrumbs();
+
+  useEffect(() => {
+    setBreadcrumbs([{ label: "Board" }]);
+  }, [setBreadcrumbs]);
 
   // Board state
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
   const [view, setView] = useState<"board" | "backlog">("board");
   const [showMetrics, setShowMetrics] = useState(false);
   const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set(["cancelled"]));
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("crewspace.board.hiddenCols");
+      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+  const [customLabels, setCustomLabels] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem("crewspace.board.customLabels");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<string | null>(null);
   const [includeRoutines, setIncludeRoutines] = useState(false);
@@ -258,6 +277,32 @@ export function TaskboardV2() {
     });
   };
 
+  const handleHideColumn = (status: string) => {
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      next.add(status);
+      localStorage.setItem("crewspace.board.hiddenCols", JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const handleShowColumn = (status: string) => {
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      next.delete(status);
+      localStorage.setItem("crewspace.board.hiddenCols", JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const handleRenameColumn = (status: string, label: string) => {
+    setCustomLabels((prev) => {
+      const next = { ...prev, [status]: label };
+      localStorage.setItem("crewspace.board.customLabels", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const incompleteIssues = useMemo(
     () => issues.filter((i) => !["done", "cancelled"].includes(i.status)),
     [issues],
@@ -326,16 +371,41 @@ export function TaskboardV2() {
               Loading board…
             </div>
           ) : view === "board" ? (
-            <div className="flex gap-3 p-4 h-full items-stretch min-w-max">
-              <KanbanBoard
-                issues={filteredIssues}
-                agents={agents}
-                liveIssueIds={liveIssueIds}
-                flashingIds={flashingIds}
-                collapsedCols={collapsedCols}
-                onToggleCollapse={toggleCollapse}
-                onUpdateIssue={handleUpdateIssue}
-              />
+            <div className="flex flex-col h-full min-h-0">
+              {hiddenCols.size > 0 && (
+                <div className="flex items-center gap-2 px-4 pt-3 pb-1 flex-wrap shrink-0">
+                  <span className="text-[11px] text-muted-foreground">Hidden:</span>
+                  {[...hiddenCols].map((status) => {
+                    const cfg = STATUS_CONFIG[status];
+                    const lbl = customLabels[status] ?? cfg?.label ?? status;
+                    return (
+                      <button
+                        key={status}
+                        onClick={() => handleShowColumn(status)}
+                        className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Eye className="h-3 w-3" />
+                        {lbl}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex gap-3 p-4 flex-1 min-h-0 items-stretch min-w-max overflow-x-auto">
+                <KanbanBoard
+                  issues={filteredIssues}
+                  agents={agents}
+                  liveIssueIds={liveIssueIds}
+                  flashingIds={flashingIds}
+                  collapsedCols={collapsedCols}
+                  hiddenCols={hiddenCols}
+                  customLabels={customLabels}
+                  onToggleCollapse={toggleCollapse}
+                  onUpdateIssue={handleUpdateIssue}
+                  onRenameColumn={handleRenameColumn}
+                  onHideColumn={handleHideColumn}
+                />
+              </div>
             </div>
           ) : (
             <SprintBacklog

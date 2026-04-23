@@ -61,7 +61,7 @@ const OfficeScene = () => {
   const selectAgent = useOfficeStore((s) => s.selectAgent);
   const controlsRef = useRef<any>(null);
 
-  const handleSceneReady = () => setIsLoading(false);
+  const handleSceneReady = () => setTimeout(() => setIsLoading(false), 10_000);
 
   return (
     <>

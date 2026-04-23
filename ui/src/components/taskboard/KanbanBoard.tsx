@@ -24,8 +24,12 @@ interface KanbanBoardProps {
   liveIssueIds?: Set<string>;
   flashingIds?: Set<string>;
   collapsedCols: Set<string>;
+  hiddenCols: Set<string>;
+  customLabels: Record<string, string>;
   onToggleCollapse: (status: string) => void;
   onUpdateIssue: (id: string, data: Partial<Issue>) => void;
+  onRenameColumn: (status: string, label: string) => void;
+  onHideColumn: (status: string) => void;
 }
 
 export function KanbanBoard({
@@ -34,8 +38,12 @@ export function KanbanBoard({
   liveIssueIds,
   flashingIds,
   collapsedCols,
+  hiddenCols,
+  customLabels,
   onToggleCollapse,
   onUpdateIssue,
+  onRenameColumn,
+  onHideColumn,
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -82,10 +90,12 @@ export function KanbanBoard({
     }
   }
 
+  const visibleStatuses = BOARD_STATUSES.filter((s) => !hiddenCols.has(s));
+
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex gap-3 h-full items-stretch">
-        {BOARD_STATUSES.map((status) => (
+        {visibleStatuses.map((status) => (
           <KanbanColumn
             key={status}
             status={status}
@@ -97,6 +107,9 @@ export function KanbanBoard({
             onToggleCollapse={() => onToggleCollapse(status)}
             onStatusChange={(id, s) => onUpdateIssue(id, { status: s as IssueStatus })}
             onPriorityChange={(id, p) => onUpdateIssue(id, { priority: p as IssuePriority })}
+            customLabel={customLabels[status]}
+            onRenameColumn={onRenameColumn}
+            onHideColumn={onHideColumn}
           />
         ))}
       </div>
