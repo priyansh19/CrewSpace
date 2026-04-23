@@ -36,6 +36,7 @@ import {
 } from "@crewspaceai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
+import { DEFAULT_LM_STUDIO_BASE_URL } from "../adapters/lmstudio-local/build-config";
 import { resolveRouteOnboardingOptions } from "../lib/onboarding-route";
 import { AsciiArtAnimation } from "./AsciiArtAnimation";
 import { OpenCodeLogoIcon } from "./OpenCodeLogoIcon";
@@ -54,7 +55,8 @@ import {
   Check,
   Loader2,
   ChevronDown,
-  X
+  X,
+  Cpu
 } from "lucide-react";
 import { HermesIcon } from "./HermesIcon";
 
@@ -67,6 +69,7 @@ type AdapterType =
   | "opencode_local"
   | "pi_local"
   | "cursor"
+  | "lmstudio_local"
   | "http"
   | "openclaw_gateway";
 
@@ -213,7 +216,8 @@ export function OnboardingWizard() {
     adapterType === "hermes_local" ||
     adapterType === "opencode_local" ||
     adapterType === "pi_local" ||
-    adapterType === "cursor";
+    adapterType === "cursor" ||
+    adapterType === "lmstudio_local";
   const effectiveAdapterCommand =
     command.trim() ||
     (adapterType === "codex_local"
@@ -329,7 +333,7 @@ export function OnboardingWizard() {
           : model,
       command,
       args,
-      url,
+      url: adapterType === "lmstudio_local" ? url || DEFAULT_LM_STUDIO_BASE_URL : url,
       dangerouslySkipPermissions:
         adapterType === "claude_local" || adapterType === "opencode_local",
       dangerouslyBypassSandbox:
@@ -855,6 +859,12 @@ export function OnboardingWizard() {
                             desc: "Local multi-provider agent"
                           },
                           {
+                            value: "lmstudio_local" as const,
+                            label: "LM Studio",
+                            icon: Cpu,
+                            desc: "Local LM Studio model"
+                          },
+                          {
                             value: "openclaw_gateway" as const,
                             label: "OpenClaw Gateway",
                             icon: Bot,
@@ -890,6 +900,11 @@ export function OnboardingWizard() {
                                 if (!model.includes("/")) {
                                   setModel("");
                                 }
+                                return;
+                              }
+                              if (nextType === "lmstudio_local") {
+                                if (!url) setUrl(DEFAULT_LM_STUDIO_BASE_URL);
+                                setModel("");
                                 return;
                               }
                               setModel("");
@@ -1023,11 +1038,14 @@ export function OnboardingWizard() {
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-medium">
-                            Adapter environment check
+                            {adapterType === "lmstudio_local"
+                              ? "LM Studio connection check"
+                              : "Adapter environment check"}
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            Runs a live probe that asks the adapter CLI to
-                            respond with hello.
+                            {adapterType === "lmstudio_local"
+                              ? "Verifies LM Studio is reachable and has models loaded."
+                              : "Runs a live probe that asks the adapter CLI to respond with hello."}
                           </p>
                         </div>
                         <Button
@@ -1084,55 +1102,93 @@ export function OnboardingWizard() {
                       {adapterEnvResult && adapterEnvResult.status === "fail" && (
                         <div className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2 text-[11px] space-y-1.5">
                           <p className="font-medium">Manual debug</p>
-                          <p className="text-muted-foreground font-mono break-all">
-                            {adapterType === "cursor"
-                              ? `${effectiveAdapterCommand} -p --mode ask --output-format json \"Respond with hello.\"`
-                              : adapterType === "codex_local"
-                              ? `${effectiveAdapterCommand} exec --json -`
-                              : adapterType === "gemini_local"
-                                ? `${effectiveAdapterCommand} --output-format json "Respond with hello."`
-                              : adapterType === "opencode_local"
-                                ? `${effectiveAdapterCommand} run --format json "Respond with hello."`
-                              : `${effectiveAdapterCommand} --print - --output-format stream-json --verbose`}
-                          </p>
-                          <p className="text-muted-foreground">
-                            Prompt:{" "}
-                            <span className="font-mono">Respond with hello.</span>
-                          </p>
-                          {adapterType === "cursor" ||
-                          adapterType === "codex_local" ||
-                          adapterType === "gemini_local" ||
-                          adapterType === "opencode_local" ? (
-                            <p className="text-muted-foreground">
-                              If auth fails, set{" "}
-                              <span className="font-mono">
-                                {adapterType === "cursor"
-                                  ? "CURSOR_API_KEY"
-                                  : adapterType === "gemini_local"
-                                    ? "GEMINI_API_KEY"
-                                    : "OPENAI_API_KEY"}
-                              </span>{" "}
-                              in env or run{" "}
-                              <span className="font-mono">
-                                {adapterType === "cursor"
-                                  ? "agent login"
-                                  : adapterType === "codex_local"
-                                    ? "codex login"
-                                    : adapterType === "gemini_local"
-                                      ? "gemini auth"
-                                      : "opencode auth login"}
-                              </span>
-                              .
-                            </p>
+                          {adapterType === "lmstudio_local" ? (
+                            <>
+                              <p className="text-muted-foreground">
+                                Verify LM Studio is running at{" "}
+                                <span className="font-mono">{url || DEFAULT_LM_STUDIO_BASE_URL}</span>{" "}
+                                and has at least one model loaded.
+                              </p>
+                              <p className="text-muted-foreground font-mono break-all">
+                                curl {url || DEFAULT_LM_STUDIO_BASE_URL}/v1/models
+                              </p>
+                              <p className="text-muted-foreground">
+                                For Docker, ensure the URL uses{" "}
+                                <span className="font-mono">host.docker.internal</span>{" "}
+                                instead of <span className="font-mono">localhost</span>.
+                              </p>
+                            </>
                           ) : (
-                            <p className="text-muted-foreground">
-                              If login is required, run{" "}
-                              <span className="font-mono">claude login</span>{" "}
-                              and retry.
-                            </p>
+                            <>
+                              <p className="text-muted-foreground font-mono break-all">
+                                {adapterType === "cursor"
+                                  ? `${effectiveAdapterCommand} -p --mode ask --output-format json \"Respond with hello.\"`
+                                  : adapterType === "codex_local"
+                                  ? `${effectiveAdapterCommand} exec --json -`
+                                  : adapterType === "gemini_local"
+                                    ? `${effectiveAdapterCommand} --output-format json "Respond with hello."`
+                                  : adapterType === "opencode_local"
+                                    ? `${effectiveAdapterCommand} run --format json "Respond with hello."`
+                                  : `${effectiveAdapterCommand} --print - --output-format stream-json --verbose`}
+                              </p>
+                              <p className="text-muted-foreground">
+                                Prompt:{" "}
+                                <span className="font-mono">Respond with hello.</span>
+                              </p>
+                              {adapterType === "cursor" ||
+                              adapterType === "codex_local" ||
+                              adapterType === "gemini_local" ||
+                              adapterType === "opencode_local" ? (
+                                <p className="text-muted-foreground">
+                                  If auth fails, set{" "}
+                                  <span className="font-mono">
+                                    {adapterType === "cursor"
+                                      ? "CURSOR_API_KEY"
+                                      : adapterType === "gemini_local"
+                                        ? "GEMINI_API_KEY"
+                                        : "OPENAI_API_KEY"}
+                                  </span>{" "}
+                                  in env or run{" "}
+                                  <span className="font-mono">
+                                    {adapterType === "cursor"
+                                      ? "agent login"
+                                      : adapterType === "codex_local"
+                                        ? "codex login"
+                                        : adapterType === "gemini_local"
+                                          ? "gemini auth"
+                                          : "opencode auth login"}
+                                  </span>
+                                  .
+                                </p>
+                              ) : (
+                                <p className="text-muted-foreground">
+                                  If login is required, run{" "}
+                                  <span className="font-mono">claude login</span>{" "}
+                                  and retry.
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {adapterType === "lmstudio_local" && (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">
+                        LM Studio URL
+                      </label>
+                      <input
+                        className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                        placeholder={DEFAULT_LM_STUDIO_BASE_URL}
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        For Docker, use{" "}
+                        <span className="font-mono">http://host.docker.internal:1234</span>
+                      </p>
                     </div>
                   )}
 

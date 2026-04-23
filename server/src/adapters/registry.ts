@@ -84,6 +84,7 @@ const hermesAgentConfigurationDoc = "";
 const hermesModels = [];
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
+import { lmStudioAdapter } from "./lmstudio/index.js";
 
 const claudeLocalAdapter: ServerAdapterModule = {
   type: "claude_local",
@@ -201,6 +202,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     cursorLocalAdapter,
     geminiLocalAdapter,
     openclawGatewayAdapter,
+    lmStudioAdapter,
     // hermesLocalAdapter, // TODO: Fix hermes-crewspace-adapter export issue before re-enabling
     processAdapter,
     httpAdapter,

@@ -6,15 +6,18 @@ import { resetOpenCodeModelsCacheForTests } from "@crewspaceai/adapter-opencode-
 import { listAdapterModels } from "../adapters/index.js";
 import { resetCodexModelsCacheForTests } from "../adapters/codex-models.js";
 import { resetCursorModelsCacheForTests, setCursorModelsRunnerForTests } from "../adapters/cursor-models.js";
+import { resetLmStudioModelsCacheForTests } from "../adapters/lmstudio-models.js";
 
 describe("adapter model listing", () => {
   beforeEach(() => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.CREWSPACE_OPENCODE_COMMAND;
+    delete process.env.LM_STUDIO_URL;
     resetCodexModelsCacheForTests();
     resetCursorModelsCacheForTests();
     setCursorModelsRunnerForTests(null);
     resetOpenCodeModelsCacheForTests();
+    resetLmStudioModelsCacheForTests();
     vi.restoreAllMocks();
   });
 
@@ -102,6 +105,39 @@ describe("adapter model listing", () => {
     expect(first.some((model) => model.id === "auto")).toBe(true);
     expect(first.some((model) => model.id === "gpt-5.3-codex-high")).toBe(true);
     expect(first.some((model) => model.id === "composer-1")).toBe(true);
+  });
+
+  it("returns empty list for lmstudio_local when no URL is configured", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const models = await listAdapterModels("lmstudio_local");
+    expect(models).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns lmstudio models dynamically when LM_STUDIO_URL is set", async () => {
+    process.env.LM_STUDIO_URL = "http://localhost:1234";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: "llama-3.2-3b-instruct" },
+          { id: "codellama-7b" },
+        ],
+      }),
+    } as Response);
+
+    const models = await listAdapterModels("lmstudio_local");
+    expect(models).toHaveLength(2);
+    expect(models.some((m) => m.id === "llama-3.2-3b-instruct")).toBe(true);
+    expect(models.some((m) => m.id === "codellama-7b")).toBe(true);
+  });
+
+  it("returns empty list for lmstudio_local when LM Studio is unreachable", async () => {
+    process.env.LM_STUDIO_URL = "http://localhost:1234";
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const models = await listAdapterModels("lmstudio_local");
+    expect(models).toEqual([]);
   });
 
 });
