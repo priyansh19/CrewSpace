@@ -82,6 +82,7 @@ git commit -m "chore: remove stale laughing-hoover worktree"
 - Delete: `ISSUES_DRAFT.md`
 - Delete: `doc/README-draft.md`
 - Delete: `.env.docker` (duplicate of `docker/.env`, no code references)
+- Delete: `ui/public/CrewSpace Logo.html` (not referenced in any source file, index.html, or manifest)
 
 - [ ] **Step 1: Delete release files (keep directory)**
 
@@ -101,15 +102,21 @@ rm ISSUES_DRAFT.md doc/README-draft.md
 rm .env.docker
 ```
 
-- [ ] **Step 4: Verify no code references to deleted files**
+- [ ] **Step 4: Delete unused public asset**
 
 ```bash
-grep -r "ISSUES_DRAFT\|README-draft\|\.env\.docker" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.sh" --include="*.yml" . | grep -v node_modules | grep -v ".git"
+rm "ui/public/CrewSpace Logo.html"
+```
+
+- [ ] **Step 5: Verify no code references to deleted files**
+
+```bash
+grep -r "ISSUES_DRAFT\|README-draft\|\.env\.docker\|CrewSpace Logo" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.sh" --include="*.yml" --include="*.html" . | grep -v node_modules | grep -v ".git"
 ```
 
 Expected: no output.
 
-- [ ] **Step 5: Typecheck to confirm nothing broke**
+- [ ] **Step 6: Typecheck to confirm nothing broke**
 
 ```bash
 pnpm typecheck
@@ -117,7 +124,7 @@ pnpm typecheck
 
 Expected: exits 0 with no errors.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add -A
