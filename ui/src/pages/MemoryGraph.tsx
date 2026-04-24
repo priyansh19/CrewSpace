@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, Link2, Trash2, Search, Brain, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useCompany } from "../context/CompanyContext";
 import { agentMemoriesApi, type AgentMemory, type AgentMemoryLink } from "../api/agentMemories";
@@ -1055,22 +1056,46 @@ export function MemoryGraph() {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search memories…"
                 className="w-full rounded-md border border-border bg-muted/40 pl-7 pr-3 py-1.5 text-xs outline-none placeholder:text-muted-foreground/40 focus:border-primary/50" />
             </div>
-            <div className="flex items-center gap-1 flex-wrap">
-              <button onClick={() => setFilterAgentId(null)}
-                className={cn("rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border",
-                  !filterAgentId ? "bg-foreground text-background border-transparent" : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground")}>
-                All
-              </button>
-              {agents.map((a) => (
-                <button key={a.id} onClick={() => setFilterAgentId(filterAgentId === a.id ? null : a.id)}
-                  className="rounded-full px-2.5 py-1 text-[11px] font-medium border transition-colors"
-                  style={filterAgentId === a.id
-                    ? { color: a.color, background: `${a.color}18`, borderColor: `${a.color}50` }
-                    : { color: "hsl(var(--muted-foreground))", background: "transparent", borderColor: "hsl(var(--border))" }}>
-                  {a.name.split(" ")[0]}
+            <ScrollArea className="max-w-full" type="scroll">
+              <div className="flex items-center gap-1.5 w-max pb-0.5">
+                <button
+                  onClick={() => setFilterAgentId(null)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors border shrink-0",
+                    !filterAgentId
+                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50"
+                      : "bg-slate-900/60 border-slate-700/50 text-slate-300 hover:bg-slate-800/80 hover:border-slate-600"
+                  )}
+                >
+                  All
                 </button>
-              ))}
-            </div>
+                {agents.map((a) => {
+                  const initials = a.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+                  const isActive = filterAgentId === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => setFilterAgentId(isActive ? null : a.id)}
+                      className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium border transition-colors shrink-0"
+                      style={
+                        isActive
+                          ? { color: a.color, background: `${a.color}25`, borderColor: `${a.color}70` }
+                          : { color: "#94a3b8", background: "rgba(15, 23, 42, 0.8)", borderColor: "rgba(71, 85, 105, 0.5)" }
+                      }
+                    >
+                      <span
+                        className="flex items-center justify-center rounded-full text-[9px] font-bold w-4 h-4 shrink-0"
+                        style={{ background: `${a.color}40`, color: a.color, border: `1px solid ${a.color}60` }}
+                      >
+                        {initials}
+                      </span>
+                      {a.name.split(" ")[0]}
+                    </button>
+                  );
+                })}
+              </div>
+              <ScrollBar orientation="horizontal" className="h-1" />
+            </ScrollArea>
           </>
         )}
 

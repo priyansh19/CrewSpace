@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "@/lib/router";
 
 export interface Breadcrumb {
   label: string;
@@ -14,10 +15,15 @@ const BreadcrumbContext = createContext<BreadcrumbContextValue | null>(null);
 
 export function BreadcrumbProvider({ children }: { children: ReactNode }) {
   const [breadcrumbs, setBreadcrumbsState] = useState<Breadcrumb[]>([]);
+  const location = useLocation();
 
   const setBreadcrumbs = useCallback((crumbs: Breadcrumb[]) => {
     setBreadcrumbsState(crumbs);
   }, []);
+
+  useEffect(() => {
+    setBreadcrumbsState([]);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (breadcrumbs.length === 0) {

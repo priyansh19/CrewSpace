@@ -245,7 +245,7 @@ export function CeoTerminal() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "CEO Terminal" }]);
+    setBreadcrumbs([{ label: "Console" }]);
   }, [setBreadcrumbs]);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
@@ -426,7 +426,7 @@ export function CeoTerminal() {
           <div className="flex items-center gap-2">
             <TerminalSquare className="h-3.5 w-3.5 text-emerald-400" />
             <span className="text-xs font-semibold text-zinc-300 tracking-wide">
-              CEO Terminal
+              Console
             </span>
           </div>
           {/* CWD pill */}
@@ -474,7 +474,7 @@ export function CeoTerminal() {
           <div className="pt-6 pb-2 space-y-3">
             <div className="flex items-center gap-2">
               <TerminalSquare className="h-5 w-5 text-emerald-400/50" />
-              <span className="text-sm font-semibold text-zinc-500">CEO Terminal</span>
+              <span className="text-sm font-semibold text-zinc-500">Console</span>
             </div>
             <p className="text-xs text-zinc-600 font-mono leading-relaxed max-w-sm">
               You are operating as CEO. Commands run directly on the server.<br />

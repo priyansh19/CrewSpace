@@ -21,7 +21,7 @@ export function AttachIcon(props: SVGProps<SVGSVGElement>) {
   });
 }
 
-// CrewSpace brand logo — three nodes connected in a triangle representing crew collaboration
+// CrewSpace brand logo — purple and cyan grid mark representing network collaboration
 export function CrewSpaceIcon(props: SVGProps<SVGSVGElement>) {
   return createElement("svg", {
     xmlns: "http://www.w3.org/2000/svg",
@@ -31,14 +31,28 @@ export function CrewSpaceIcon(props: SVGProps<SVGSVGElement>) {
     fill: "none",
     ...props,
     children: [
-      // Connecting lines (triangle)
-      createElement("line", { key: "l1", x1: "12", y1: "3.5", x2: "20.5", y2: "18", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }),
-      createElement("line", { key: "l2", x1: "12", y1: "3.5", x2: "3.5", y2: "18", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }),
-      createElement("line", { key: "l3", x1: "3.5", y1: "18", x2: "20.5", y2: "18", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }),
-      // Nodes
-      createElement("circle", { key: "c1", cx: "12", cy: "3.5", r: "2.5", fill: "currentColor" }),
-      createElement("circle", { key: "c2", cx: "20.5", cy: "18", r: "2.5", fill: "currentColor" }),
-      createElement("circle", { key: "c3", cx: "3.5", cy: "18", r: "2.5", fill: "currentColor" }),
+      // Purple grid (left side)
+      createElement("rect", { key: "p1", x: "2.75", y: "4.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p2", x: "5.75", y: "4.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p3", x: "8.75", y: "4.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p4", x: "2.75", y: "7.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p5", x: "2.75", y: "10.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p6", x: "2.75", y: "13.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p7", x: "2.75", y: "16.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p8", x: "5.75", y: "16.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      createElement("rect", { key: "p9", x: "8.75", y: "16.75", width: "2.5", height: "2.5", rx: ".6", fill: "#7b5ff5" }),
+      // Cyan grid (right side)
+      createElement("rect", { key: "c1", x: "12.75", y: "4.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c2", x: "15.75", y: "4.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c3", x: "18.75", y: "4.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c4", x: "12.75", y: "7.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c5", x: "12.75", y: "10.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c6", x: "15.75", y: "10.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c7", x: "18.75", y: "10.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c8", x: "18.75", y: "13.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c9", x: "12.75", y: "16.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c10", x: "15.75", y: "16.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
+      createElement("rect", { key: "c11", x: "18.75", y: "16.75", width: "2.5", height: "2.5", rx: ".6", fill: "#2ecfc1" }),
     ],
   });
 }

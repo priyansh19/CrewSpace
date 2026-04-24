@@ -55,13 +55,14 @@ const CameraController = ({ controlsRef }: { controlsRef: React.RefObject<any> }
 };
 
 const OfficeScene = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = useOfficeStore((s) => s.isInitialLoad);
+  const setInitialLoadComplete = useOfficeStore((s) => s.setInitialLoadComplete);
   const agentIds    = useOfficeStore(useShallow((s) => s.officeAgents.map((a) => a.id)));
   const selectedId  = useOfficeStore((s) => s.selectedAgentId);
   const selectAgent = useOfficeStore((s) => s.selectAgent);
   const controlsRef = useRef<any>(null);
 
-  const handleSceneReady = () => setTimeout(() => setIsLoading(false), 10_000);
+  const handleSceneReady = () => setTimeout(() => setInitialLoadComplete(), 10_000);
 
   return (
     <>

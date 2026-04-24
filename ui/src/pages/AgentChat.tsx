@@ -37,20 +37,22 @@ function timeAgoShort(date: Date): string {
 
 // ── New Chat Menu ─────────────────────────────────────────────────────────────
 
-function NewChatMenu({ allAgents, onStart }: { allAgents: Agent[]; onStart: (agents: Agent[]) => void }) {
-  const [open, setOpen] = useState(false);
+function NewChatMenu({ allAgents, onStart, open, onOpenChange }: { allAgents: Agent[]; onStart: (agents: Agent[]) => void; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = open !== undefined ? open : internalOpen;
+  const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
     const handler = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) { setOpen(false); setSelected(new Set()); }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [isOpen, setOpen]);
 
   const filtered = allAgents.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -71,11 +73,11 @@ function NewChatMenu({ allAgents, onStart }: { allAgents: Agent[]; onStart: (age
 
   return (
     <div ref={ref} className="relative">
-      <Button size="sm" onClick={() => setOpen((v) => !v)}>
+      <Button size="sm" onClick={() => setOpen(!isOpen)}>
         <Plus className="h-3.5 w-3.5 mr-1.5" />New Chat
       </Button>
 
-      {open && (
+      {isOpen && (
         <div className="absolute top-9 right-0 z-50 w-60 bg-popover border border-border rounded-lg shadow-xl overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -616,9 +618,8 @@ function EmptyChat({ onNewChat }: { onNewChat: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AgentChat() {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, bulkInitSessions, deleteSession, renameSession } = useChat();
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, deleteSession, renameSession } = useChat();
   const { selectedCompanyId } = useCompany();
-  const newChatRef = useRef<(() => void) | null>(null);
 
   const { data: agents } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId!),
@@ -629,11 +630,6 @@ export function AgentChat() {
 
   const allAgents = useMemo(() => agents ?? [], [agents]);
 
-  // When real agents first load, seed one session per agent so they appear in the list
-  useEffect(() => {
-    if (allAgents.length > 0) bulkInitSessions(allAgents);
-  }, [allAgents, bulkInitSessions]);
-
   const activeSession = useMemo(() => sessions.find((s) => s.id === activeSessionId) ?? null, [sessions, activeSessionId]);
   const sorted = useMemo(() => [...sessions].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()), [sessions]);
 
@@ -642,7 +638,6 @@ export function AgentChat() {
   }, [activeSessionId, updateSession]);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
-  const newChatMenuRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="flex h-full min-h-0 bg-background">
@@ -659,8 +654,9 @@ export function AgentChat() {
               </span>
             )}
           </div>
-          <NewChatMenu allAgents={allAgents} onStart={(agents) => {
+          <NewChatMenu allAgents={allAgents} open={newChatOpen} onOpenChange={setNewChatOpen} onStart={(agents) => {
             openChatWithAgents(agents);
+            setNewChatOpen(false);
           }} />
         </div>
 
@@ -701,9 +697,7 @@ export function AgentChat() {
           onUpdate={handleUpdate}
         />
       ) : (
-        <EmptyChat onNewChat={() => {
-          // trigger new chat — for now just highlight the button
-        }} />
+        <EmptyChat onNewChat={() => setNewChatOpen(true)} />
       )}
     </div>
   );
