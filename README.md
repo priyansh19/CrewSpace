@@ -370,12 +370,6 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details on
 
 <br/>
 
-## Community
-
-- [Discord](https://discord.gg/m4HZY7xNG3) — questions, showcases, feature requests
-
-<br/>
-
 ## License
 
 MIT &copy; 2026 CrewSpace
