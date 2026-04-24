@@ -777,6 +777,13 @@ export function OnboardingWizard() {
                           icon: Code,
                           desc: "Local Codex agent",
                           recommended: true
+                        },
+                        {
+                          value: "lmstudio_local" as const,
+                          label: "LM Studio",
+                          icon: Cpu,
+                          desc: "Local LM Studio model",
+                          recommended: true
                         }
                       ].map((opt) => (
                         <button
@@ -793,7 +800,11 @@ export function OnboardingWizard() {
                             if (nextType === "codex_local" && !model) {
                               setModel(DEFAULT_CODEX_LOCAL_MODEL);
                             }
-                            if (nextType !== "codex_local") {
+                            if (nextType === "lmstudio_local") {
+                              if (!url) setUrl(DEFAULT_LM_STUDIO_BASE_URL);
+                              setModel("");
+                            }
+                            if (nextType !== "codex_local" && nextType !== "lmstudio_local") {
                               setModel("");
                             }
                           }}
@@ -859,12 +870,6 @@ export function OnboardingWizard() {
                             desc: "Local multi-provider agent"
                           },
                           {
-                            value: "lmstudio_local" as const,
-                            label: "LM Studio",
-                            icon: Cpu,
-                            desc: "Local LM Studio model"
-                          },
-                          {
                             value: "openclaw_gateway" as const,
                             label: "OpenClaw Gateway",
                             icon: Bot,
@@ -900,11 +905,6 @@ export function OnboardingWizard() {
                                 if (!model.includes("/")) {
                                   setModel("");
                                 }
-                                return;
-                              }
-                              if (nextType === "lmstudio_local") {
-                                if (!url) setUrl(DEFAULT_LM_STUDIO_BASE_URL);
-                                setModel("");
                                 return;
                               }
                               setModel("");
