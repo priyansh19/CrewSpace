@@ -130,7 +130,7 @@ export async function testEnvironment(
       message: isTimeout
         ? `Connection to LM Studio timed out (${LM_STUDIO_PROBE_TIMEOUT_MS / 1000}s).`
         : `Could not connect to LM Studio: ${err instanceof Error ? err.message : String(err)}`,
-      hint: "Ensure LM Studio is running and the server is accessible from the CrewSpace host. For Docker, use host.docker.internal instead of localhost.",
+      hint: "Ensure LM Studio is running with its server enabled. In LM Studio → Developer → Server, enable the server and set it to listen on all interfaces (0.0.0.0), not just localhost. For Docker, use host.docker.internal instead of localhost in the URL.",
     });
   } finally {
     clearTimeout(timeout);

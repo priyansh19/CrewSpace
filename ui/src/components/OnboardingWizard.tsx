@@ -1186,8 +1186,15 @@ export function OnboardingWizard() {
                         onChange={(e) => setUrl(e.target.value)}
                       />
                       <p className="text-[11px] text-muted-foreground mt-1">
-                        For Docker, use{" "}
-                        <span className="font-mono">http://host.docker.internal:1234</span>
+                        Running in Docker?{" "}
+                        Use{" "}
+                        <button
+                          type="button"
+                          className="font-mono underline underline-offset-2 hover:text-foreground transition-colors"
+                          onClick={() => setUrl("http://host.docker.internal:1234")}
+                        >
+                          http://host.docker.internal:1234
+                        </button>
                       </p>
                     </div>
                   )}

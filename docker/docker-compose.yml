@@ -30,9 +30,12 @@ services:
       CREWSPACE_PUBLIC_URL: "${CREWSPACE_PUBLIC_URL:-http://localhost:3100}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
       CREWSPACE_AGENT_JWT_SECRET: "${CREWSPACE_AGENT_JWT_SECRET}"
-      # Optional: set to your LM Studio base URL to enable local LLM agents.
-      # Use host.docker.internal instead of localhost when LM Studio runs on the host machine.
+      # Uncomment to connect agents to a locally running LM Studio instance.
+      # host.docker.internal resolves to the host machine from inside the container.
       # LM_STUDIO_URL: "http://host.docker.internal:1234"
+    # Ensures host.docker.internal resolves on Linux (Docker Desktop handles this automatically).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - crewspace-data:/crewspace
     depends_on:
