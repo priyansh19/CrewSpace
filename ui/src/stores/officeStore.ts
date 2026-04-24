@@ -271,9 +271,11 @@ interface OfficeStore {
   selectedAgentId: string | null;
   isNightMode: boolean;
   liveMode: boolean;
+  isInitialLoad: boolean;
   selectAgent: (id: string | null) => void;
   toggleNightMode: () => void;
   setBackendSnapshot: (snapshot: BackendSnapshot) => void;
+  setInitialLoadComplete: () => void;
 }
 
 const DONE_STATUSES = new Set(["done", "completed", "closed", "resolved", "cancelled", "canceled"]);
@@ -560,8 +562,10 @@ export const useOfficeStore = create<OfficeStore>((set) => {
     selectedAgentId: null,
     isNightMode: false,
     liveMode: false,
+    isInitialLoad: true,
     selectAgent: (id) => set({ selectedAgentId: id }),
     toggleNightMode: () => set((state) => ({ isNightMode: !state.isNightMode })),
+    setInitialLoadComplete: () => set({ isInitialLoad: false }),
     setBackendSnapshot: (snapshot) =>
       set((state) => {
         const agents = buildAgents(snapshot, state.agents);

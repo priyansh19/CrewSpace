@@ -17,6 +17,8 @@ const LiveDataBridge = () => {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
     refetchInterval: 15_000,
+    staleTime: 10_000,
+    gcTime: 5 * 60 * 1000,
   });
 
   const { data: issues } = useQuery({
@@ -24,6 +26,8 @@ const LiveDataBridge = () => {
     queryFn: () => issuesApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
     refetchInterval: 15_000,
+    staleTime: 10_000,
+    gcTime: 5 * 60 * 1000,
   });
 
   const { data: liveRuns } = useQuery({
@@ -31,6 +35,8 @@ const LiveDataBridge = () => {
     queryFn: () => heartbeatsApi.liveRunsForCompany(selectedCompanyId!),
     enabled: !!selectedCompanyId,
     refetchInterval: 5_000,
+    staleTime: 4_000,
+    gcTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {

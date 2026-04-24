@@ -358,6 +358,7 @@ export function App() {
           <Route path="org" element={<UnprefixedBoardRedirect />} />
           <Route path="taskboard" element={<UnprefixedBoardRedirect />} />
           <Route path="blockers" element={<UnprefixedBoardRedirect />} />
+          <Route path="terminal" element={<UnprefixedBoardRedirect />} />
           <Route path="projects" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/overview" element={<UnprefixedBoardRedirect />} />
