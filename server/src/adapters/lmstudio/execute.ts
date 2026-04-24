@@ -16,6 +16,18 @@ function mergeEnvEntry(
   env[key] = { type: "plain", value };
 }
 
+function resolveApiKey(config: Record<string, unknown>): string {
+  const raw = config.apiKey;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  if (typeof raw === "object" && raw !== null) {
+    const rec = raw as Record<string, unknown>;
+    if (rec.type === "plain" && typeof rec.value === "string" && rec.value.trim()) {
+      return rec.value.trim();
+    }
+  }
+  return "lm-studio";
+}
+
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
   const config = parseObject(ctx.config);
   const configBaseUrl = asString(config.baseUrl, "");
@@ -28,16 +40,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   }
 
   const openAiBaseUrl = `${normalizeBaseUrl(baseUrl)}/v1`;
+  const apiKey = resolveApiKey(config);
 
-  // Inject OPENAI_BASE_URL and a placeholder API key into the adapter env so
-  // the codex CLI routes its requests to LM Studio instead of api.openai.com.
+  // Inject OPENAI_BASE_URL and API key so the codex CLI routes to LM Studio.
   const env =
     typeof config.env === "object" && config.env !== null && !Array.isArray(config.env)
       ? { ...(config.env as Record<string, unknown>) }
       : {};
 
   mergeEnvEntry(env, "OPENAI_BASE_URL", openAiBaseUrl);
-  mergeEnvEntry(env, "OPENAI_API_KEY", "lm-studio");
+  mergeEnvEntry(env, "OPENAI_API_KEY", apiKey);
 
   const patchedConfig = { ...config, env };
 

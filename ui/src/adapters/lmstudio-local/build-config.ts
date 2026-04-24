@@ -13,5 +13,12 @@ export function buildLmStudioLocalConfig(v: CreateConfigValues): Record<string, 
   ac.dangerouslyBypassApprovalsAndSandbox = true;
   ac.timeoutSec = 0;
   ac.graceSec = 15;
+
+  // Store API key from envBindings if provided
+  const bindings = v.envBindings as Record<string, unknown> | undefined;
+  const apiKey =
+    typeof bindings?.OPENAI_API_KEY === "string" ? bindings.OPENAI_API_KEY.trim() : "";
+  if (apiKey) ac.apiKey = { type: "plain", value: apiKey };
+
   return ac;
 }

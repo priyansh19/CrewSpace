@@ -36,6 +36,34 @@ export function LmStudioLocalConfigFields({
           placeholder="http://localhost:1234"
         />
       </Field>
+      <Field
+        label="API key"
+        hint={help("Optional API key for LM Studio. Leave empty if no key is configured.")}
+      >
+        <input
+          type="password"
+          autoComplete="off"
+          defaultValue={
+            isCreate
+              ? ""
+              : (() => {
+                  const raw = config.apiKey;
+                  if (typeof raw === "string") return raw;
+                  if (typeof raw === "object" && raw !== null)
+                    return String((raw as { value?: unknown }).value ?? "");
+                  return "";
+                })()
+          }
+          onBlur={(e) => {
+            if (!isCreate) {
+              const v = e.target.value.trim();
+              mark("adapterConfig", "apiKey", v ? { type: "plain", value: v } : undefined);
+            }
+          }}
+          className={inputClass}
+          placeholder="Leave empty if LM Studio has no key set"
+        />
+      </Field>
     </>
   );
 }

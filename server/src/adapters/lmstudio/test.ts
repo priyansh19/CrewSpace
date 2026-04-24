@@ -18,6 +18,18 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+function resolveApiKey(config: Record<string, unknown>): string {
+  const raw = config.apiKey;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  if (typeof raw === "object" && raw !== null) {
+    const rec = raw as Record<string, unknown>;
+    if (rec.type === "plain" && typeof rec.value === "string" && rec.value.trim()) {
+      return rec.value.trim();
+    }
+  }
+  return "lm-studio";
+}
+
 export async function testEnvironment(
   ctx: AdapterEnvironmentTestContext,
 ): Promise<AdapterEnvironmentTestResult> {
@@ -26,6 +38,7 @@ export async function testEnvironment(
   const configBaseUrl = asString(config.baseUrl, "");
 
   const baseUrl = resolveLmStudioBaseUrl(configBaseUrl);
+  const apiKey = resolveApiKey(config);
 
   if (!baseUrl) {
     checks.push({
@@ -89,7 +102,7 @@ export async function testEnvironment(
   let models: { id: string; label: string }[] = [];
   try {
     const response = await fetch(modelsEndpoint, {
-      headers: { Authorization: "Bearer lm-studio" },
+      headers: { Authorization: `Bearer ${apiKey}` },
       signal: controller.signal,
     });
 

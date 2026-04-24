@@ -122,6 +122,7 @@ export function OnboardingWizard() {
   const [command, setCommand] = useState("");
   const [args, setArgs] = useState("");
   const [url, setUrl] = useState("");
+  const [lmStudioApiKey, setLmStudioApiKey] = useState("");
   const [adapterEnvResult, setAdapterEnvResult] =
     useState<AdapterEnvironmentTestResult | null>(null);
   const [adapterEnvError, setAdapterEnvError] = useState<string | null>(null);
@@ -238,7 +239,7 @@ export function OnboardingWizard() {
     if (step !== 2) return;
     setAdapterEnvResult(null);
     setAdapterEnvError(null);
-  }, [step, adapterType, model, command, args, url]);
+  }, [step, adapterType, model, command, args, url, lmStudioApiKey]);
 
   const selectedModel = (adapterModels ?? []).find((m) => m.id === model);
   const hasAnthropicApiKeyOverrideCheck =
@@ -298,6 +299,7 @@ export function OnboardingWizard() {
     setCommand("");
     setArgs("");
     setUrl("");
+    setLmStudioApiKey("");
     setAdapterEnvResult(null);
     setAdapterEnvError(null);
     setAdapterEnvLoading(false);
@@ -334,6 +336,10 @@ export function OnboardingWizard() {
       command,
       args,
       url: adapterType === "lmstudio_local" ? url || DEFAULT_LM_STUDIO_BASE_URL : url,
+      envBindings:
+        adapterType === "lmstudio_local" && lmStudioApiKey.trim()
+          ? { OPENAI_API_KEY: lmStudioApiKey.trim() }
+          : defaultCreateValues.envBindings,
       dangerouslySkipPermissions:
         adapterType === "claude_local" || adapterType === "opencode_local",
       dangerouslyBypassSandbox:
@@ -1175,27 +1181,42 @@ export function OnboardingWizard() {
                   )}
 
                   {adapterType === "lmstudio_local" && (
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">
-                        LM Studio URL
-                      </label>
-                      <input
-                        className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                        placeholder={DEFAULT_LM_STUDIO_BASE_URL}
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                      />
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Running in Docker?{" "}
-                        Use{" "}
-                        <button
-                          type="button"
-                          className="font-mono underline underline-offset-2 hover:text-foreground transition-colors"
-                          onClick={() => setUrl("http://host.docker.internal:1234")}
-                        >
-                          http://host.docker.internal:1234
-                        </button>
-                      </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          LM Studio URL
+                        </label>
+                        <input
+                          className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                          placeholder={DEFAULT_LM_STUDIO_BASE_URL}
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Running in Docker? Use{" "}
+                          <button
+                            type="button"
+                            className="font-mono underline underline-offset-2 hover:text-foreground transition-colors"
+                            onClick={() => setUrl("http://host.docker.internal:1234")}
+                          >
+                            http://host.docker.internal:1234
+                          </button>
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">
+                          API key{" "}
+                          <span className="text-muted-foreground/60">(optional)</span>
+                        </label>
+                        <input
+                          type="password"
+                          className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                          placeholder="Leave empty if LM Studio has no key set"
+                          value={lmStudioApiKey}
+                          onChange={(e) => setLmStudioApiKey(e.target.value)}
+                          autoComplete="off"
+                        />
+                      </div>
                     </div>
                   )}
 
