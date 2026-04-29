@@ -59,3 +59,6 @@ export { pluginLogs } from "./plugin_logs.js";
 export { agentMemories, agentMemoryAgents, agentMemoryLinks } from "./agent_memories.js";
 export { sprints, sprintIssues } from "./sprints.js";
 export { terminalHistory } from "./terminal_history.js";
+export { chatSessions } from "./chat_sessions.js";
+export { chatSessionParticipants } from "./chat_session_participants.js";
+export { chatMessages } from "./chat_messages.js";

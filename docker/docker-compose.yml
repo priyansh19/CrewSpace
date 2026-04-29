@@ -1,20 +1,4 @@
 services:
-  db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: crewspace
-      POSTGRES_PASSWORD: crewspace
-      POSTGRES_DB: crewspace
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crewspace -d crewspace"]
-      interval: 2s
-      timeout: 5s
-      retries: 30
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   server:
     build:
       context: ..
@@ -22,7 +6,6 @@ services:
     ports:
       - "3100:3100"
     environment:
-      DATABASE_URL: postgres://crewspace:crewspace@db:5432/crewspace
       PORT: "3100"
       SERVE_UI: "true"
       CREWSPACE_DEPLOYMENT_MODE: "authenticated"
@@ -32,10 +15,6 @@ services:
       CREWSPACE_AGENT_JWT_SECRET: "${CREWSPACE_AGENT_JWT_SECRET}"
     volumes:
       - crewspace-data:/crewspace
-    depends_on:
-      db:
-        condition: service_healthy
 
 volumes:
-  pgdata:
   crewspace-data:
