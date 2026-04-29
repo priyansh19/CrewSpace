@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Building2,
   TerminalSquare,
+  FolderOpen,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -151,6 +152,7 @@ export function Sidebar() {
           />
           <SidebarNavItem to="/office" label="3D Office" icon={Building2} />
           <SidebarNavItem to="/terminal" label="Console" icon={TerminalSquare} />
+          <SidebarNavItem to="/workspace" label="Workspace" icon={FolderOpen} />
         </SidebarSection>
 
         {/* System */}

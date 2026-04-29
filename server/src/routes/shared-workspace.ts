@@ -21,7 +21,8 @@ export function sharedWorkspaceRoutes(_db: Db, sharedWorkspaceDir: string) {
     "/companies/:companyId/shared-workspace/files",
     upload.single("file"),
     async (req, res) => {
-      assertCompanyAccess(req, req.params.companyId);
+      const companyId = req.params["companyId"] as string;
+      assertCompanyAccess(req, companyId);
       if (!req.file) {
         res.status(400).json({ error: "No file uploaded" });
         return;

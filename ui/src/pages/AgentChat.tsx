@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentIcon } from "@/components/AgentIconPicker";
 import { cn } from "@/lib/utils";
-import { useChat, type ChatSession, type ChatMessage } from "../context/ChatContext";
+import { useChat, type ChatSession, type ChatMessage, type ChatParticipant } from "../context/ChatContext";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { agentsApi } from "../api/agents";
@@ -303,9 +303,10 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
   session: ChatSession;
   allAgents: Agent[];
   companyId: string | undefined;
-  onUpdate: (messages: ChatMessage[], participants: Agent[]) => void;
+  onUpdate: (messages: ChatMessage[], participants: ChatParticipant[]) => void;
 }) {
   const { openNewIssue } = useDialog();
+  const { persistMessage } = useChat();
   const queryClient = useQueryClient();
   const isMountedRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -317,7 +318,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
     };
   }, []);
 
-  const [participants, setParticipants] = useState<Agent[]>([]);
+  const [participants, setParticipants] = useState<ChatParticipant[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
@@ -358,6 +359,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
     const fullHistory: ChatMessage[] = [...messages, userMsg];
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    persistMessage(session.id, "user", text);
 
     abortRef.current = new AbortController();
     for (const agent of participants) {
@@ -368,7 +370,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
       setMessages((prev) => [...prev, { id: streamingId, role: "agent", agentId: agent.id, content: "", ts: new Date() }]);
 
       let finalContent = "";
-      const streamResult = await streamAgentChat(agent, fullHistory, companyId, abortRef.current.signal, (partial) => {
+      const streamResult = await streamAgentChat(agent as unknown as Agent, fullHistory, companyId, abortRef.current.signal, (partial) => {
         if (!isMountedRef.current) return;
         finalContent = partial;
         setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, content: partial } : m));
@@ -380,6 +382,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
       }
 
       setTypingAgentId(null);
+      if (finalContent.trim()) persistMessage(session.id, "agent", finalContent, agent.id);
 
       if (finalContent.trim() && companyId && isMountedRef.current) {
         setSavingMemory(true);
@@ -470,7 +473,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
               )}
             </div>
           ))}
-          <AddParticipantMenu allAgents={allAgents} participants={participants} onAdd={addParticipant} />
+          <AddParticipantMenu allAgents={allAgents} participants={participants as unknown as Agent[]} onAdd={addParticipant} />
         </div>
       </div>
 
@@ -618,7 +621,7 @@ function EmptyChat({ onNewChat }: { onNewChat: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AgentChat() {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, deleteSession, renameSession } = useChat();
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, deleteSession, renameSession } = useChat(); // persistMessage used inside ChatArea
   const { selectedCompanyId } = useCompany();
 
   const { data: agents } = useQuery({
@@ -633,7 +636,7 @@ export function AgentChat() {
   const activeSession = useMemo(() => sessions.find((s) => s.id === activeSessionId) ?? null, [sessions, activeSessionId]);
   const sorted = useMemo(() => [...sessions].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()), [sessions]);
 
-  const handleUpdate = useCallback((messages: ChatMessage[], participants: Agent[]) => {
+  const handleUpdate = useCallback((messages: ChatMessage[], participants: ChatParticipant[]) => {
     if (activeSessionId) updateSession(activeSessionId, messages, participants);
   }, [activeSessionId, updateSession]);
 
