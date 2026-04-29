@@ -90,6 +90,10 @@ export function resolveManagedProjectWorkspaceDir(input: {
   );
 }
 
+export function resolveSharedWorkspaceDir(): string {
+  return path.resolve(resolveCrewSpaceInstanceRoot(), "workspace");
+}
+
 export function resolveHomeAwarePath(value: string): string {
   return path.resolve(expandHomePrefix(value));
 }

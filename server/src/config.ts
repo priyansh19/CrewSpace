@@ -21,6 +21,7 @@ import {
   resolveDefaultEmbeddedPostgresDir,
   resolveDefaultSecretsKeyFilePath,
   resolveDefaultStorageDir,
+  resolveSharedWorkspaceDir,
   resolveHomeAwarePath,
 } from "./home-paths.js";
 
@@ -73,6 +74,7 @@ export interface Config {
   heartbeatSchedulerEnabled: boolean;
   heartbeatSchedulerIntervalMs: number;
   companyDeletionEnabled: boolean;
+  sharedWorkspaceDir: string;
 }
 
 export function loadConfig(): Config {
@@ -255,5 +257,8 @@ export function loadConfig(): Config {
     heartbeatSchedulerEnabled: process.env.HEARTBEAT_SCHEDULER_ENABLED !== "false",
     heartbeatSchedulerIntervalMs: Math.max(10000, Number(process.env.HEARTBEAT_SCHEDULER_INTERVAL_MS) || 30000),
     companyDeletionEnabled,
+    sharedWorkspaceDir: resolveHomeAwarePath(
+      process.env.CREWSPACE_SHARED_WORKSPACE_DIR ?? resolveSharedWorkspaceDir(),
+    ),
   };
 }

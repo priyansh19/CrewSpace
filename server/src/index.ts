@@ -1,5 +1,5 @@
 /// <reference path="./types/express.d.ts" />
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -18,6 +18,7 @@ import {
   reconcilePendingMigrationHistory,
   formatDatabaseBackupResult,
   runDatabaseBackup,
+  runDatabaseRestore,
   authUsers,
   companies,
   companyMemberships,
@@ -420,6 +421,24 @@ export async function startServer(): Promise<StartedServer> {
     }
   
     const embeddedConnectionString = `postgres://crewspace:crewspace@127.0.0.1:${port}/crewspace`;
+
+    // Restore from backup if operator placed a RESTORE_ON_NEXT_BOOT sentinel in the backup dir.
+    // Runs before migrations so any new migrations apply cleanly on top of the restored data.
+    const restoreSentinelPath = resolve(config.databaseBackupDir, "RESTORE_ON_NEXT_BOOT");
+    if (existsSync(restoreSentinelPath)) {
+      const backupFilename = readFileSync(restoreSentinelPath, "utf8").trim();
+      const backupFilePath = resolve(config.databaseBackupDir, backupFilename);
+      if (existsSync(backupFilePath)) {
+        logger.info({ backupFile: backupFilePath }, "RESTORE_ON_NEXT_BOOT sentinel found; restoring data from backup");
+        await runDatabaseRestore({ connectionString: embeddedConnectionString, backupFile: backupFilePath });
+        const doneSentinelPath = resolve(config.databaseBackupDir, `RESTORE_DONE_${Date.now()}`);
+        renameSync(restoreSentinelPath, doneSentinelPath);
+        logger.info({ doneSentinel: doneSentinelPath }, "Database restore completed; sentinel renamed");
+      } else {
+        logger.warn({ backupFile: backupFilePath }, "RESTORE_ON_NEXT_BOOT sentinel found but backup file is missing; skipping restore");
+      }
+    }
+
     const shouldAutoApplyFirstRunMigrations = !clusterAlreadyInitialized || dbStatus === "created";
     if (shouldAutoApplyFirstRunMigrations) {
       logger.info("Detected first-run embedded PostgreSQL setup; applying pending migrations automatically");
@@ -549,6 +568,7 @@ export async function startServer(): Promise<StartedServer> {
     companyDeletionEnabled: config.companyDeletionEnabled,
     betterAuthHandler,
     resolveSession,
+    sharedWorkspaceDir: config.sharedWorkspaceDir,
   });
   const server = createServer(app as unknown as Parameters<typeof createServer>[0]);
   

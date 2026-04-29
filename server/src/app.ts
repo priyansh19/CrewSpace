@@ -31,6 +31,8 @@ import { accessRoutes } from "./routes/access.js";
 import { agentMemoryRoutes } from "./routes/agent-memories.js";
 import { terminalRoutes } from "./routes/terminal.js";
 import { sprintRoutes } from "./routes/sprints.js";
+import { chatSessionRoutes } from "./routes/chat-sessions.js";
+import { sharedWorkspaceRoutes } from "./routes/shared-workspace.js";
 import { pluginRoutes } from "./routes/plugins.js";
 import { pluginUiStaticRoutes } from "./routes/plugin-ui-static.js";
 import { applyUiBranding } from "./ui-branding.js";
@@ -77,6 +79,7 @@ export async function createApp(
     localPluginDir?: string;
     betterAuthHandler?: express.RequestHandler;
     resolveSession?: (req: ExpressRequest) => Promise<BetterAuthSessionResult | null>;
+    sharedWorkspaceDir?: string;
   },
 ) {
   const app = express();
@@ -161,6 +164,10 @@ export async function createApp(
   api.use(agentMemoryRoutes(db));
   api.use(sprintRoutes(db));
   api.use(terminalRoutes(db));
+  api.use(chatSessionRoutes(db));
+  if (opts.sharedWorkspaceDir) {
+    api.use(sharedWorkspaceRoutes(db, opts.sharedWorkspaceDir));
+  }
   const hostServicesDisposers = new Map<string, () => void>();
   const workerManager = createPluginWorkerManager();
   const pluginRegistry = pluginRegistryService(db);
