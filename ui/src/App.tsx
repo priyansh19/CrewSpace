@@ -43,6 +43,7 @@ import { AgentChat } from "./pages/AgentChat";
 const Office = lazy(() => import("./pages/Office").then((m) => ({ default: m.Office })));
 import { Blockers } from "./pages/Blockers";
 import { CeoTerminal } from "./pages/CeoTerminal";
+import { SharedWorkspace } from "./pages/SharedWorkspace";
 import { TaskboardV2 } from "./pages/TaskboardV2";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
@@ -146,6 +147,7 @@ function boardRoutes() {
       <Route path="agent-chat" element={<AgentChat />} />
       <Route path="office" element={<Suspense fallback={null}><Office /></Suspense>} />
       <Route path="terminal" element={<CeoTerminal />} />
+      <Route path="workspace" element={<SharedWorkspace />} />
       <Route path="blockers" element={<Blockers />} />
       <Route path="taskboard" element={<TaskboardV2 />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />

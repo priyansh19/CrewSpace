@@ -153,4 +153,11 @@ export const queryKeys = {
     burndown: (sprintId: string) => ["sprints", "burndown", sprintId] as const,
     summary: (sprintId: string) => ["sprints", "summary", sprintId] as const,
   },
+  chatSessions: {
+    list: (companyId: string) => ["chat-sessions", companyId] as const,
+    detail: (id: string) => ["chat-sessions", "detail", id] as const,
+  },
+  sharedWorkspace: {
+    files: (companyId: string) => ["shared-workspace", "files", companyId] as const,
+  },
 };

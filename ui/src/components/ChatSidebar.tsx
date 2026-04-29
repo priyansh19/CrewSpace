@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentIcon } from "./AgentIconPicker";
 import { cn } from "@/lib/utils";
-import { useChat, type ChatSession } from "../context/ChatContext";
+import { useChat, type ChatSession, type ChatParticipant } from "../context/ChatContext";
 import { useCompany } from "../context/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../lib/queryKeys";
@@ -320,10 +320,11 @@ function ChatArea({
   session: ChatSession;
   allAgents: Agent[];
   companyId: string | undefined;
-  onUpdate: (messages: ChatMessage[], participants: Agent[]) => void;
+  onUpdate: (messages: ChatMessage[], participants: ChatParticipant[]) => void;
   onClose: () => void;
 }) {
   const { openNewIssue } = useDialog();
+  const { persistMessage } = useChat();
   const queryClient = useQueryClient();
   const isMountedRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -335,7 +336,7 @@ function ChatArea({
     };
   }, []);
 
-  const [participants, setParticipants] = useState<Agent[]>([]);
+  const [participants, setParticipants] = useState<ChatParticipant[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // Sync session data only when switching to a different session (not on every content change)
@@ -392,6 +393,7 @@ function ChatArea({
     const fullHistory: ChatMessage[] = [...messages, userMsg];
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    persistMessage(session.id, "user", text);
 
     abortRef.current = new AbortController();
     for (const agent of participants) {
@@ -406,7 +408,7 @@ function ChatArea({
 
       let finalContent = "";
       const streamResult = await streamAgentChat(
-        agent,
+        agent as unknown as Agent,
         fullHistory,
         companyId,
         abortRef.current.signal,
@@ -428,6 +430,7 @@ function ChatArea({
       }
 
       setTypingAgentId(null);
+      if (finalContent.trim()) persistMessage(session.id, "agent", finalContent, agent.id);
 
       // Save agent response as memory + task solution (non-blocking)
       if (finalContent.trim() && companyId && isMountedRef.current) {
@@ -560,7 +563,7 @@ function ChatArea({
           ))}
           <AddParticipantMenu
             allAgents={allAgents}
-            participants={participants}
+            participants={participants as unknown as Agent[]}
             onAdd={addParticipant}
           />
         </div>
@@ -750,7 +753,7 @@ export function ChatSidebar({ onClose }: { onClose?: () => void }) {
   );
 
   const handleUpdate = useCallback(
-    (messages: ChatMessage[], participants: Agent[]) => {
+    (messages: ChatMessage[], participants: ChatParticipant[]) => {
       if (activeSessionId) updateSession(activeSessionId, messages, participants);
     },
     [activeSessionId, updateSession],
