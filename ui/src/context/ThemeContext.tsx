@@ -17,8 +17,8 @@ interface ThemeContextValue {
 }
 
 const THEME_STORAGE_KEY = "crewspace.theme";
-const DARK_THEME_COLOR = "#0f172a";
-const LIGHT_THEME_COLOR = "#f8fafc";
+const DARK_THEME_COLOR = "#181715";
+const LIGHT_THEME_COLOR = "#faf9f5";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 function resolveThemeFromDocument(): Theme {

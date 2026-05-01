@@ -180,7 +180,7 @@ export function CompanyPatternIcon({
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center w-11 h-11 text-base font-semibold text-white overflow-hidden",
+        "relative flex items-center justify-center w-11 h-11 text-base font-semibold text-primary-foreground overflow-hidden",
         className,
       )}
     >
@@ -210,3 +210,4 @@ export function CompanyPatternIcon({
     </div>
   );
 }
+

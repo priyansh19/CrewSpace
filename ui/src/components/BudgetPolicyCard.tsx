@@ -23,7 +23,7 @@ function windowLabel(windowKind: BudgetPolicySummary["windowKind"]) {
 }
 
 function statusTone(status: BudgetPolicySummary["status"]) {
-  if (status === "hard_stop") return "text-red-300 border-red-500/30 bg-red-500/10";
+  if (status === "hard_stop") return "text-destructive border-destructive/30 bg-destructive/10";
   if (status === "warning") return "text-amber-200 border-amber-500/30 bg-amber-500/10";
   return "text-emerald-200 border-emerald-500/30 bg-emerald-500/10";
 }
@@ -74,14 +74,14 @@ export function BudgetPolicyCard({
     </div>
   ) : (
     <div className="grid gap-3 sm:grid-cols-2">
-      <div className="rounded-xl border border-border/70 bg-black/[0.18] px-4 py-3">
+      <div className="rounded-xl border border-border/70 bg-foreground/[0.18] px-4 py-3">
         <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Observed</div>
         <div className="mt-2 text-xl font-semibold tabular-nums">{formatCents(summary.observedAmount)}</div>
         <div className="mt-1 text-xs text-muted-foreground">
           {summary.amount > 0 ? `${summary.utilizationPercent}% of limit` : "No cap configured"}
         </div>
       </div>
-      <div className="rounded-xl border border-border/70 bg-black/[0.18] px-4 py-3">
+      <div className="rounded-xl border border-border/70 bg-foreground/[0.18] px-4 py-3">
         <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Budget</div>
         <div className="mt-2 text-xl font-semibold tabular-nums">
           {summary.amount > 0 ? formatCents(summary.amount) : "Disabled"}
@@ -116,7 +116,7 @@ export function BudgetPolicyCard({
   );
 
   const pausedPane = summary.paused ? (
-    <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+    <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       <PauseCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <div>
         {summary.scopeType === "project"
@@ -166,7 +166,7 @@ export function BudgetPolicyCard({
             className={cn(
               "inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em]",
               summary.status === "hard_stop"
-                ? "text-red-300"
+                ? "text-destructive"
                 : summary.status === "warning"
                   ? "text-amber-200"
                   : "text-muted-foreground",
@@ -217,3 +217,5 @@ export function BudgetPolicyCard({
     </Card>
   );
 }
+
+

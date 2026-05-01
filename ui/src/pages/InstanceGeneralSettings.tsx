@@ -86,13 +86,13 @@ export function InstanceGeneralSettings() {
             disabled={toggleMutation.isPending}
             className={cn(
               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-              censorUsernameInLogs ? "bg-green-600" : "bg-muted",
+              censorUsernameInLogs ? "bg-primary" : "bg-muted",
             )}
             onClick={() => toggleMutation.mutate(!censorUsernameInLogs)}
           >
             <span
               className={cn(
-                "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                "inline-block h-3.5 w-3.5 rounded-full bg-primary-foreground transition-transform",
                 censorUsernameInLogs ? "translate-x-4.5" : "translate-x-0.5",
               )}
             />
@@ -102,3 +102,4 @@ export function InstanceGeneralSettings() {
     </div>
   );
 }
+

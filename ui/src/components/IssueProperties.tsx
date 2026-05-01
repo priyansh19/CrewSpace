@@ -128,7 +128,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [labelSearch, setLabelSearch] = useState("");
   const [newLabelName, setNewLabelName] = useState("");
-  const [newLabelColor, setNewLabelColor] = useState("#6366f1");
+  const [newLabelColor, setNewLabelColor] = useState("#cc785c");
 
   const { data: session } = useQuery({
     queryKey: queryKeys.auth.session,
@@ -411,7 +411,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
     <>
       <span
         className="shrink-0 h-3 w-3 rounded-sm"
-        style={{ backgroundColor: orderedProjects.find((p) => p.id === issue.projectId)?.color ?? "#6366f1" }}
+        style={{ backgroundColor: orderedProjects.find((p) => p.id === issue.projectId)?.color ?? "#cc785c" }}
       />
       <span className="text-sm truncate">{projectName(issue.projectId)}</span>
     </>
@@ -479,7 +479,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
           >
             <span
               className="shrink-0 h-3 w-3 rounded-sm"
-              style={{ backgroundColor: p.color ?? "#6366f1" }}
+              style={{ backgroundColor: p.color ?? "#cc785c" }}
             />
             {p.name}
           </button>
@@ -618,3 +618,4 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
     </div>
   );
 }
+

@@ -105,10 +105,10 @@ export function RunActivityChart({ runs }: { runs: HeartbeatRun[] }) {
 }
 
 const priorityColors: Record<string, string> = {
-  critical: "#ef4444",
-  high: "#f97316",
-  medium: "#eab308",
-  low: "#6b7280",
+  critical: "#c64545",
+  high: "#cc785c",
+  medium: "#d4a017",
+  low: "#8e8b82",
 };
 
 const priorityOrder = ["critical", "high", "medium", "low"] as const;
@@ -158,13 +158,13 @@ export function PriorityChart({ issues }: { issues: { priority: string; createdA
 }
 
 const statusColors: Record<string, string> = {
-  todo: "#3b82f6",
-  in_progress: "#8b5cf6",
-  in_review: "#a855f7",
-  done: "#10b981",
-  blocked: "#ef4444",
-  cancelled: "#6b7280",
-  backlog: "#64748b",
+  todo: "#5db8a6",
+  in_progress: "#cc785c",
+  in_review: "#a78bfa",
+  done: "#5db872",
+  blocked: "#c64545",
+  cancelled: "#8e8b82",
+  backlog: "#6c6a64",
 };
 
 const statusLabels: Record<string, string> = {
@@ -245,7 +245,7 @@ export function SuccessRateChart({ runs }: { runs: HeartbeatRun[] }) {
         {days.map(day => {
           const entry = grouped.get(day)!;
           const rate = entry.total > 0 ? entry.succeeded / entry.total : 0;
-          const color = entry.total === 0 ? undefined : rate >= 0.8 ? "#10b981" : rate >= 0.5 ? "#eab308" : "#ef4444";
+          const color = entry.total === 0 ? undefined : rate >= 0.8 ? "#5db872" : rate >= 0.5 ? "#d4a017" : "#c64545";
           return (
             <div key={day} className="flex-1 h-full flex flex-col justify-end" title={`${day}: ${entry.total > 0 ? Math.round(rate * 100) : 0}% (${entry.succeeded}/${entry.total})`}>
               {entry.total > 0 ? (

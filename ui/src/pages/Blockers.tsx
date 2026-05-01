@@ -25,10 +25,10 @@ function timeAgo(dateStr: string | Date | null | undefined): string {
 
 function priorityDot(priority: string) {
   const map: Record<string, string> = {
-    critical: "bg-red-500",
-    high: "bg-orange-500",
-    medium: "bg-yellow-500",
-    low: "bg-blue-400",
+    critical: "bg-destructive",
+    high: "bg-primary",
+    medium: "bg-muted-foreground",
+    low: "bg-border",
   };
   return map[priority] ?? "bg-muted-foreground";
 }
@@ -51,8 +51,8 @@ function BlockedIssueCard({
       className={cn(
         "group flex flex-col gap-2 rounded-lg border p-3.5 transition-colors cursor-pointer",
         selected
-          ? "border-red-400 dark:border-red-700 bg-red-100 dark:bg-red-950/40"
-          : "border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 hover:border-red-300 dark:hover:border-red-800",
+          ? "border-destructive bg-destructive/10"
+          : "border-destructive/30 bg-destructive/5 hover:border-destructive/50",
       )}
       onClick={onToggleSelect}
     >
@@ -62,7 +62,7 @@ function BlockedIssueCard({
           checked={selected}
           onChange={onToggleSelect}
           onClick={(e) => e.stopPropagation()}
-          className="mt-1 shrink-0 accent-red-500"
+          className="mt-1 shrink-0 accent-destructive"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
@@ -95,7 +95,7 @@ function BlockedIssueCard({
           )}
         </div>
         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="outline" className="h-6 text-[11px] px-2 gap-1 border-red-200 dark:border-red-900" onClick={onUnblock}>
+          <Button size="sm" variant="outline" className="h-6 text-[11px] px-2 gap-1 border-destructive/30" onClick={onUnblock}>
             <RotateCcw className="h-3 w-3" />
             Set to Todo
           </Button>
@@ -148,8 +148,8 @@ function FailedRunCard({
       className={cn(
         "group flex flex-col gap-2 rounded-lg border p-3.5 transition-colors cursor-pointer",
         selected
-          ? "border-orange-400 dark:border-orange-700 bg-orange-100 dark:bg-orange-950/40"
-          : "border-orange-200 dark:border-orange-900/40 bg-orange-50 dark:bg-orange-950/20 hover:border-orange-300 dark:hover:border-orange-800",
+          ? "border-destructive bg-destructive/10"
+          : "border-destructive/30 bg-destructive/5 hover:border-destructive/50",
       )}
       onClick={onToggleSelect}
     >
@@ -159,12 +159,12 @@ function FailedRunCard({
           checked={selected}
           onChange={onToggleSelect}
           onClick={(e) => e.stopPropagation()}
-          className="mt-1 shrink-0 accent-orange-500"
+          className="mt-1 shrink-0 accent-destructive"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-xs font-medium text-foreground">{run.agentName ?? "Agent"}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-destructive/10 text-destructive">
               {statusLabel[run.status] ?? run.status}
             </span>
           </div>
@@ -172,7 +172,7 @@ function FailedRunCard({
             {run.triggerDetail ?? run.invocationSource}
           </p>
           {errorText && (
-            <p className="mt-1.5 text-[11px] font-mono text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded px-2 py-1 line-clamp-2 leading-relaxed">
+            <p className="mt-1.5 text-[11px] font-mono text-destructive bg-destructive/5 rounded px-2 py-1 line-clamp-2 leading-relaxed">
               {errorText.slice(0, 200)}
             </p>
           )}
@@ -224,7 +224,7 @@ function SelectionBar({
         <Button
           size="sm"
           variant="default"
-          className="gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white"
+          className="gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
           onClick={onMarkDone}
           disabled={isLoading}
         >
@@ -344,7 +344,7 @@ export function Blockers() {
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b border-border shrink-0">
-        <ShieldAlert className="h-5 w-5 text-red-500" />
+        <ShieldAlert className="h-5 w-5 text-destructive" />
         <div>
           <h1 className="text-base font-semibold text-foreground">Alerts</h1>
           <p className="text-xs text-muted-foreground">Blocked issues and failed agent runs needing attention</p>
@@ -372,8 +372,8 @@ export function Blockers() {
           </div>
         ) : isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-20">
-            <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <ShieldAlert className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <ShieldAlert className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">No blockers right now</p>
@@ -386,7 +386,7 @@ export function Blockers() {
             <section className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-foreground">Blocked Issues</h2>
-                <span className="text-[10px] bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-full px-2 py-0.5 tabular-nums font-medium">
+                <span className="text-[10px] bg-destructive/10 text-destructive rounded-full px-2 py-0.5 tabular-nums font-medium">
                   {blockedIssues.length}
                 </span>
                 {blockedIssues.length > 0 && (
@@ -427,7 +427,7 @@ export function Blockers() {
             <section className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-foreground">Failed Agent Runs</h2>
-                <span className="text-[10px] bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 rounded-full px-2 py-0.5 tabular-nums font-medium">
+                <span className="text-[10px] bg-destructive/10 text-destructive rounded-full px-2 py-0.5 tabular-nums font-medium">
                   {failedRuns.length}
                 </span>
                 {failedRuns.length > 0 && (

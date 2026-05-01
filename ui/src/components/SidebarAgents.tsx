@@ -131,7 +131,7 @@ export function SidebarAgents() {
                     {runCount > 0 ? (
                       <span className="relative flex h-2 w-2">
                         <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
                       </span>
                     ) : null}
                     {runCount > 0 ? (
@@ -165,3 +165,4 @@ export function SidebarAgents() {
     </Collapsible>
   );
 }
+

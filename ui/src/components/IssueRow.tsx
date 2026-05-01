@@ -116,7 +116,7 @@ export const IssueRow = memo(function IssueRow({
               }}
               className={cn(
                 "inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors",
-                selected ? "hover:bg-muted/80" : "hover:bg-blue-500/20",
+                selected ? "hover:bg-muted/80" : "hover:bg-primary/20",
               )}
               aria-label="Mark as read"
             >
@@ -156,3 +156,4 @@ export const IssueRow = memo(function IssueRow({
     </Link>
   );
 });
+

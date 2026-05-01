@@ -130,14 +130,14 @@ const adapterLabels: Record<string, string> = {
 };
 
 const statusDotColor: Record<string, string> = {
-  running: "#22d3ee",
-  active: "#4ade80",
-  paused: "#facc15",
-  idle: "#facc15",
-  error: "#f87171",
-  terminated: "#a3a3a3",
+  running: "var(--chart-2)",
+  active: "var(--chart-3)",
+  paused: "var(--chart-5)",
+  idle: "var(--chart-5)",
+  error: "var(--destructive)",
+  terminated: "var(--muted-foreground)",
 };
-const defaultDotColor = "#a3a3a3";
+const defaultDotColor = "var(--muted-foreground)";
 
 // ── Main component ──────────────────────────────────────────────────────
 

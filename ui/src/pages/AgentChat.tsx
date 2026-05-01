@@ -325,15 +325,15 @@ function MessageAttachments({ attachments }: { attachments?: ChatAttachment[] })
       {attachments.map((att) => (
         att.type === "image" ? (
           <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer"
-            className="relative rounded-xl overflow-hidden border border-border/40 hover:border-primary/50 transition-colors group/img">
+            className="relative rounded-lg overflow-hidden border border-border/40 hover:border-primary/50 transition-colors group/img">
             <img src={att.url} alt={att.name} className="max-h-48 w-full object-cover" />
-            <span className="absolute bottom-1.5 left-1.5 text-[10px] text-white/90 bg-black/40 px-1.5 py-0.5 rounded-md opacity-0 group-hover/img:opacity-100 transition-opacity">
+            <span className="absolute bottom-1.5 left-1.5 text-[10px] text-primary-foreground/90 bg-foreground/40 px-1.5 py-0.5 rounded-md opacity-0 group-hover/img:opacity-100 transition-opacity">
               {att.name}
             </span>
           </a>
         ) : (
           <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" download={att.name}
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/40 bg-background/60 hover:bg-accent/40 hover:border-primary/30 transition-colors">
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border/40 bg-background/60 hover:bg-accent/40 hover:border-primary/30 transition-colors">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Paperclip className="h-4 w-4 text-primary" />
             </div>
@@ -821,7 +821,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
 function EmptyChat({ onNewChat }: { onNewChat: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center flex-1 gap-5 text-center px-6">
-      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
         <MessageCircle className="h-8 w-8 text-muted-foreground/40" />
       </div>
       <div>
@@ -955,3 +955,4 @@ export function AgentChat() {
     </div>
   );
 }
+

@@ -409,7 +409,7 @@ function ProjectWorkspacesContent({
   return (
     <>
       <div className="space-y-4">
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
           {activeSummaries.map(renderSummaryRow)}
         </div>
         {cleanupFailedSummaries.length > 0 ? (
@@ -417,7 +417,7 @@ function ProjectWorkspacesContent({
             <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Cleanup attention needed
             </div>
-            <div className="overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5">
+            <div className="overflow-hidden rounded-lg border border-border bg-accent">
               {cleanupFailedSummaries.map(renderSummaryRow)}
             </div>
           </div>
@@ -802,7 +802,7 @@ export function ProjectDetail() {
       <div className="flex items-start gap-3">
         <div className="h-7 flex items-center">
           <ColorPicker
-            currentColor={project.color ?? "#6366f1"}
+            currentColor={project.color ?? "var(--primary)"}
             onSelect={(color) => updateProject.mutate({ color })}
           />
         </div>
@@ -814,8 +814,8 @@ export function ProjectDetail() {
             className="text-xl font-bold"
           />
           {project.pauseReason === "budget" ? (
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-200">
-              <span className="h-2 w-2 rounded-full bg-red-400" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-destructive">
+              <span className="h-2 w-2 rounded-full bg-destructive" />
               Paused by budget hard stop
             </div>
           ) : null}

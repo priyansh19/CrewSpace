@@ -737,9 +737,9 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                           className={cn(
                             "rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide",
                             service.status === "running"
-                              ? "bg-green-500/15 text-green-700 dark:text-green-300"
+                              ? "bg-success/15 text-success dark:text-success"
                               : service.status === "failed"
-                                ? "bg-red-500/15 text-red-700 dark:text-red-300"
+                                ? "bg-destructive/15 text-destructive dark:text-destructive"
                                 : "bg-muted text-muted-foreground",
                           )}
                         >
@@ -901,7 +901,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                     >
                       <span
                         className={cn(
-                          "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                          "inline-block h-3.5 w-3.5 rounded-full bg-primary-foreground transition-transform",
                           executionWorkspacesEnabled ? "translate-x-4.5" : "translate-x-0.5",
                         )}
                       />
@@ -945,7 +945,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                       >
                         <span
                           className={cn(
-                            "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                            "inline-block h-3.5 w-3.5 rounded-full bg-primary-foreground transition-transform",
                             executionWorkspaceDefaultMode === "isolated_workspace"
                               ? "translate-x-4.5"
                               : "translate-x-0.5",
@@ -1124,3 +1124,5 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
     </div>
   );
 }
+
+

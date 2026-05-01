@@ -231,7 +231,7 @@ export function Routines() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
             Routines
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Beta</span>
+            <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-foreground">Beta</span>
           </h1>
           <p className="text-sm text-muted-foreground">
             Recurring work definitions that materialize into auditable execution issues.
@@ -374,7 +374,7 @@ export function Routines() {
                         <>
                           <span
                             className="h-3.5 w-3.5 shrink-0 rounded-sm"
-                            style={{ backgroundColor: currentProject.color ?? "#64748b" }}
+                            style={{ backgroundColor: currentProject.color ?? "var(--muted-foreground)" }}
                           />
                           <span className="truncate">{option.label}</span>
                         </>
@@ -389,7 +389,7 @@ export function Routines() {
                         <>
                           <span
                             className="h-3.5 w-3.5 shrink-0 rounded-sm"
-                            style={{ backgroundColor: project?.color ?? "#64748b" }}
+                            style={{ backgroundColor: project?.color ?? "var(--muted-foreground)" }}
                           />
                           <span className="truncate">{option.label}</span>
                         </>
@@ -551,7 +551,7 @@ export function Routines() {
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span
                               className="shrink-0 h-3 w-3 rounded-sm"
-                              style={{ backgroundColor: projectById.get(routine.projectId)?.color ?? "#6366f1" }}
+                              style={{ backgroundColor: projectById.get(routine.projectId)?.color ?? "var(--primary)" }}
                             />
                             <span className="truncate">{projectById.get(routine.projectId)?.name ?? "Unknown"}</span>
                           </div>

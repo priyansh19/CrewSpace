@@ -86,7 +86,7 @@ function SortableProjectItem({
         >
           <span
             className="shrink-0 h-3.5 w-3.5 rounded-sm"
-            style={{ backgroundColor: project.color ?? "#6366f1" }}
+            style={{ backgroundColor: project.color ?? "#cc785c" }}
           />
           <span className="flex-1 truncate">{project.name}</span>
           {project.pauseReason === "budget" ? <BudgetSidebarMarker title="Project paused by budget" /> : null}
@@ -232,3 +232,4 @@ export function SidebarProjects() {
     </Collapsible>
   );
 }
+

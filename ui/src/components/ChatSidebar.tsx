@@ -325,7 +325,7 @@ function CopyMessageButton({ text }: { text: string }) {
       className="flex items-center gap-1 px-1 py-0.5 rounded text-[9px] font-medium transition-all opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-accent"
       title="Copy"
     >
-      {copied ? <CheckCheck className="h-2.5 w-2.5 text-green-500" /> : <Copy className="h-2.5 w-2.5" />}
+      {copied ? <CheckCheck className="h-2.5 w-2.5 text-success" /> : <Copy className="h-2.5 w-2.5" />}
     </button>
   );
 }

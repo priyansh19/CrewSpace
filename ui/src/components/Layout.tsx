@@ -284,7 +284,7 @@ export function Layout() {
         {isMobile && sidebarOpen && (
           <button
             type="button"
-            className="fixed inset-0 z-40 bg-black/50"
+            className="fixed inset-0 z-40 bg-foreground/50"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close sidebar"
           />
@@ -442,3 +442,4 @@ export function Layout() {
     </ChatProvider>
   );
 }
+

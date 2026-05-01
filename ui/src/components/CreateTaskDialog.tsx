@@ -17,9 +17,9 @@ const STATUSES = [
 ];
 
 const PRIORITIES = [
-  { value: "critical", label: "! Critical", color: "text-red-500" },
-  { value: "high", label: "↑ High", color: "text-orange-500" },
-  { value: "medium", label: "– Medium", color: "text-yellow-500" },
+  { value: "critical", label: "! Critical", color: "text-destructive" },
+  { value: "high", label: "↑ High", color: "text-primary" },
+  { value: "medium", label: "– Medium", color: "text-warning" },
   { value: "low", label: "↓ Low", color: "text-blue-400" },
 ];
 
@@ -86,7 +86,7 @@ export function CreateTaskDialog({ companyId, defaultStatus = "backlog", default
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-foreground/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
@@ -195,7 +195,7 @@ export function CreateTaskDialog({ companyId, defaultStatus = "backlog", default
 
           {/* Error */}
           {createMutation.isError && (
-            <p className="text-xs text-red-500">Failed to create task. Please try again.</p>
+            <p className="text-xs text-destructive">Failed to create task. Please try again.</p>
           )}
 
           {/* Actions */}
@@ -220,3 +220,5 @@ export function CreateTaskDialog({ companyId, defaultStatus = "backlog", default
     </div>
   );
 }
+
+

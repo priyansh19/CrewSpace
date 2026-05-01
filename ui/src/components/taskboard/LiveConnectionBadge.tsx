@@ -24,7 +24,7 @@ export function LiveConnectionBadge() {
         <span
           className={cn(
             "relative inline-flex rounded-full h-2 w-2",
-            online ? "bg-green-500" : "bg-red-500",
+            online ? "bg-success" : "bg-destructive",
           )}
         />
       </span>
@@ -40,3 +40,4 @@ export function LiveConnectionBadge() {
     </div>
   );
 }
+

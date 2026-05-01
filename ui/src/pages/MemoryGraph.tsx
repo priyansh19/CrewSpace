@@ -918,7 +918,7 @@ function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, 
         </header>
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="rounded-full px-2.5 py-1 text-[10px] font-medium capitalize text-white"
+            <span className="rounded-full px-2.5 py-1 text-[10px] font-medium capitalize text-primary-foreground"
               style={{ background: typeColor(mem.memoryType) }}>{mem.memoryType}</span>
             {ownerAgent && (
               <button onClick={() => onSelectNode(ownerAgent.id)}
@@ -977,7 +977,7 @@ function AddMemoryModal({ onClose, onAdd }: {
   const [content, setContent] = useState("");
   const [memoryType, setMemoryType] = useState("fact");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60" onClick={onClose}>
       <div className="bg-background border border-border rounded-xl shadow-2xl w-[480px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Add Memory Node</h2>
@@ -990,7 +990,7 @@ function AddMemoryModal({ onClose, onAdd }: {
           {MEMORY_TYPES.map((t) => (
             <button key={t} onClick={() => setMemoryType(t)}
               className={cn("px-2.5 py-1 text-[11px] font-medium rounded-full border capitalize transition-colors",
-                memoryType === t ? "text-white border-transparent" : "border-border text-muted-foreground hover:border-foreground/30")}
+                memoryType === t ? "text-primary-foreground border-transparent" : "border-border text-muted-foreground hover:border-foreground/30")}
               style={memoryType === t ? { background: typeColor(t) } : {}}>{t}</button>
           ))}
         </div>
@@ -1012,7 +1012,7 @@ function LinkModal({ sourceMemory, memories, onClose, onLink }: {
 }) {
   const [targetId, setTargetId] = useState(""); const [relType, setRelType] = useState("related_to"); const [label, setLabel] = useState("");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60" onClick={onClose}>
       <div className="bg-background border border-border rounded-xl shadow-2xl w-[420px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Link Memory</h2>
@@ -1250,3 +1250,4 @@ export function MemoryGraph() {
     </div>
   );
 }
+

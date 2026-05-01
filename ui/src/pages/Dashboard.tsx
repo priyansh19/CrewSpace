@@ -39,12 +39,12 @@ const APPROVAL_TYPE_LABELS: Record<string, string> = {
 };
 
 const RUN_STATUS_COLORS: Record<string, string> = {
-  running: "#3b82f6",
-  succeeded: "#22c55e",
-  failed: "#ef4444",
-  cancelled: "#94a3b8",
-  timed_out: "#f59e0b",
-  queued: "#8b5cf6",
+  running: "#5db8a6",
+  succeeded: "#5db872",
+  failed: "#c64545",
+  cancelled: "#8e8b82",
+  timed_out: "#d4a017",
+  queued: "#a78bfa",
 };
 
 /** Build workflow execution timeline data from runs */
@@ -407,16 +407,16 @@ export function Dashboard() {
       {error && <p className="text-sm text-destructive">{error.message}</p>}
 
       {hasNoAgents && (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/25 dark:bg-amber-950/60">
+        <div className="flex items-center justify-between gap-3 rounded-md border border-chart-5/20 bg-chart-5/10 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <Bot className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <p className="text-sm text-amber-900 dark:text-amber-100">
+            <Bot className="h-4 w-4 text-chart-5 shrink-0" />
+            <p className="text-sm text-foreground">
               You have no agents.
             </p>
           </div>
           <button
             onClick={() => openOnboarding({ initialStep: 2, companyId: selectedCompanyId! })}
-            className="text-sm font-medium text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100 underline underline-offset-2 shrink-0"
+            className="text-sm font-medium text-chart-5 hover:text-chart-5/80 underline underline-offset-2 shrink-0"
           >
             Create one here
           </button>
@@ -428,19 +428,19 @@ export function Dashboard() {
       {data && (
         <>
           {data.budgets.activeIncidents > 0 ? (
-            <div className="flex items-start justify-between gap-3 rounded-xl border border-red-500/20 bg-[linear-gradient(180deg,rgba(255,80,80,0.12),rgba(255,255,255,0.02))] px-4 py-3">
+            <div className="flex items-start justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3">
               <div className="flex items-start gap-2.5">
-                <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+                <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                 <div>
-                  <p className="text-sm font-medium text-red-50">
+                  <p className="text-sm font-medium text-destructive">
                     {data.budgets.activeIncidents} active budget incident{data.budgets.activeIncidents === 1 ? "" : "s"}
                   </p>
-                  <p className="text-xs text-red-100/70">
+                  <p className="text-xs text-destructive/70">
                     {data.budgets.pausedAgents} agents paused · {data.budgets.pausedProjects} projects paused · {data.budgets.pendingApprovals} pending budget approvals
                   </p>
                 </div>
               </div>
-              <Link to="/costs" className="text-sm underline underline-offset-2 text-red-100">
+              <Link to="/costs" className="text-sm underline underline-offset-2 text-destructive">
                 Open budgets
               </Link>
             </div>
@@ -524,8 +524,8 @@ export function Dashboard() {
                 <span className="text-xs font-normal normal-case text-muted-foreground/60">· last 24h</span>
               </h3>
               {(runs ?? []).filter((r) => r.status === "running").length > 0 && (
-                <span className="flex items-center gap-1 text-xs text-blue-500 font-medium">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                <span className="flex items-center gap-1 text-xs text-chart-2 font-medium">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-chart-2 animate-pulse" />
                   {(runs ?? []).filter((r) => r.status === "running").length} live
                 </span>
               )}
@@ -559,7 +559,7 @@ export function Dashboard() {
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Pending Approvals
-                  <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold px-1.5 py-px min-w-[18px]">
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full bg-chart-5/15 text-chart-5 text-xs font-semibold px-1.5 py-px min-w-[18px]">
                     {pendingApprovals!.length}
                   </span>
                 </h3>
@@ -575,7 +575,7 @@ export function Dashboard() {
                   return (
                     <div key={approval.id} className="flex items-start gap-3 px-4 py-3 bg-card hover:bg-accent/30 transition-colors">
                       <div className="mt-0.5 flex-shrink-0">
-                        <Clock className="h-4 w-4 text-amber-500" />
+                        <Clock className="h-4 w-4 text-chart-5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -610,7 +610,7 @@ export function Dashboard() {
                           disabled={isApproving || isRejecting}
                           className={cn(
                             "flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors",
-                            "bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20",
+                            "bg-chart-3/10 text-chart-3 hover:bg-chart-3/20",
                             (isApproving || isRejecting) && "opacity-50 pointer-events-none"
                           )}
                         >
@@ -622,7 +622,7 @@ export function Dashboard() {
                           disabled={isApproving || isRejecting}
                           className={cn(
                             "flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors",
-                            "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20",
+                            "bg-destructive/10 text-destructive hover:bg-destructive/20",
                             (isApproving || isRejecting) && "opacity-50 pointer-events-none"
                           )}
                         >

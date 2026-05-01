@@ -141,7 +141,7 @@ export function AgentAvatar({
       style={{ backgroundColor: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)` }}
     >
       <span
-        className={cn("font-bold text-white select-none", TEXT_SIZE[size])}
+        className={cn("font-bold text-primary-foreground select-none", TEXT_SIZE[size])}
         style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
       >
         {initial}
@@ -149,3 +149,4 @@ export function AgentAvatar({
     </div>
   );
 }
+
