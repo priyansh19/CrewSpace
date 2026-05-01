@@ -818,12 +818,14 @@ export function AgentDetail() {
     <div className={cn("space-y-6", isMobile && showConfigActionBar && "pb-24")}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-4 min-w-0">
           <AgentIconPicker
             value={agent.icon}
             onChange={(icon) => updateIcon.mutate(icon)}
           >
-            <AgentAvatar agent={agent} size="md" className="shrink-0" />
+            <div className="bg-card rounded-2xl p-2 shadow-sm border border-border/40 cursor-pointer hover:border-primary/40 transition-colors">
+              <AgentAvatar agent={agent} size="xxl" variant="square" className="shrink-0" />
+            </div>
           </AgentIconPicker>
           <div className="min-w-0">
             <h2 className="text-2xl font-bold truncate">{agent.name}</h2>

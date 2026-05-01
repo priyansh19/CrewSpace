@@ -158,6 +158,11 @@ export const queryKeys = {
     detail: (id: string) => ["chat-sessions", "detail", id] as const,
   },
   sharedWorkspace: {
-    files: (companyId: string) => ["shared-workspace", "files", companyId] as const,
+    files: (companyId: string, projectId?: string) =>
+      projectId
+        ? (["shared-workspace", "files", companyId, projectId] as const)
+        : (["shared-workspace", "files", companyId] as const),
+    permissions: (companyId: string, projectId: string) =>
+      ["shared-workspace", "permissions", companyId, projectId] as const,
   },
 };

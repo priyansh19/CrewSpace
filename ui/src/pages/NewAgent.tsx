@@ -111,12 +111,16 @@ export function NewAgent() {
     ]);
   }, [setBreadcrumbs]);
 
+  // Auto-suggest a cool name when the page loads or agents data changes,
+  // but only if the user hasn't manually typed anything yet.
   useEffect(() => {
-    if (isFirstAgent) {
-      if (!name) setName(suggestAgentName((agents ?? []).map((a) => a.name), true));
-      if (!title) setTitle("CEO");
+    if (name === "" && agents !== undefined) {
+      setName(suggestAgentName(agents.map((a) => a.name), isFirstAgent));
     }
-  }, [isFirstAgent]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isFirstAgent && title === "") {
+      setTitle("CEO");
+    }
+  }, [agents, isFirstAgent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const requested = presetAdapterType;

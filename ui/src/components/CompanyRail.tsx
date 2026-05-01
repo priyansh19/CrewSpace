@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, PanelLeftClose } from "lucide-react";
-import { AttachIcon, CrewSpaceIcon } from "@/lib/icons";
+import { AttachIcon } from "@/lib/icons";
 import { useQueries } from "@tanstack/react-query";
 import {
   DndContext,
@@ -282,7 +282,7 @@ export function CompanyRail() {
         >
           <PanelLeftClose className="h-4 w-4" />
         </button>
-        <CrewSpaceIcon className="h-5 w-5 text-foreground" />
+        <div className="w-5" />
       </div>
 
       {/* Company list */}

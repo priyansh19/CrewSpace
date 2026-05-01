@@ -1301,7 +1301,7 @@ export function CompanyImport() {
 
           {/* Warnings */}
           {importPreview.warnings.length > 0 && (
-            <div className="mx-5 mt-3 rounded-lg border border-primary/30 bg-amber-500/5 px-4 py-3">
+            <div className="mx-5 mt-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
               {importPreview.warnings.map((w) => (
                 <div key={w} className="text-xs text-primary">{w}</div>
               ))}

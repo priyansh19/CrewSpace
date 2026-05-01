@@ -119,7 +119,7 @@ export function InstanceExperimentalSettings() {
             disabled={toggleMutation.isPending}
             className={cn(
               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-              autoRestartDevServerWhenIdle ? "bg-green-600" : "bg-muted",
+              autoRestartDevServerWhenIdle ? "bg-primary" : "bg-muted",
             )}
             onClick={() =>
               toggleMutation.mutate({ autoRestartDevServerWhenIdle: !autoRestartDevServerWhenIdle })

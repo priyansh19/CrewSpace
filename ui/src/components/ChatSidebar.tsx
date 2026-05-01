@@ -654,7 +654,7 @@ function ChatArea ({
               </div>
             </div>
           );
-        })},
+        })}
 
         {/* Typing indicator */}
         {typingAgentId &&

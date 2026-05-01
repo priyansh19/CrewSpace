@@ -139,6 +139,8 @@ export type {
 export type { LiveEvent } from "./live.js";
 export type { DashboardSummary } from "./dashboard.js";
 export type { ActivityEvent } from "./activity.js";
+export type { SharedWorkspaceFile, SharedWorkspacePermission, WorkspaceFileListItem } from "./shared-workspace.js";
+export type { ProjectGithubRepo, ProjectRepoPermission, GithubConnectRequest, GithubAgentPermissionUpdate, GithubRepoSummary } from "./github-integration.js";
 export type { SidebarBadges } from "./sidebar-badges.js";
 export type {
   CompanyMembership,

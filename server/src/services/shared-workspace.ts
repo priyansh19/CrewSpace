@@ -22,14 +22,20 @@ export type WorkspaceFile = {
 
 export function sharedWorkspaceService(baseDir: string) {
   return {
-    async list(): Promise<WorkspaceFile[]> {
-      await fs.mkdir(baseDir, { recursive: true });
-      const entries = await fs.readdir(baseDir, { withFileTypes: true });
+    async list(projectDir?: string): Promise<WorkspaceFile[]> {
+      const dir = projectDir ? path.join(baseDir, projectDir) : baseDir;
+      await fs.mkdir(dir, { recursive: true });
+      const entries = await fs.readdir(dir, { withFileTypes: true });
       const files: WorkspaceFile[] = [];
       for (const entry of entries) {
         if (!entry.isFile()) continue;
-        const stat = await fs.stat(path.join(baseDir, entry.name));
-        files.push({ name: entry.name, path: entry.name, sizeBytes: stat.size, modifiedAt: stat.mtime });
+        const stat = await fs.stat(path.join(dir, entry.name));
+        files.push({
+          name: entry.name,
+          path: projectDir ? `${projectDir}/${entry.name}` : entry.name,
+          sizeBytes: stat.size,
+          modifiedAt: stat.mtime,
+        });
       }
       return files.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
     },

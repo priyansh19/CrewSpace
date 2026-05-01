@@ -221,7 +221,8 @@ export function ChatHistoryPanel({
       ) : (
         <div
           className="bg-card border border-border rounded-xl overflow-hidden"
-          style={{ width: HISTORY_W, animation: "chatPanelIn 0.15s cubic-bezier(0.16,1,0.3,1) both" }}
+          style={{ width: HISTORY_W }}
+      data-chat-panel-mount=""
         >
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-border select-none">
@@ -510,8 +511,8 @@ export function AgentChatPanel({
         top: pos.y,
         width: PANEL_W,
         height: PANEL_H,
-        animation: "chatPanelIn 0.2s cubic-bezier(0.16,1,0.3,1) both",
       }}
+      data-chat-panel-mount=""
     >
       {/* ── Drag handle / header ── */}
       <div

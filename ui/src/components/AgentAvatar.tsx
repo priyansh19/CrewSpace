@@ -4,7 +4,7 @@ import { adventurer } from "@dicebear/collection";
 import { cn } from "@/lib/utils";
 import { getAgentIcon } from "../lib/agent-icons";
 
-export type AgentAvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type AgentAvatarSize = "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
 
 interface AgentLike {
   id: string;
@@ -18,6 +18,7 @@ interface AgentAvatarProps {
   animate?: boolean;
   className?: string;
   fallbackIcon?: string | null;
+  variant?: "circle" | "square";
 }
 
 const SIZE_PX: Record<AgentAvatarSize, number> = {
@@ -26,6 +27,7 @@ const SIZE_PX: Record<AgentAvatarSize, number> = {
   md: 128,
   lg: 192,
   xl: 256,
+  xxl: 320,
 };
 
 const CONTAINER_SIZE: Record<AgentAvatarSize, string> = {
@@ -34,6 +36,7 @@ const CONTAINER_SIZE: Record<AgentAvatarSize, string> = {
   md: "h-11 w-11",
   lg: "h-14 w-14",
   xl: "h-20 w-20",
+  xxl: "h-24 w-24",
 };
 
 const TEXT_SIZE: Record<AgentAvatarSize, string> = {
@@ -42,6 +45,7 @@ const TEXT_SIZE: Record<AgentAvatarSize, string> = {
   md: "text-sm",
   lg: "text-base",
   xl: "text-lg",
+  xxl: "text-xl",
 };
 
 /** Deterministic HSL color from a string seed. */
@@ -57,6 +61,14 @@ function seedToHsl(seed: string): { h: number; s: number; l: number } {
   return { h, s, l };
 }
 
+function svgToBase64DataUri(svg: string): string {
+  // Modern replacement for deprecated btoa(unescape(encodeURIComponent(...)))
+  const bytes = new TextEncoder().encode(svg);
+  const bin = Array.from(bytes, (b) => String.fromCharCode(b)).join("");
+  const base64 = btoa(bin);
+  return `data:image/svg+xml;base64,${base64}`;
+}
+
 /** Generate a dicebear avatar as a base64 data URI. Returns null on failure. */
 export function tryDicebearDataUri(seed: string, sizePx: number): string | null {
   try {
@@ -66,8 +78,7 @@ export function tryDicebearDataUri(seed: string, sizePx: number): string | null 
       backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
     });
     const svg = avatar.toString();
-    const base64 = btoa(unescape(encodeURIComponent(svg)));
-    return `data:image/svg+xml;base64,${base64}`;
+    return svgToBase64DataUri(svg);
   } catch {
     return null;
   }
@@ -79,6 +90,7 @@ export function AgentAvatar({
   animate = true,
   className,
   fallbackIcon,
+  variant = "circle",
 }: AgentAvatarProps) {
   const seed = agent?.icon || agent?.id || agent?.name || "unknown";
   const initial = (agent?.name?.trim()?.charAt(0) || "?").toUpperCase();
@@ -94,7 +106,8 @@ export function AgentAvatar({
     return (
       <div
         className={cn(
-          "rounded-full bg-muted flex items-center justify-center overflow-hidden",
+          "bg-muted flex items-center justify-center overflow-hidden",
+          variant === "circle" ? "rounded-full" : "rounded-xl",
           CONTAINER_SIZE[size],
           className,
         )}
@@ -108,8 +121,9 @@ export function AgentAvatar({
     return (
       <div
         className={cn(
-          "rounded-full flex items-center justify-center overflow-hidden shrink-0",
+          "flex items-center justify-center overflow-hidden shrink-0",
           "bg-background/60 border border-border/50",
+          variant === "circle" ? "rounded-full" : "rounded-xl",
           CONTAINER_SIZE[size],
           animate && "agent-avatar-animated",
           className,
@@ -127,12 +141,34 @@ export function AgentAvatar({
     );
   }
 
-  // Fallback: deterministic colored initial circle
+  // Fallback: show the agent's chosen Lucide icon if available,
+  // otherwise a deterministic colored initial circle.
+  const FallbackIcon = getAgentIcon(agent.icon);
+  if (agent.icon && FallbackIcon) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center overflow-hidden shrink-0",
+          "border border-border/50",
+          variant === "circle" ? "rounded-full" : "rounded-xl",
+          CONTAINER_SIZE[size],
+          animate && "agent-avatar-animated",
+          className,
+        )}
+        title={agent.name}
+        style={{ backgroundColor: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)` }}
+      >
+        <FallbackIcon className="h-1/2 w-1/2 text-primary-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "rounded-full flex items-center justify-center overflow-hidden shrink-0",
+        "flex items-center justify-center overflow-hidden shrink-0",
         "border border-border/50",
+        variant === "circle" ? "rounded-full" : "rounded-xl",
         CONTAINER_SIZE[size],
         animate && "agent-avatar-animated",
         className,
