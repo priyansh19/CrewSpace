@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { tryDicebearDataUri } from "../components/AgentAvatar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, Link2, Trash2, Search, Brain, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ interface AgentNode {
   memCount: number;
   hasMemories: boolean;
   r: number;
+  icon?: string | null;
 }
 
 interface MemNode {
@@ -95,7 +97,11 @@ function buildGraphData(
 
   // Build agents — allAgents provides names, fallback for memory-only agents
   const agentNameMap = new Map<string, string>();
-  for (const a of allAgents) agentNameMap.set(a.id, a.name);
+  const agentIconMap = new Map<string, string | null>();
+  for (const a of allAgents) {
+    agentNameMap.set(a.id, a.name);
+    agentIconMap.set(a.id, a.icon ?? null);
+  }
   for (const m of memories) {
     for (const a of m.agents) {
       if (!agentNameMap.has(a.agentId)) agentNameMap.set(a.agentId, a.agentName ?? "Agent");
@@ -111,6 +117,7 @@ function buildGraphData(
       memCount: cnt,
       hasMemories: cnt > 0,
       r: 18 + Math.min(cnt * 1.5, 12),
+      icon: agentIconMap.get(id) ?? null,
     };
   });
 
@@ -275,6 +282,7 @@ function use2DRenderer({
   onHover: (id: string | null) => void;
   isDark: boolean;
 }) {
+  const avatarImgRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -321,6 +329,20 @@ function use2DRenderer({
     setSize({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
+
+  // Preload dicebear avatar images for agents
+  useEffect(() => {
+    const cache = avatarImgRef.current;
+    for (const agent of graph.agents) {
+      if (cache.has(agent.id)) continue;
+      const seed = agent.icon || agent.id || agent.name || "unknown";
+      const dataUri = tryDicebearDataUri(seed, 128);
+      if (!dataUri) continue;
+      const img = new Image();
+      img.src = dataUri;
+      cache.set(agent.id, img);
+    }
+  }, [graph.agents]);
 
   // Place nodes on 3D Fibonacci sphere when graph changes
   useEffect(() => {
@@ -625,7 +647,25 @@ function use2DRenderer({
           ctx.fillStyle = halo;
           ctx.fill();
 
-          if (!agent.hasMemories) {
+          const avatarImg = avatarImgRef.current.get(agent.id);
+          const hasAvatar = avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0;
+
+          if (hasAvatar) {
+            // Draw clipped avatar image
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(avatarImg, pos.x - r, pos.y - r, r * 2, r * 2);
+            ctx.restore();
+
+            // Border
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(color, isSel ? 1 : isHov ? 0.9 : 0.65);
+            ctx.lineWidth = isSel ? 2.5 : 1.5;
+            ctx.stroke();
+          } else if (!agent.hasMemories) {
             ctx.save();
             ctx.setLineDash([4, 4]);
             ctx.beginPath();
@@ -663,14 +703,16 @@ function use2DRenderer({
             ctx.fill();
           }
 
-          // Draw agent initial inside the circle
-          const initial = agent.name.trim().charAt(0).toUpperCase() || "?";
-          ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = isDark ? "#ffffff" : "#ffffff";
-          ctx.fillText(initial, pos.x, pos.y);
-          ctx.textBaseline = "alphabetic";
+          // Draw agent initial as fallback when no avatar
+          if (!hasAvatar) {
+            const initial = agent.name.trim().charAt(0).toUpperCase() || "?";
+            ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = isDark ? "#ffffff" : "#ffffff";
+            ctx.fillText(initial, pos.x, pos.y);
+            ctx.textBaseline = "alphabetic";
+          }
 
           ctx.globalAlpha = (isDimmed ? 0.15 : 1) * dAlpha;
 

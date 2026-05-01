@@ -14,11 +14,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Shield } from "lucide-react";
+import { Shield, Dices } from "lucide-react";
 import { cn, agentUrl } from "../lib/utils";
 import { roleLabels } from "../components/agent-config-primitives";
 import { AgentConfigForm, type CreateConfigValues } from "../components/AgentConfigForm";
 import { defaultCreateValues } from "../components/agent-config-defaults";
+import { suggestAgentName } from "../lib/agent-names";
 import { getUIAdapter } from "../adapters";
 import { ReportsToPicker } from "../components/ReportsToPicker";
 import {
@@ -112,7 +113,7 @@ export function NewAgent() {
 
   useEffect(() => {
     if (isFirstAgent) {
-      if (!name) setName("CEO");
+      if (!name) setName(suggestAgentName((agents ?? []).map((a) => a.name), true));
       if (!title) setTitle("CEO");
     }
   }, [isFirstAgent]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -221,14 +222,22 @@ export function NewAgent() {
 
       <div className="border border-border">
         {/* Name */}
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <input
-            className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
-            placeholder="Agent name"
+            className="flex-1 text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
+            placeholder="Name your agent (e.g. Mark, Liza, Kai)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
+          <button
+            type="button"
+            title="Suggest a name"
+            className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+            onClick={() => setName(suggestAgentName((agents ?? []).map((a) => a.name), isFirstAgent))}
+          >
+            <Dices className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Title */}

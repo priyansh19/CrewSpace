@@ -58,7 +58,7 @@ function seedToHsl(seed: string): { h: number; s: number; l: number } {
 }
 
 /** Generate a dicebear avatar as a base64 data URI. Returns null on failure. */
-function tryDicebearDataUri(seed: string, sizePx: number): string | null {
+export function tryDicebearDataUri(seed: string, sizePx: number): string | null {
   try {
     const avatar = createAvatar(adventurer, {
       seed,

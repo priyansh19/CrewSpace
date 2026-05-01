@@ -22,7 +22,7 @@ const [ceo] = await db
   .insert(agents)
   .values({
     companyId: company!.id,
-    name: "CEO Agent",
+    name: "Mark",
     role: "ceo",
     title: "Chief Executive Officer",
     status: "idle",
@@ -36,9 +36,9 @@ const [engineer] = await db
   .insert(agents)
   .values({
     companyId: company!.id,
-    name: "Engineer Agent",
+    name: "Jake",
     role: "engineer",
-    title: "Software Engineer",
+    title: "Backend Engineer",
     status: "idle",
     reportsTo: ceo!.id,
     adapterType: "process",
