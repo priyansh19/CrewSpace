@@ -15,8 +15,8 @@ export function useKeyboardShortcuts({ onNewIssue, onToggleSidebar, onTogglePane
         return;
       }
 
-      // C → New Issue
-      if (e.key === "c" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      // Ctrl/Cmd+Shift+N → New Issue
+      if (e.key === "N" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         onNewIssue?.();
       }
