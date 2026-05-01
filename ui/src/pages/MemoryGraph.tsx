@@ -1216,13 +1216,13 @@ export function MemoryGraph() {
               <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-lg border border-border bg-background/90 px-3 py-2.5 text-[10px] backdrop-blur">
                 <p className="font-semibold text-foreground/70 mb-0.5">Legend</p>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-3 w-3 rounded-full border border-amber-400 bg-amber-400/30" /><span>Agent (with memories)</span>
+                  <div className="h-3 w-3 rounded-full border border-primary bg-primary/30" /><span>Agent (with memories)</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-3 w-3 rounded-full border border-dashed border-violet-400" /><span>Agent (no memories)</span>
+                  <div className="h-3 w-3 rounded-full border border-dashed border-muted-foreground" /><span>Agent (no memories)</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-2 w-2 rounded-full border border-indigo-400 bg-indigo-400/20" /><span>Memory node</span>
+                  <div className="h-2 w-2 rounded-full border border-primary bg-primary/20" /><span>Memory node</span>
                 </div>
               </div>
               <p className="pointer-events-none absolute bottom-3 right-3 text-[10px] text-muted-foreground/40">
