@@ -11,11 +11,21 @@ export interface ChatParticipant {
   status: string;
 }
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  url: string;
+  type: "image" | "file";
+  size?: number;
+  mimeType?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "agent";
   agentId?: string;
   content: string;
+  attachments?: ChatAttachment[];
   ts: Date;
 }
 
@@ -37,7 +47,7 @@ interface ChatContextValue {
   updateSession: (id: string, messages: ChatMessage[], participants: ChatParticipant[]) => void;
   deleteSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
-  persistMessage: (sessionId: string, role: string, content: string, agentId?: string | null) => void;
+  persistMessage: (sessionId: string, role: string, content: string, agentId?: string | null, attachments?: ChatAttachment[]) => void;
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
 }
@@ -238,7 +248,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const persistMessage = useCallback(
-    (sessionId: string, role: string, content: string, agentId?: string | null) => {
+    (sessionId: string, role: string, content: string, agentId?: string | null, _attachments?: ChatAttachment[]) => {
       if (!isServerSession(sessionId) || !content.trim()) return;
       chatSessionsApi.appendMessage(sessionId, { role, content, agentId }).catch(() => {});
     },
