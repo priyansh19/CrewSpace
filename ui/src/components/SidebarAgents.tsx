@@ -11,7 +11,7 @@ import { heartbeatsApi } from "../api/heartbeats";
 import { queryKeys } from "../lib/queryKeys";
 import { cn, agentRouteRef, agentUrl } from "../lib/utils";
 import { useAgentOrder } from "../hooks/useAgentOrder";
-import { AgentIcon } from "./AgentIconPicker";
+import { AgentAvatar } from "./AgentAvatar";
 import { BudgetSidebarMarker } from "./BudgetSidebarMarker";
 import {
   Collapsible,
@@ -116,7 +116,7 @@ export function SidebarAgents() {
                     : "text-foreground/80 hover:bg-accent/50 hover:text-foreground"
                 )}
               >
-                <AgentIcon icon={agent.icon} className="shrink-0 h-3.5 w-3.5 text-muted-foreground" />
+                <AgentAvatar agent={agent} size="xs" />
                 <span className="flex-1 truncate">{agent.name}</span>
                 {(agent.pauseReason === "budget" || runCount > 0) && (
                   <span className="ml-auto flex items-center gap-1.5 shrink-0">

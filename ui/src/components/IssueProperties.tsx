@@ -20,7 +20,7 @@ import { timeAgo } from "../lib/timeAgo";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { User, Hexagon, ArrowUpRight, Tag, Plus, Trash2 } from "lucide-react";
-import { AgentIcon } from "./AgentIconPicker";
+import { AgentAvatar } from "./AgentAvatar";
 
 function defaultProjectWorkspaceIdForProject(project: {
   workspaces?: Array<{ id: string; isPrimary: boolean }>;
@@ -399,7 +399,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
             )}
             onClick={() => { trackRecentAssignee(a.id); onUpdate({ assigneeAgentId: a.id, assigneeUserId: null }); setAssigneeOpen(false); }}
           >
-            <AgentIcon icon={a.icon} className="shrink-0 h-3 w-3 text-muted-foreground" />
+            <AgentAvatar agent={a} size="xs" />
             {a.name}
           </button>
         ))}

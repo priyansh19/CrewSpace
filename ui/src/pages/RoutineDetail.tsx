@@ -28,7 +28,7 @@ import { buildRoutineTriggerPatch } from "../lib/routine-trigger-patch";
 import { timeAgo } from "../lib/timeAgo";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
-import { AgentIcon } from "../components/AgentIconPicker";
+import { AgentAvatar } from "../components/AgentAvatar";
 import { InlineEntitySelector, type InlineEntityOption } from "../components/InlineEntitySelector";
 import { MarkdownEditor, type MarkdownEditorRef } from "../components/MarkdownEditor";
 import { ScheduleEditor, describeSchedule } from "../components/ScheduleEditor";
@@ -721,7 +721,7 @@ export function RoutineDetail() {
               option ? (
                 currentAssignee ? (
                   <>
-                    <AgentIcon icon={currentAssignee.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <AgentAvatar agent={currentAssignee} size="xs" />
                     <span className="truncate">{option.label}</span>
                   </>
                 ) : (
@@ -736,7 +736,7 @@ export function RoutineDetail() {
               const assignee = agentById.get(option.id);
               return (
                 <>
-                  {assignee ? <AgentIcon icon={assignee.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : null}
+                  {assignee ? <AgentAvatar agent={assignee} size="xs" /> : null}
                   <span className="truncate">{option.label}</span>
                 </>
               );

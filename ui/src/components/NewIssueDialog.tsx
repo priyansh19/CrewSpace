@@ -51,7 +51,7 @@ import { cn } from "../lib/utils";
 import { extractProviderIdWithFallback } from "../lib/model-utils";
 import { issueStatusText, issueStatusTextDefault, priorityColor, priorityColorDefault } from "../lib/status-colors";
 import { MarkdownEditor, type MarkdownEditorRef, type MentionOption } from "./MarkdownEditor";
-import { AgentIcon } from "./AgentIconPicker";
+import { AgentAvatar } from "./AgentAvatar";
 import { InlineEntitySelector, type InlineEntityOption } from "./InlineEntitySelector";
 
 const DRAFT_KEY = "crewspace:issue-draft";
@@ -1060,7 +1060,7 @@ export function NewIssueDialog() {
                   option ? (
                     currentAssignee ? (
                       <>
-                        <AgentIcon icon={currentAssignee.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <AgentAvatar agent={currentAssignee} size="xs" />
                         <span className="truncate">{option.label}</span>
                       </>
                     ) : (
@@ -1077,7 +1077,7 @@ export function NewIssueDialog() {
                     : null;
                   return (
                     <>
-                      {assignee ? <AgentIcon icon={assignee.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : null}
+                      {assignee ? <AgentAvatar agent={assignee} size="xs" /> : null}
                       <span className="truncate">{option.label}</span>
                     </>
                   );

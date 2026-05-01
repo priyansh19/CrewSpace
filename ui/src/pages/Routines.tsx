@@ -12,7 +12,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { getRecentAssigneeIds, sortAgentsByRecency, trackRecentAssignee } from "../lib/recent-assignees";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
-import { AgentIcon } from "../components/AgentIconPicker";
+import { AgentAvatar } from "../components/AgentAvatar";
 import { InlineEntitySelector, type InlineEntityOption } from "../components/InlineEntitySelector";
 import { MarkdownEditor, type MarkdownEditorRef } from "../components/MarkdownEditor";
 import { Button } from "@/components/ui/button";
@@ -337,7 +337,7 @@ export function Routines() {
                       option ? (
                         currentAssignee ? (
                           <>
-                            <AgentIcon icon={currentAssignee.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <AgentAvatar agent={currentAssignee} size="xs" />
                             <span className="truncate">{option.label}</span>
                           </>
                         ) : (
@@ -352,7 +352,7 @@ export function Routines() {
                       const assignee = agentById.get(option.id);
                       return (
                         <>
-                          {assignee ? <AgentIcon icon={assignee.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : null}
+                          {assignee ? <AgentAvatar agent={assignee} size="xs" /> : null}
                           <span className="truncate">{option.label}</span>
                         </>
                       );
@@ -564,7 +564,7 @@ export function Routines() {
                           const agent = agentById.get(routine.assigneeAgentId);
                           return agent ? (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <AgentIcon icon={agent.icon} className="h-4 w-4 shrink-0" />
+                              <AgentAvatar agent={agent} size="xs" />
                               <span className="truncate">{agent.name}</span>
                             </div>
                           ) : (

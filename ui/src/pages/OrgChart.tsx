@@ -10,7 +10,7 @@ import { agentUrl } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
-import { AgentIcon } from "../components/AgentIconPicker";
+import { AgentAvatar } from "../components/AgentAvatar";
 import { Download, Network, Upload } from "lucide-react";
 import { AGENT_ROLE_LABELS, type Agent } from "@crewspaceai/shared";
 
@@ -458,9 +458,7 @@ export function OrgChart() {
               <div className="flex items-center px-4 py-3 gap-3">
                 {/* Agent icon */}
                 <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-                    <AgentIcon icon={agent?.icon} className="h-4 w-4 text-foreground/70" />
-                  </div>
+                  <AgentAvatar agent={agent} size="sm" />
                 </div>
                 {/* Name + role + adapter type */}
                 <div className="flex flex-col items-start min-w-0 flex-1">

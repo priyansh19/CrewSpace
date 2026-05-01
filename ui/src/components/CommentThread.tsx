@@ -9,7 +9,7 @@ import { InlineEntitySelector, type InlineEntityOption } from "./InlineEntitySel
 import { MarkdownBody } from "./MarkdownBody";
 import { MarkdownEditor, type MarkdownEditorRef, type MentionOption } from "./MarkdownEditor";
 import { StatusBadge } from "./StatusBadge";
-import { AgentIcon } from "./AgentIconPicker";
+import { AgentAvatar } from "./AgentAvatar";
 import { formatDateTime } from "../lib/utils";
 import { restoreSubmittedCommentDraft } from "../lib/comment-submit-draft";
 import { PluginSlotOutlet } from "@/plugins/slots";
@@ -574,7 +574,7 @@ export function CommentThread({
                 return (
                   <>
                     {agent ? (
-                      <AgentIcon icon={agent.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <AgentAvatar agent={agent} size="xs" />
                     ) : null}
                     <span className="truncate">{option.label}</span>
                   </>
@@ -587,7 +587,7 @@ export function CommentThread({
                 return (
                   <>
                     {agent ? (
-                      <AgentIcon icon={agent.icon} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <AgentAvatar agent={agent} size="xs" />
                     ) : null}
                     <span className="truncate">{option.label}</span>
                   </>
