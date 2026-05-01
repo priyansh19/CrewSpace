@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { createAvatar } from "@dicebear/core";
 import { adventurer } from "@dicebear/collection";
 import { cn } from "@/lib/utils";
@@ -36,12 +36,41 @@ const CONTAINER_SIZE: Record<AgentAvatarSize, string> = {
   xl: "h-20 w-20",
 };
 
-function makeSvgResponsive(svg: string): string {
-  // Remove fixed width/height and add responsive sizing
-  return svg
-    .replace(/width="[^"]*"/, 'width="100%"')
-    .replace(/height="[^"]*"/, 'height="100%"')
-    .replace(/<svg/, '<svg style="width:100%;height:100%;display:block;"');
+const TEXT_SIZE: Record<AgentAvatarSize, string> = {
+  xs: "text-[10px]",
+  sm: "text-xs",
+  md: "text-sm",
+  lg: "text-base",
+  xl: "text-lg",
+};
+
+/** Deterministic HSL color from a string seed. */
+function seedToHsl(seed: string): { h: number; s: number; l: number } {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const h = (hash >>> 0) % 360;
+  const s = 55 + ((hash >>> 8) % 20);
+  const l = 45 + ((hash >>> 16) % 15);
+  return { h, s, l };
+}
+
+/** Generate a dicebear SVG data URI, or null on failure. */
+function tryDicebearDataUri(seed: string, sizePx: number): string | null {
+  try {
+    const avatar = createAvatar(adventurer, {
+      seed,
+      size: sizePx,
+      backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
+    });
+    const svg = avatar.toString();
+    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
 }
 
 export function AgentAvatar({
@@ -51,15 +80,20 @@ export function AgentAvatar({
   className,
   fallbackIcon,
 }: AgentAvatarProps) {
-  const svgHtml = useMemo(() => {
-    const seed = agent?.icon || agent?.id || agent?.name || "unknown";
-    const avatar = createAvatar(adventurer, {
-      seed,
-      size: SIZE_PX[size],
-      backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
-    });
-    return makeSvgResponsive(avatar.toString());
-  }, [agent?.id, agent?.name, size]);
+  const [dicebearFailed, setDicebearFailed] = useState(false);
+
+  const seed = agent?.icon || agent?.id || agent?.name || "unknown";
+  const initial = (agent?.name?.trim()?.charAt(0) || "?").toUpperCase();
+  const hsl = useMemo(() => seedToHsl(seed), [seed]);
+
+  const dicebearSrc = useMemo(() => {
+    if (!agent || dicebearFailed) return null;
+    return tryDicebearDataUri(seed, SIZE_PX[size]);
+  }, [agent, seed, size, dicebearFailed]);
+
+  const handleError = useCallback(() => {
+    setDicebearFailed(true);
+  }, []);
 
   if (!agent) {
     const FallbackIcon = getAgentIcon(fallbackIcon);
@@ -76,18 +110,54 @@ export function AgentAvatar({
     );
   }
 
+  // If dicebear is available and hasn't failed, render the SVG image
+  if (dicebearSrc && !dicebearFailed) {
+    return (
+      <div
+        className={cn(
+          "rounded-full flex items-center justify-center overflow-hidden shrink-0",
+          "bg-background/60 border border-border/50",
+          CONTAINER_SIZE[size],
+          animate && "agent-avatar-animated",
+          className,
+        )}
+        title={agent.name}
+      >
+        <img
+          src={dicebearSrc}
+          alt={agent.name || "Agent"}
+          className="h-full w-full object-cover"
+          onError={handleError}
+          draggable={false}
+        />
+      </div>
+    );
+  }
+
+  // Fallback: deterministic colored initial circle
   return (
     <div
       className={cn(
         "rounded-full flex items-center justify-center overflow-hidden shrink-0",
-        "bg-background/60 border border-border/50",
+        "border border-border/50",
         CONTAINER_SIZE[size],
         animate && "agent-avatar-animated",
         className,
       )}
       title={agent.name}
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: svgHtml }}
-    />
+      style={{
+        backgroundColor: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)`,
+      }}
+    >
+      <span
+        className={cn(
+          "font-bold text-white select-none",
+          TEXT_SIZE[size],
+        )}
+        style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+      >
+        {initial}
+      </span>
+    </div>
   );
 }

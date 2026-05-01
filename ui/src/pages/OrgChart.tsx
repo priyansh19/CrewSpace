@@ -459,7 +459,7 @@ export function OrgChart() {
                 {/* Agent icon */}
                 <div className="relative shrink-0">
                   <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-                    <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
+                    <AgentIcon icon={agent?.icon} className="h-4 w-4 text-foreground/70" />
                   </div>
                 </div>
                 {/* Name + role + adapter type */}
