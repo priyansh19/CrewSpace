@@ -233,11 +233,15 @@ export const agentsApi = {
         if (!line.startsWith("data: ")) continue;
         const raw = line.slice(6).trim();
         if (raw === "[DONE]") return;
+        let msg: { t?: string; err?: string };
         try {
-          const msg = JSON.parse(raw) as { t?: string; err?: string };
-          if (msg.err) throw new Error(msg.err);
-          if (msg.t) yield msg.t;
-        } catch { /* ignore malformed SSE lines */ }
+          msg = JSON.parse(raw);
+        } catch {
+          /* ignore malformed SSE lines */
+          continue;
+        }
+        if (msg.err) throw new Error(msg.err);
+        if (msg.t) yield msg.t;
       }
     }
   },

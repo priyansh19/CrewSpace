@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Plus, GripHorizontal, Search, MessageCircle, AlertCircle } from "lucide-react";
+import { X, Send, Plus, GripHorizontal, Search, MessageCircle, AlertCircle, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentIcon } from "./AgentIconPicker";
+import { AgentAvatar } from "./AgentAvatar";
 import { cn } from "@/lib/utils";
 import { agentDotColor, formatChatTime, streamAgentChat, AGENT_STATUS_COLOR } from "../lib/agentChat";
 import type { Agent } from "@crewspaceai/shared";
@@ -59,9 +60,7 @@ function ParticipantPill({
   return (
     <div className="flex items-center gap-1 bg-muted/60 border border-border rounded-full pl-1 pr-1.5 py-0.5">
       <div className="relative">
-        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-          <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/70" />
-        </div>
+        <AgentAvatar agent={agent as any} size="xs" />
         <span
           className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card"
           style={{ backgroundColor: color }}
@@ -161,9 +160,7 @@ function AddParticipantMenu({
                         className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent/50 transition-colors"
                       >
                         <div className="relative shrink-0">
-                          <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-                            <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/70" />
-                          </div>
+                          <AgentAvatar agent={agent as any} size="xs" />
                           <span
                             className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-popover"
                             style={{ backgroundColor: color }}
@@ -264,22 +261,22 @@ export function ChatHistoryPanel({
                   )}
                 >
                   {/* Stacked participant avatars */}
-                  <div className="relative shrink-0 h-7 w-9 mt-0.5">
+                  <div className="relative shrink-0 h-10 w-12 mt-0.5">
                     {shownParticipants.map((agent, i) => (
                       <div
                         key={agent.id}
-                        className="absolute w-5 h-5 rounded-full bg-muted border-[1.5px] border-card flex items-center justify-center"
+                        className="absolute"
                         style={{ left: i * 6, top: i === 0 ? 0 : i * 2, zIndex: shownParticipants.length - i }}
                       >
-                        <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/60" />
+                        <AgentAvatar agent={agent as any} size="sm" className="border-[1.5px] border-card" />
                       </div>
                     ))}
                     {extraCount > 0 && (
                       <div
-                        className="absolute w-5 h-5 rounded-full bg-muted border-[1.5px] border-card flex items-center justify-center"
+                        className="absolute w-6 h-6 rounded-full bg-muted border-[1.5px] border-card flex items-center justify-center"
                         style={{ left: 3 * 6, top: 3 * 2, zIndex: 0 }}
                       >
-                        <span className="text-[8px] text-muted-foreground font-medium">+{extraCount}</span>
+                        <span className="text-[9px] text-muted-foreground font-medium">+{extraCount}</span>
                       </div>
                     )}
                   </div>
@@ -444,18 +441,32 @@ export function AgentChatPanel({
         { id: streamingId, role: "agent", agentId: agent.id, content: "", ts: new Date() },
       ]);
 
-      await streamAgentChat(
-        agent,
-        fullHistory,
-        companyId,
-        abortRef.current.signal,
-        (partial) => {
-          if (!isMountedRef.current) return;
+      let finalContent = "";
+      try {
+        const streamResult = await streamAgentChat(
+          agent,
+          fullHistory,
+          companyId,
+          abortRef.current.signal,
+          (partial) => {
+            if (!isMountedRef.current) return;
+            finalContent = partial;
+            setMessages((prev) =>
+              prev.map((m) => m.id === streamingId ? { ...m, content: partial } : m),
+            );
+          },
+        );
+        if (!finalContent && streamResult) {
+          finalContent = streamResult;
           setMessages((prev) =>
-            prev.map((m) => m.id === streamingId ? { ...m, content: partial } : m),
+            prev.map((m) => m.id === streamingId ? { ...m, content: streamResult } : m),
           );
-        },
-      );
+        }
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        setSendError(errMsg);
+        setMessages((prev) => prev.filter((m) => m.id !== streamingId));
+      }
 
       if (!isMountedRef.current) break;
       setTypingAgentId(null);
@@ -542,7 +553,7 @@ export function AgentChatPanel({
             return (
               <div key={msg.id} className="flex justify-end">
                 <div className="flex flex-col items-end gap-0.5 max-w-[78%]">
-                  <div className="px-3 py-2 text-sm leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-sm">
+                  <div className="px-3 py-2 text-sm leading-relaxed bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-2xl rounded-br-sm shadow-sm">
                     {msg.content}
                   </div>
                   <span className="text-[10px] text-muted-foreground/50 px-1">{formatChatTime(msg.ts)}</span>
@@ -558,12 +569,7 @@ export function AgentChatPanel({
           return (
             <div key={msg.id} className="flex gap-2 items-end">
               <div className="relative shrink-0 mb-0.5">
-                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                  <AgentIcon
-                    icon={sender ? (sender as any).icon : undefined}
-                    className="h-3 w-3 text-foreground/60"
-                  />
-                </div>
+                <AgentAvatar agent={sender as any} size="sm" />
                 <span
                   className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card"
                   style={{ backgroundColor: color }}
@@ -576,7 +582,7 @@ export function AgentChatPanel({
                     {sender.name}
                   </span>
                 )}
-                <div className="px-3 py-2 text-sm leading-relaxed bg-accent text-foreground rounded-2xl rounded-bl-sm whitespace-pre-wrap">
+                <div className="px-3 py-2 text-sm leading-relaxed bg-background/80 backdrop-blur-sm text-foreground rounded-2xl rounded-bl-sm border border-border/50 shadow-sm whitespace-pre-wrap">
                   {msg.content}
                 </div>
                 <span className="text-[10px] text-muted-foreground/50 px-1">{formatChatTime(msg.ts)}</span>
@@ -593,12 +599,7 @@ export function AgentChatPanel({
             return (
               <div className="flex gap-2 items-end">
                 <div className="relative shrink-0 mb-0.5">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                    <AgentIcon
-                      icon={agent ? (agent as any).icon : undefined}
-                      className="h-3 w-3 text-foreground/60"
-                    />
-                  </div>
+                  <AgentAvatar agent={agent as any} size="sm" />
                   <span
                     className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card"
                     style={{ backgroundColor: color }}
@@ -635,7 +636,13 @@ export function AgentChatPanel({
 
       {/* ── Input ── */}
       <div className="border-t border-border px-3 py-2.5 shrink-0 bg-card/80">
-        <div className="flex gap-2 items-end">
+        <div className="flex items-end gap-2 bg-muted/50 border border-border/60 rounded-2xl px-3 py-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 focus-within:bg-muted/70">
+          <button
+            className="shrink-0 text-muted-foreground/50 hover:text-primary transition-colors mb-0.5"
+            title="Attach file"
+          >
+            <Paperclip className="h-3.5 w-3.5" />
+          </button>
           <Textarea
             ref={inputRef}
             value={input}
@@ -646,20 +653,19 @@ export function AgentChatPanel({
                 ? `Message all ${participants.length} agents…`
                 : `Message ${participants[0]?.name ?? "agent"}…`
             }
-            className="min-h-[34px] max-h-24 resize-none text-sm py-2 leading-relaxed"
+            className="min-h-0 max-h-24 resize-none text-sm py-0 leading-relaxed bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
             rows={1}
             disabled={!!typingAgentId}
           />
-          <Button
-            size="icon"
-            className="h-8 w-8 shrink-0"
+          <button
+            className="shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleSend}
             disabled={!input.trim() || !!typingAgentId}
           >
             <Send className="h-3.5 w-3.5" />
-          </Button>
+          </button>
         </div>
-        <p className="text-[10px] text-muted-foreground/40 mt-1 select-none">
+        <p className="text-[10px] text-muted-foreground/40 mt-1.5 select-none text-center">
           {typingAgentId ? "Waiting for response…" : "Enter to send · Shift+Enter for new line"}
         </p>
       </div>

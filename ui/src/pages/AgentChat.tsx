@@ -9,18 +9,22 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Send, X, Search, MessageCircle, AlertCircle,
   Users, CircleDot, Brain, Check, Trash2, Pencil,
+  Copy, CheckCheck, Paperclip, Mic, ImageIcon, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentIcon } from "@/components/AgentIconPicker";
+import { AgentAvatar } from "@/components/AgentAvatar";
 import { cn } from "@/lib/utils";
-import { useChat, type ChatSession, type ChatMessage, type ChatParticipant } from "../context/ChatContext";
+import { useChat, type ChatSession, type ChatMessage, type ChatParticipant, type ChatAttachment } from "../context/ChatContext";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { agentsApi } from "../api/agents";
 import { agentMemoriesApi } from "../api/agentMemories";
+import { assetsApi } from "../api/assets";
 import { agentDotColor, formatChatTime, streamAgentChat } from "../lib/agentChat";
 import { queryKeys } from "../lib/queryKeys";
+import { ChatMessageContent } from "../components/ChatMessageContent";
 import type { Agent } from "@crewspaceai/shared";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -98,9 +102,7 @@ function NewChatMenu({ allAgents, onStart, open, onOpenChange }: { allAgents: Ag
                       {isSel && <Check className="h-2 w-2 text-primary-foreground" />}
                     </div>
                     <div className="relative shrink-0">
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                        <AgentIcon icon={(agent as any).icon} className="h-3 w-3 text-foreground/60" />
-                      </div>
+                      <AgentAvatar agent={agent as any} size="xs" />
                       <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-popover"
                         style={{ backgroundColor: agentDotColor(agent.status) }} />
                     </div>
@@ -169,9 +171,7 @@ function AddParticipantMenu({ allAgents, participants, onAdd }: {
             {available.map((agent) => (
               <button key={agent.id} onClick={() => { onAdd(agent); }}
                 className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent/50 transition-colors text-left">
-                <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center shrink-0">
-                  <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/60" />
-                </div>
+                <AgentAvatar agent={agent as any} size="xs" className="shrink-0" />
                 <span className="text-xs text-foreground truncate">{agent.name}</span>
               </button>
             ))}
@@ -223,18 +223,18 @@ function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
       onClick={onSelect}
     >
       {/* Stacked avatars */}
-      <div className="relative shrink-0 h-8 w-10 mt-0.5">
+      <div className="relative shrink-0 h-10 w-12 mt-0.5">
         {shown.map((agent, i) => (
           <div key={agent.id}
-            className="absolute w-6 h-6 rounded-full bg-muted border-2 border-card flex items-center justify-center"
-            style={{ left: i * 6, top: i * 2, zIndex: shown.length - i }}>
-            <AgentIcon icon={(agent as any).icon} className="h-3 w-3 text-foreground/60" />
+            className="absolute"
+            style={{ left: i * 8, top: i * 2.5, zIndex: shown.length - i }}>
+            <AgentAvatar agent={agent as any} size="sm" className="border-2 border-card" />
           </div>
         ))}
         {extra > 0 && (
-          <div className="absolute w-6 h-6 rounded-full bg-muted border-2 border-card flex items-center justify-center"
-            style={{ left: 3 * 6, top: 3 * 2, zIndex: 0 }}>
-            <span className="text-[8px] text-muted-foreground font-medium">+{extra}</span>
+          <div className="absolute w-8 h-8 rounded-full bg-muted border-2 border-card flex items-center justify-center"
+            style={{ left: 3 * 8, top: 3 * 2.5, zIndex: 0 }}>
+            <span className="text-[10px] text-muted-foreground font-medium">+{extra}</span>
           </div>
         )}
       </div>
@@ -297,6 +297,248 @@ function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
   );
 }
 
+// ── Message Bubbles ───────────────────────────────────────────────────────────
+
+function CopyMessageButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [text]);
+
+  return (
+    <button
+      onClick={copy}
+      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-all opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-accent"
+      title="Copy message"
+    >
+      {copied ? <CheckCheck className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+    </button>
+  );
+}
+
+function MessageAttachments({ attachments }: { attachments?: ChatAttachment[] }) {
+  if (!attachments || attachments.length === 0) return null;
+  return (
+    <div className={cn("grid gap-1.5", attachments.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+      {attachments.map((att) => (
+        att.type === "image" ? (
+          <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer"
+            className="relative rounded-xl overflow-hidden border border-border/40 hover:border-primary/50 transition-colors group/img">
+            <img src={att.url} alt={att.name} className="max-h-48 w-full object-cover" />
+            <span className="absolute bottom-1.5 left-1.5 text-[10px] text-white/90 bg-black/40 px-1.5 py-0.5 rounded-md opacity-0 group-hover/img:opacity-100 transition-opacity">
+              {att.name}
+            </span>
+          </a>
+        ) : (
+          <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" download={att.name}
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/40 bg-background/60 hover:bg-accent/40 hover:border-primary/30 transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Paperclip className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-medium text-foreground truncate">{att.name}</span>
+              {att.size && <span className="text-[10px] text-muted-foreground">{(att.size / 1024).toFixed(1)} KB</span>}
+            </div>
+          </a>
+        )
+      ))}
+    </div>
+  );
+}
+
+function UserMessageBubble({ msg }: { msg: ChatMessage }) {
+  return (
+    <div className="flex justify-end group/message">
+      <div className="flex flex-col items-end gap-1.5 max-w-[75%]">
+        {msg.attachments && msg.attachments.length > 0 && (
+          <div className="w-full max-w-[320px]">
+            <MessageAttachments attachments={msg.attachments} />
+          </div>
+        )}
+        <div className="px-4 py-2.5 text-sm leading-relaxed bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-2xl rounded-br-md shadow-sm shadow-primary/10">
+          <ChatMessageContent content={msg.content} />
+        </div>
+        <div className="flex items-center gap-1.5 px-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+          <CopyMessageButton text={msg.content} />
+          <span className="text-[10px] text-muted-foreground/50">{formatChatTime(msg.ts)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentMessageBubble({ msg, sender, color, participants }: {
+  msg: ChatMessage;
+  sender: ChatParticipant | null | undefined;
+  color: string;
+  participants: ChatParticipant[];
+}) {
+  return (
+    <div className="flex gap-3 items-end group/message">
+      <div className="relative shrink-0 mb-0.5">
+        <AgentAvatar agent={sender as any} size="sm" />
+        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background"
+          style={{ backgroundColor: color }} />
+      </div>
+      <div className="flex flex-col gap-1 max-w-[75%]">
+        {participants.length > 1 && sender && (
+          <span className="text-[10px] font-medium text-muted-foreground px-1">{sender.name}</span>
+        )}
+        {msg.attachments && msg.attachments.length > 0 && (
+          <div className="w-full max-w-[320px]">
+            <MessageAttachments attachments={msg.attachments} />
+          </div>
+        )}
+        <div className="px-4 py-2.5 text-sm leading-relaxed bg-background/80 backdrop-blur-sm border border-border/40 text-foreground rounded-2xl rounded-bl-md shadow-sm">
+          <ChatMessageContent content={msg.content} />
+        </div>
+        <div className="flex items-center gap-1.5 px-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+          <CopyMessageButton text={msg.content} />
+          <span className="text-[10px] text-muted-foreground/50">{formatChatTime(msg.ts)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Chat Composer ─────────────────────────────────────────────────────────────
+
+function ChatComposer({
+  input,
+  setInput,
+  onSend,
+  onKeyDown,
+  participants,
+  typingAgentId,
+  inputRef,
+  companyId,
+  draftAttachments,
+  setDraftAttachments,
+}: {
+  input: string;
+  setInput: (v: string) => void;
+  onSend: (attachments?: ChatAttachment[]) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  participants: ChatParticipant[];
+  typingAgentId: string | null;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  companyId: string | undefined;
+  draftAttachments: ChatAttachment[];
+  setDraftAttachments: (v: ChatAttachment[]) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !companyId) return;
+    setUploading(true);
+    const newAttachments: ChatAttachment[] = [];
+    for (const file of Array.from(files)) {
+      try {
+        const result = await assetsApi.uploadImage(companyId, file, "chat");
+        newAttachments.push({
+          id: (result as any).id ?? `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          url: result.contentPath ?? (result as any).url ?? "",
+          name: file.name,
+          type: file.type.startsWith("image/") ? "image" : "file",
+          size: file.size,
+          mimeType: file.type,
+        });
+      } catch {
+        /* skip failed uploads */
+      }
+    }
+    setDraftAttachments([...draftAttachments, ...newAttachments]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [companyId, draftAttachments, setDraftAttachments]);
+
+  const removeAttachment = useCallback((id: string) => {
+    setDraftAttachments(draftAttachments.filter((a) => a.id !== id));
+  }, [draftAttachments, setDraftAttachments]);
+
+  const handleSendWithAttachments = useCallback(() => {
+    onSend(draftAttachments.length > 0 ? draftAttachments : undefined);
+    setDraftAttachments([]);
+  }, [onSend, draftAttachments, setDraftAttachments]);
+
+  const handleComposerKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendWithAttachments();
+    } else {
+      onKeyDown(e);
+    }
+  }, [handleSendWithAttachments, onKeyDown]);
+
+  return (
+    <div className="border-t border-border/50 px-5 py-3 shrink-0 bg-card/20">
+      {/* Attachment chips */}
+      {draftAttachments.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {draftAttachments.map((att) => (
+            <div key={att.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/50 bg-muted/40 text-xs">
+              {att.type === "image" ? <ImageIcon className="h-3.5 w-3.5 text-primary" /> : <FileText className="h-3.5 w-3.5 text-primary" />}
+              <span className="max-w-[120px] truncate">{att.name}</span>
+              <button onClick={() => removeAttachment(att.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2 items-end">
+        <div className="flex-1 relative">
+          <div className="flex items-end gap-2 bg-background/80 border border-border/60 rounded-2xl px-3 py-2 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || !!typingAgentId}
+              className="shrink-0 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+              title="Attach file"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.txt,.md,.json,.csv,.doc,.docx"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleComposerKeyDown}
+              placeholder={participants.length > 1
+                ? `Message ${participants.length} agents…`
+                : `Message ${participants[0]?.name ?? "agent"}…`}
+              className="min-h-[36px] max-h-28 resize-none text-sm py-1.5 leading-relaxed bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+              rows={1}
+              disabled={!!typingAgentId}
+            />
+            <button
+              onClick={handleSendWithAttachments}
+              disabled={(!input.trim() && draftAttachments.length === 0) || !!typingAgentId}
+              className="shrink-0 p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:hover:bg-primary transition-colors"
+            >
+              <Send className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <p className="text-[10px] text-muted-foreground/30 mt-1.5 select-none px-1">
+        {typingAgentId ? "Waiting for response…" : "Enter to send · Shift+Enter for new line"}
+      </p>
+    </div>
+  );
+}
+
 // ── Chat Area ─────────────────────────────────────────────────────────────────
 
 function ChatArea({ session, allAgents, companyId, onUpdate }: {
@@ -323,13 +565,9 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
 
   useEffect(() => {
     setParticipants(session.participants);
-    if (session.messages.length > 0) {
-      setMessages(session.messages);
-    } else {
-      setMessages([]);
-    }
+    setMessages(session.messages);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.id]);
+  }, [session.id, session.messages.length]);
 
   const [input, setInput] = useState("");
   const [typingAgentId, setTypingAgentId] = useState<string | null>(null);
@@ -350,16 +588,16 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
 
   useEffect(() => { inputRef.current?.focus(); }, [session.id]);
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(async (attachs?: ChatAttachment[]) => {
     const text = input.trim();
-    if (!text || typingAgentId) return;
+    if ((!text && !attachs?.length) || typingAgentId) return;
     setSendError(null);
 
-    const userMsg: ChatMessage = { id: `user-${Date.now()}`, role: "user", content: text, ts: new Date() };
+    const userMsg: ChatMessage = { id: `user-${Date.now()}`, role: "user", content: text, attachments: attachs, ts: new Date() };
     const fullHistory: ChatMessage[] = [...messages, userMsg];
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    persistMessage(session.id, "user", text);
+    persistMessage(session.id, "user", text, undefined, attachs);
 
     abortRef.current = new AbortController();
     for (const agent of participants) {
@@ -370,15 +608,21 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
       setMessages((prev) => [...prev, { id: streamingId, role: "agent", agentId: agent.id, content: "", ts: new Date() }]);
 
       let finalContent = "";
-      const streamResult = await streamAgentChat(agent as unknown as Agent, fullHistory, companyId, abortRef.current.signal, (partial) => {
-        if (!isMountedRef.current) return;
-        finalContent = partial;
-        setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, content: partial } : m));
-      });
+      try {
+        const streamResult = await streamAgentChat(agent as unknown as Agent, fullHistory, companyId, abortRef.current.signal, (partial) => {
+          if (!isMountedRef.current) return;
+          finalContent = partial;
+          setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, content: partial } : m));
+        });
 
-      if (!finalContent && streamResult) {
-        finalContent = streamResult;
-        setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, content: streamResult } : m));
+        if (!finalContent && streamResult) {
+          finalContent = streamResult;
+          setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, content: streamResult } : m));
+        }
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        setSendError(errMsg);
+        setMessages((prev) => prev.filter((m) => m.id !== streamingId));
       }
 
       setTypingAgentId(null);
@@ -422,6 +666,8 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  const [draftAttachments, setDraftAttachments] = useState<ChatAttachment[]>([]);
+
   const addParticipant = (agent: Agent) => {
     setParticipants((prev) => [...prev, agent]);
     setMessages((prev) => [...prev, {
@@ -451,47 +697,52 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
-      {/* Chat header */}
-      <div className="flex items-center gap-2 px-5 py-3 border-b border-border shrink-0 bg-card/30">
-        <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-          {participants.map((agent) => (
-            <div key={agent.id}
-              className="flex items-center gap-1.5 bg-muted/60 border border-border rounded-full pl-1.5 pr-2 py-0.5">
+      {/* Chat header — minimal floating bar */}
+      <div className="flex items-center justify-between px-5 py-2 border-b border-border/50 shrink-0 bg-card/20">
+        <div className="flex items-center gap-2 min-w-0">
+          {participants.length === 1 ? (
+            <div className="flex items-center gap-2">
               <div className="relative">
-                <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-                  <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/70" />
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-card"
-                  style={{ backgroundColor: agentDotColor(agent.status) }} />
+                <AgentAvatar agent={participants[0] as any} size="sm" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background"
+                  style={{ backgroundColor: agentDotColor(participants[0].status) }} />
               </div>
-              <span className="text-xs font-medium text-foreground">{agent.name}</span>
-              {participants.length > 1 && (
-                <button onClick={() => removeParticipant(agent.id)}
-                  className="ml-0.5 text-muted-foreground/40 hover:text-foreground transition-colors">
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              )}
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-semibold text-foreground truncate">{participants[0].name}</span>
+                <span className="text-[10px] text-muted-foreground capitalize">{participants[0].status}</span>
+              </div>
             </div>
-          ))}
-          <AddParticipantMenu allAgents={allAgents} participants={participants as unknown as Agent[]} onAdd={addParticipant} />
+          ) : (
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
+              {participants.map((agent) => (
+                <div key={agent.id}
+                  className="flex items-center gap-1.5 bg-muted/60 border border-border rounded-full pl-1 pr-1.5 py-0.5">
+                  <div className="relative">
+                    <AgentAvatar agent={agent as any} size="xs" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-card"
+                      style={{ backgroundColor: agentDotColor(agent.status) }} />
+                  </div>
+                  <span className="text-[11px] font-medium text-foreground">{agent.name}</span>
+                  <button onClick={() => removeParticipant(agent.id)}
+                    className="ml-0.5 text-muted-foreground/40 hover:text-foreground transition-colors">
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+        <AddParticipantMenu allAgents={allAgents} participants={participants as unknown as Agent[]} onAdd={addParticipant} />
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-5 min-h-0">
         {messages.map((msg) => {
           if (msg.role === "agent" && !msg.content && typingAgentId) return null;
 
           if (msg.role === "user") {
             return (
-              <div key={msg.id} className="flex justify-end">
-                <div className="flex flex-col items-end gap-1 max-w-[70%]">
-                  <div className="px-4 py-2.5 text-sm leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-sm">
-                    {msg.content}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground/40 px-1">{formatChatTime(msg.ts)}</span>
-                </div>
-              </div>
+              <UserMessageBubble key={msg.id} msg={msg} />
             );
           }
 
@@ -499,25 +750,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
           const color = agentDotColor(msg.agentId ? (sender?.status ?? "idle") : "idle");
 
           return (
-            <div key={msg.id} className="flex gap-3 items-end">
-              <div className="relative shrink-0 mb-0.5">
-                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-                  <AgentIcon icon={sender ? (sender as any).icon : undefined}
-                    className="h-3.5 w-3.5 text-foreground/60" />
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background"
-                  style={{ backgroundColor: color }} />
-              </div>
-              <div className="flex flex-col gap-0.5 max-w-[70%]">
-                {participants.length > 1 && sender && (
-                  <span className="text-[10px] font-medium text-muted-foreground px-1">{sender.name}</span>
-                )}
-                <div className="px-4 py-2.5 text-sm leading-relaxed bg-accent text-foreground rounded-2xl rounded-bl-sm whitespace-pre-wrap">
-                  {msg.content}
-                </div>
-                <span className="text-[10px] text-muted-foreground/40 px-1">{formatChatTime(msg.ts)}</span>
-              </div>
-            </div>
+            <AgentMessageBubble key={msg.id} msg={msg} sender={sender} color={color} participants={participants} />
           );
         })}
 
@@ -526,10 +759,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
           return (
             <div className="flex gap-3 items-end">
               <div className="relative shrink-0 mb-0.5">
-                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-                  <AgentIcon icon={agent ? (agent as any).icon : undefined}
-                    className="h-3.5 w-3.5 text-foreground/60" />
-                </div>
+                <AgentAvatar agent={agent as any} size="sm" />
                 <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background"
                   style={{ backgroundColor: agentDotColor(agent?.status ?? "idle") }} />
               </div>
@@ -570,29 +800,18 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
       </div>
 
       {/* Input */}
-      <div className="border-t border-border px-5 py-4 shrink-0 bg-card/20 mt-2">
-        <div className="flex gap-2 items-end">
-          <Textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={participants.length > 1
-              ? `Message ${participants.length} agents…`
-              : `Message ${participants[0]?.name ?? "agent"}…`}
-            className="min-h-[40px] max-h-32 resize-none text-sm py-2.5 leading-relaxed"
-            rows={1}
-            disabled={!!typingAgentId}
-          />
-          <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleSend}
-            disabled={!input.trim() || !!typingAgentId}>
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-[10px] text-muted-foreground/30 mt-1.5 select-none">
-          {typingAgentId ? "Waiting for response…" : "Enter to send · Shift+Enter for new line"}
-        </p>
-      </div>
+      <ChatComposer
+        input={input}
+        setInput={setInput}
+        onSend={handleSend}
+        onKeyDown={handleKeyDown}
+        participants={participants}
+        typingAgentId={typingAgentId}
+        inputRef={inputRef}
+        companyId={companyId}
+        draftAttachments={draftAttachments}
+        setDraftAttachments={setDraftAttachments}
+      />
     </div>
   );
 }
@@ -633,8 +852,19 @@ export function AgentChat() {
 
   const allAgents = useMemo(() => agents ?? [], [agents]);
 
+  const [sessionSearch, setSessionSearch] = useState("");
+
   const activeSession = useMemo(() => sessions.find((s) => s.id === activeSessionId) ?? null, [sessions, activeSessionId]);
-  const sorted = useMemo(() => [...sessions].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()), [sessions]);
+  const sorted = useMemo(() => {
+    const list = [...sessions].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    if (!sessionSearch.trim()) return list;
+    const q = sessionSearch.toLowerCase();
+    return list.filter((s) => {
+      const name = (s.name ?? s.participants.map((p) => p.name).join(", ")).toLowerCase();
+      if (name.includes(q)) return true;
+      return s.messages.some((m) => m.content.toLowerCase().includes(q));
+    });
+  }, [sessions, sessionSearch]);
 
   const handleUpdate = useCallback((messages: ChatMessage[], participants: ChatParticipant[]) => {
     if (activeSessionId) updateSession(activeSessionId, messages, participants);
@@ -662,6 +892,26 @@ export function AgentChat() {
             setNewChatOpen(false);
           }} />
         </div>
+
+        {/* Search */}
+        {sessions.length > 0 && (
+          <div className="px-3 py-2 border-b border-border/50">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted border border-border/50">
+              <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+              <input
+                value={sessionSearch}
+                onChange={(e) => setSessionSearch(e.target.value)}
+                placeholder="Search chats…"
+                className="flex-1 text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground/50 min-w-0"
+              />
+              {sessionSearch && (
+                <button onClick={() => setSessionSearch("")} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Session list */}
         <div className="flex-1 overflow-y-auto">

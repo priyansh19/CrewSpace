@@ -13,10 +13,14 @@ import {
   Check,
   CheckSquare,
   Square,
+  Copy,
+  CheckCheck,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentIcon } from "./AgentIconPicker";
+import { AgentAvatar } from "./AgentAvatar";
 import { cn } from "@/lib/utils";
 import { useChat, type ChatSession, type ChatParticipant } from "../context/ChatContext";
 import { useCompany } from "../context/CompanyContext";
@@ -26,6 +30,7 @@ import { useDialog } from "../context/DialogContext";
 import { agentsApi } from "../api/agents";
 import { agentDotColor, formatChatTime, streamAgentChat } from "../lib/agentChat";
 import { agentMemoriesApi } from "../api/agentMemories";
+import { ChatMessageContent } from "./ChatMessageContent";
 import type { ChatMessage } from "../context/ChatContext";
 import type { Agent } from "@crewspaceai/shared";
 
@@ -129,9 +134,7 @@ function NewChatMenu({
                       {isSelected && <Check className="h-2 w-2 text-primary-foreground" />}
                     </div>
                     <div className="relative shrink-0">
-                      <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-                        <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/60" />
-                      </div>
+                      <AgentAvatar agent={agent as any} size="xs" />
                       <span
                         className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-popover"
                         style={{ backgroundColor: agentDotColor(agent.status) }}
@@ -230,9 +233,7 @@ function AddParticipantMenu({
                   }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent/50 transition-colors text-left"
                 >
-                  <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/60" />
-                  </div>
+                  <AgentAvatar agent={agent as any} size="xs" className="shrink-0" />
                   <span className="text-xs text-foreground truncate">{agent.name}</span>
                 </button>
               ))
@@ -268,22 +269,22 @@ function SessionListItem({
       )}
     >
       {/* Stacked avatars */}
-      <div className="relative shrink-0 h-7 w-9 mt-0.5">
+      <div className="relative shrink-0 h-10 w-12 mt-0.5">
         {shown.map((agent, i) => (
           <div
             key={agent.id}
-            className="absolute w-5 h-5 rounded-full bg-muted border-[1.5px] border-card flex items-center justify-center"
-            style={{ left: i * 5, top: i === 0 ? 0 : i * 1.5, zIndex: shown.length - i }}
+            className="absolute"
+            style={{ left: i * 6, top: i === 0 ? 0 : i * 2, zIndex: shown.length - i }}
           >
-            <AgentIcon icon={(agent as any).icon} className="h-2.5 w-2.5 text-foreground/60" />
+            <AgentAvatar agent={agent as any} size="sm" className="border-[1.5px] border-card" />
           </div>
         ))}
         {extra > 0 && (
           <div
-            className="absolute w-5 h-5 rounded-full bg-muted border-[1.5px] border-card flex items-center justify-center"
-            style={{ left: 3 * 5, top: 3 * 1.5, zIndex: 0 }}
+            className="absolute w-6 h-6 rounded-full bg-muted border-[1.5px] border-card flex items-center justify-center"
+            style={{ left: 3 * 6, top: 3 * 2, zIndex: 0 }}
           >
-            <span className="text-[8px] text-muted-foreground font-medium">+{extra}</span>
+            <span className="text-[9px] text-muted-foreground font-medium">+{extra}</span>
           </div>
         )}
       </div>
@@ -308,9 +309,30 @@ function SessionListItem({
   );
 }
 
+// ── Copy Button ───────────────────────────────────────────────────────────────
+
+function CopyMessageButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [text]);
+
+  return (
+    <button
+      onClick={copy}
+      className="flex items-center gap-1 px-1 py-0.5 rounded text-[9px] font-medium transition-all opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-accent"
+      title="Copy"
+    >
+      {copied ? <CheckCheck className="h-2.5 w-2.5 text-green-500" /> : <Copy className="h-2.5 w-2.5" />}
+    </button>
+  );
+}
+
 // ── Chat Area ─────────────────────────────────────────────────────────────────
 
-function ChatArea({
+function ChatArea ({
   session,
   allAgents,
   companyId,
@@ -339,16 +361,12 @@ function ChatArea({
   const [participants, setParticipants] = useState<ChatParticipant[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  // Sync session data only when switching to a different session (not on every content change)
+  // Sync session data when switching sessions or when async message load completes
   useEffect(() => {
     setParticipants(session.participants);
-    if (session.messages.length > 0) {
-      setMessages(session.messages);
-    } else {
-      setMessages([]);
-    }
+    setMessages(session.messages);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.id]);
+  }, [session.id, session.messages.length]);
   const [input, setInput] = useState("");
   const [typingAgentId, setTypingAgentId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -407,26 +425,32 @@ function ChatArea({
       ]);
 
       let finalContent = "";
-      const streamResult = await streamAgentChat(
-        agent as unknown as Agent,
-        fullHistory,
-        companyId,
-        abortRef.current.signal,
-        (partial) => {
-          if (!isMountedRef.current) return;
-          finalContent = partial;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === streamingId ? { ...m, content: partial } : m)),
-          );
-        },
-      );
-
-      // If onChunk was never called (e.g. stream errored before first chunk), use the return value
-      if (!finalContent && streamResult) {
-        finalContent = streamResult;
-        setMessages((prev) =>
-          prev.map((m) => (m.id === streamingId ? { ...m, content: streamResult } : m)),
+      try {
+        const streamResult = await streamAgentChat(
+          agent as unknown as Agent,
+          fullHistory,
+          companyId,
+          abortRef.current.signal,
+          (partial) => {
+            if (!isMountedRef.current) return;
+            finalContent = partial;
+            setMessages((prev) =>
+              prev.map((m) => (m.id === streamingId ? { ...m, content: partial } : m)),
+            );
+          },
         );
+
+        // If onChunk was never called (e.g. stream errored before first chunk), use the return value
+        if (!finalContent && streamResult) {
+          finalContent = streamResult;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === streamingId ? { ...m, content: streamResult } : m)),
+          );
+        }
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        setSendError(errMsg);
+        setMessages((prev) => prev.filter((m) => m.id !== streamingId));
       }
 
       setTypingAgentId(null);
@@ -542,9 +566,7 @@ function ChatArea({
               className="flex items-center gap-1 bg-muted/60 border border-border rounded-full pl-1 pr-1.5 py-0.5"
             >
               <div className="relative">
-                <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
-                  <AgentIcon icon={(agent as any).icon} className="h-2 w-2 text-foreground/70" />
-                </div>
+                <AgentAvatar agent={agent as any} size="xs" />
                 <span
                   className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-card"
                   style={{ backgroundColor: agentDotColor(agent.status) }}
@@ -584,14 +606,17 @@ function ChatArea({
 
           if (msg.role === "user") {
             return (
-              <div key={msg.id} className="flex justify-end">
+              <div key={msg.id} className="flex justify-end group">
                 <div className="flex flex-col items-end gap-0.5 max-w-[82%]">
-                  <div className="px-3 py-2 text-xs leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-sm">
-                    {msg.content}
+                  <div className="px-3 py-2 text-xs leading-relaxed bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-2xl rounded-br-sm shadow-sm">
+                    <ChatMessageContent content={msg.content} />
                   </div>
-                  <span className="text-[10px] text-muted-foreground/40 px-1">
-                    {formatChatTime(msg.ts)}
-                  </span>
+                  <div className="flex items-center gap-1 px-1">
+                    <CopyMessageButton text={msg.content} />
+                    <span className="text-[10px] text-muted-foreground/40">
+                      {formatChatTime(msg.ts)}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -602,14 +627,9 @@ function ChatArea({
           const showName = participants.length > 1;
 
           return (
-            <div key={msg.id} className="flex gap-2 items-end">
+            <div key={msg.id} className="flex gap-2 items-end group">
               <div className="relative shrink-0 mb-0.5">
-                <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-                  <AgentIcon
-                    icon={sender ? (sender as any).icon : undefined}
-                    className="h-2.5 w-2.5 text-foreground/60"
-                  />
-                </div>
+                <AgentAvatar agent={sender as any} size="xs" />
                 <span
                   className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-card"
                   style={{ backgroundColor: color }}
@@ -622,16 +642,19 @@ function ChatArea({
                     {sender.name}
                   </span>
                 )}
-                <div className="px-3 py-2 text-xs leading-relaxed bg-accent text-foreground rounded-2xl rounded-bl-sm whitespace-pre-wrap">
-                  {msg.content}
+                <div className="px-3 py-2 text-xs leading-relaxed bg-background/80 backdrop-blur-sm text-foreground rounded-2xl rounded-bl-sm border border-border/50 shadow-sm">
+                  <ChatMessageContent content={msg.content} />
                 </div>
-                <span className="text-[10px] text-muted-foreground/40 px-1">
-                  {formatChatTime(msg.ts)}
-                </span>
+                <div className="flex items-center gap-1 px-1">
+                  <CopyMessageButton text={msg.content} />
+                  <span className="text-[10px] text-muted-foreground/40">
+                    {formatChatTime(msg.ts)}
+                  </span>
+                </div>
               </div>
             </div>
           );
-        })}
+        })},
 
         {/* Typing indicator */}
         {typingAgentId &&
@@ -641,18 +664,13 @@ function ChatArea({
             return (
               <div className="flex gap-2 items-end">
                 <div className="relative shrink-0 mb-0.5">
-                  <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-                    <AgentIcon
-                      icon={agent ? (agent as any).icon : undefined}
-                      className="h-2.5 w-2.5 text-foreground/60"
-                    />
-                  </div>
+                  <AgentAvatar agent={agent as any} size="xs" />
                   <span
                     className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-card"
                     style={{ backgroundColor: color }}
                   />
                 </div>
-                <div className="bg-accent px-3 py-2.5 rounded-2xl rounded-bl-sm">
+                <div className="bg-background/80 backdrop-blur-sm border border-border/50 px-3 py-2.5 rounded-2xl rounded-bl-sm shadow-sm">
                   <div className="flex gap-1 items-center h-3">
                     {[0, 150, 300].map((delay) => (
                       <span
@@ -693,8 +711,14 @@ function ChatArea({
       </div>
 
       {/* Input */}
-      <div className="border-t border-border px-2.5 py-2 shrink-0 bg-card/50 mt-2">
-        <div className="flex gap-1.5 items-end">
+      <div className="border-t border-border px-3 py-2.5 shrink-0 bg-card/50 mt-2">
+        <div className="flex items-end gap-2 bg-muted/50 border border-border/60 rounded-2xl px-3 py-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 focus-within:bg-muted/70">
+          <button
+            className="shrink-0 text-muted-foreground/50 hover:text-primary transition-colors mb-0.5"
+            title="Attach file"
+          >
+            <Paperclip className="h-3.5 w-3.5" />
+          </button>
           <Textarea
             ref={inputRef}
             value={input}
@@ -705,20 +729,19 @@ function ChatArea({
                 ? `Message ${participants.length} agents…`
                 : `Message ${participants[0]?.name ?? "agent"}…`
             }
-            className="min-h-[32px] max-h-20 resize-none text-xs py-2 leading-relaxed"
+            className="min-h-0 max-h-20 resize-none text-xs py-0 leading-relaxed bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
             rows={1}
             disabled={!!typingAgentId}
           />
-          <Button
-            size="icon"
-            className="h-8 w-8 shrink-0"
+          <button
+            className="shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleSend}
             disabled={!input.trim() || !!typingAgentId}
           >
             <Send className="h-3 w-3" />
-          </Button>
+          </button>
         </div>
-        <p className="text-[10px] text-muted-foreground/30 mt-1 select-none">
+        <p className="text-[10px] text-muted-foreground/30 mt-1.5 select-none text-center">
           {typingAgentId ? "Waiting for response…" : "Enter to send · Shift+Enter new line"}
         </p>
       </div>
