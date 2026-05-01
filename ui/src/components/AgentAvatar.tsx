@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo } from "react";
 import { createAvatar } from "@dicebear/core";
 import { adventurer } from "@dicebear/collection";
 import { cn } from "@/lib/utils";
@@ -57,7 +57,7 @@ function seedToHsl(seed: string): { h: number; s: number; l: number } {
   return { h, s, l };
 }
 
-/** Generate a dicebear SVG data URI, or null on failure. */
+/** Generate a dicebear avatar as a base64 data URI. Returns null on failure. */
 function tryDicebearDataUri(seed: string, sizePx: number): string | null {
   try {
     const avatar = createAvatar(adventurer, {
@@ -66,8 +66,8 @@ function tryDicebearDataUri(seed: string, sizePx: number): string | null {
       backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
     });
     const svg = avatar.toString();
-    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-    return URL.createObjectURL(blob);
+    const base64 = btoa(unescape(encodeURIComponent(svg)));
+    return `data:image/svg+xml;base64,${base64}`;
   } catch {
     return null;
   }
@@ -80,20 +80,14 @@ export function AgentAvatar({
   className,
   fallbackIcon,
 }: AgentAvatarProps) {
-  const [dicebearFailed, setDicebearFailed] = useState(false);
-
   const seed = agent?.icon || agent?.id || agent?.name || "unknown";
   const initial = (agent?.name?.trim()?.charAt(0) || "?").toUpperCase();
   const hsl = useMemo(() => seedToHsl(seed), [seed]);
 
-  const dicebearSrc = useMemo(() => {
-    if (!agent || dicebearFailed) return null;
+  const dataUri = useMemo(() => {
+    if (!agent) return null;
     return tryDicebearDataUri(seed, SIZE_PX[size]);
-  }, [agent, seed, size, dicebearFailed]);
-
-  const handleError = useCallback(() => {
-    setDicebearFailed(true);
-  }, []);
+  }, [agent, seed, size]);
 
   if (!agent) {
     const FallbackIcon = getAgentIcon(fallbackIcon);
@@ -110,8 +104,7 @@ export function AgentAvatar({
     );
   }
 
-  // If dicebear is available and hasn't failed, render the SVG image
-  if (dicebearSrc && !dicebearFailed) {
+  if (dataUri) {
     return (
       <div
         className={cn(
@@ -124,11 +117,11 @@ export function AgentAvatar({
         title={agent.name}
       >
         <img
-          src={dicebearSrc}
+          src={dataUri}
           alt={agent.name || "Agent"}
           className="h-full w-full object-cover"
-          onError={handleError}
           draggable={false}
+          loading="eager"
         />
       </div>
     );
@@ -145,15 +138,10 @@ export function AgentAvatar({
         className,
       )}
       title={agent.name}
-      style={{
-        backgroundColor: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)`,
-      }}
+      style={{ backgroundColor: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)` }}
     >
       <span
-        className={cn(
-          "font-bold text-white select-none",
-          TEXT_SIZE[size],
-        )}
+        className={cn("font-bold text-white select-none", TEXT_SIZE[size])}
         style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
       >
         {initial}
