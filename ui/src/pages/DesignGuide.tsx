@@ -1027,9 +1027,9 @@ export function DesignGuide() {
       <Section title="Progress Bars (Budget)">
         <div className="space-y-3">
           {[
-            { label: "Under budget (40%)", pct: 40, color: "bg-green-400" },
-            { label: "Warning (75%)", pct: 75, color: "bg-yellow-400" },
-            { label: "Over budget (95%)", pct: 95, color: "bg-red-400" },
+            { label: "Under budget (40%)", pct: 40, color: "bg-primary" },
+            { label: "Warning (75%)", pct: 75, color: "bg-accent" },
+            { label: "Over budget (95%)", pct: 95, color: "bg-destructive" },
           ].map(({ label, pct, color }) => (
             <div key={label} className="space-y-1">
               <div className="flex items-center justify-between">
@@ -1051,20 +1051,20 @@ export function DesignGuide() {
       {/*  LOG VIEWER                                                   */}
       {/* ============================================================ */}
       <Section title="Log Viewer">
-        <div className="bg-neutral-950 rounded-lg p-3 font-mono text-xs max-h-80 overflow-y-auto">
+        <div className="bg-card rounded-lg p-3 font-mono text-xs max-h-80 overflow-y-auto">
           <div className="text-foreground">[12:00:01] INFO  Agent started successfully</div>
           <div className="text-foreground">[12:00:02] INFO  Processing task PAP-001</div>
           <div className="text-yellow-400">[12:00:05] WARN  Rate limit approaching (80%)</div>
           <div className="text-foreground">[12:00:08] INFO  Task PAP-001 completed</div>
-          <div className="text-red-400">[12:00:12] ERROR Connection timeout to upstream service</div>
-          <div className="text-blue-300">[12:00:12] SYS   Retrying connection in 5s...</div>
+          <div className="text-destructive">[12:00:12] ERROR Connection timeout to upstream service</div>
+          <div className="text-primary">[12:00:12] SYS   Retrying connection in 5s...</div>
           <div className="text-foreground">[12:00:17] INFO  Reconnected successfully</div>
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 animate-pulse" />
-              <span className="inline-flex h-full w-full rounded-full bg-cyan-400" />
+              <span className="absolute inline-flex h-full w-full rounded-full bg-primary animate-pulse" />
+              <span className="inline-flex h-full w-full rounded-full bg-primary" />
             </span>
-            <span className="text-cyan-400">Live</span>
+            <span className="text-primary">Live</span>
           </div>
         </div>
       </Section>

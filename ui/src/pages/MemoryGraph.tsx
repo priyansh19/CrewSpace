@@ -464,13 +464,13 @@ function use2DRenderer({
       ctx.clearRect(0, 0, w, h);
       const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
       if (isDark) {
-        bg.addColorStop(0, "#0d0f1a");
-        bg.addColorStop(0.6, "#080a12");
-        bg.addColorStop(1, "#05060e");
+        bg.addColorStop(0, "#181715");
+        bg.addColorStop(0.6, "#141312");
+        bg.addColorStop(1, "#0e0d0c");
       } else {
-        bg.addColorStop(0, "#f8fafc");
-        bg.addColorStop(0.6, "#f1f5f9");
-        bg.addColorStop(1, "#e2e8f0");
+        bg.addColorStop(0, "#faf9f5");
+        bg.addColorStop(0.6, "#f5f3ee");
+        bg.addColorStop(1, "#efe9de");
       }
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
@@ -485,7 +485,7 @@ function use2DRenderer({
         const p = particles[i];
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = isDark ? "rgba(99,102,241,0.25)" : "rgba(99,102,241,0.15)";
+        ctx.fillStyle = isDark ? "rgba(204,120,92,0.25)" : "rgba(204,120,92,0.15)";
         ctx.fill();
         for (let j = i + 1; j < particles.length; j++) {
           const q2 = particles[j];
@@ -496,7 +496,7 @@ function use2DRenderer({
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q2.x, q2.y);
-            ctx.strokeStyle = isDark ? `rgba(99,102,241,${alpha})` : `rgba(99,102,241,${alpha * 0.6})`;
+            ctx.strokeStyle = isDark ? `rgba(204,120,92,${alpha})` : `rgba(204,120,92,${alpha * 0.6})`;
             ctx.lineWidth = 0.5 / zoom;
             ctx.stroke();
           }
@@ -612,7 +612,7 @@ function use2DRenderer({
             const tw = ctx.measureText(lbl).width;
             const lx = pos.x - tw / 2;
             const ly = pos.y - r - 10;
-            ctx.fillStyle = isDark ? "rgba(8,10,18,0.9)" : "rgba(255,255,255,0.95)";
+            ctx.fillStyle = isDark ? "rgba(24,23,21,0.9)" : "rgba(250,249,245,0.95)";
             ctx.beginPath();
             (ctx as any).roundRect?.(lx - 6, ly - 13, tw + 12, 18, 4);
             ctx.fill();
@@ -709,7 +709,7 @@ function use2DRenderer({
             ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillStyle = isDark ? "#ffffff" : "#ffffff";
+            ctx.fillStyle = isDark ? "#faf9f5" : "#141413";
             ctx.fillText(initial, pos.x, pos.y);
             ctx.textBaseline = "alphabetic";
           }
@@ -720,11 +720,11 @@ function use2DRenderer({
           ctx.textAlign = "center";
           const lbl = agent.name;
           const tw = ctx.measureText(lbl).width;
-          ctx.fillStyle = isDark ? "rgba(5,7,14,0.75)" : "rgba(255,255,255,0.9)";
+          ctx.fillStyle = isDark ? "rgba(24,23,21,0.75)" : "rgba(250,249,245,0.9)";
           ctx.beginPath();
           (ctx as any).roundRect?.(pos.x - tw / 2 - 5, pos.y + r + 5, tw + 10, 16, 3);
           ctx.fill();
-          ctx.fillStyle = isSel || isHov ? (isDark ? "#ffffff" : "#0f172a") : rgba(color, 0.95);
+          ctx.fillStyle = isSel || isHov ? (isDark ? "#faf9f5" : "#141413") : rgba(color, 0.95);
           ctx.fillText(lbl, pos.x, pos.y + r + 17);
           ctx.textAlign = "left";
 
@@ -978,7 +978,7 @@ function AddMemoryModal({ onClose, onAdd }: {
   const [memoryType, setMemoryType] = useState("fact");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60" onClick={onClose}>
-      <div className="bg-background border border-border rounded-xl shadow-2xl w-[480px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-background border border-border rounded-lg shadow-2xl w-[480px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Add Memory Node</h2>
           <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -1013,7 +1013,7 @@ function LinkModal({ sourceMemory, memories, onClose, onLink }: {
   const [targetId, setTargetId] = useState(""); const [relType, setRelType] = useState("related_to"); const [label, setLabel] = useState("");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60" onClick={onClose}>
-      <div className="bg-background border border-border rounded-xl shadow-2xl w-[420px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-background border border-border rounded-lg shadow-2xl w-[420px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Link Memory</h2>
           <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-4 w-4" /></button>

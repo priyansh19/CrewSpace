@@ -681,7 +681,7 @@ function PluginConfigForm({ pluginId, schema, initialValues, isLoading, pluginSt
         <div
           className={`text-sm p-2 rounded border ${
             saveMessage.type === "success"
-              ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950/30 dark:border-green-900"
+              ? "text-primary bg-primary/10 border-primary/20"
               : "text-destructive bg-destructive/10 border-destructive/20"
           }`}
         >
@@ -693,7 +693,7 @@ function PluginConfigForm({ pluginId, schema, initialValues, isLoading, pluginSt
         <div
           className={`text-sm p-2 rounded border ${
             testResult.type === "success"
-              ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950/30 dark:border-green-900"
+              ? "text-primary bg-primary/10 border-primary/20"
               : "text-destructive bg-destructive/10 border-destructive/20"
           }`}
         >

@@ -151,7 +151,7 @@ export function InboxIssueMetaLeading({
           <span
             className={cn(
               "hidden text-[11px] font-medium sm:inline",
-              selected ? "text-muted-foreground" : "text-blue-600 dark:text-blue-400",
+              selected ? "text-muted-foreground" : "text-primary",
             )}
           >
             Live
