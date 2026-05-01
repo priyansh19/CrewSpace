@@ -32,7 +32,19 @@ function CopyCodeButton({ code }: { code: string }) {
 
 export function ChatMessageContent({ content, className }: ChatMessageContentProps) {
   return (
-    <div className={cn("prose prose-sm max-w-none dark:prose-invert text-foreground", className)}>
+    <div
+      className={cn("prose prose-sm max-w-none dark:prose-invert text-[#0A0A0B]", className)}
+      style={{
+        "--tw-prose-body": "#0A0A0B",
+        "--tw-prose-headings": "#0A0A0B",
+        "--tw-prose-bold": "#0A0A0B",
+        "--tw-prose-code": "#0A0A0B",
+        "--tw-prose-invert-body": "#0A0A0B",
+        "--tw-prose-invert-headings": "#0A0A0B",
+        "--tw-prose-invert-bold": "#0A0A0B",
+        "--tw-prose-invert-code": "#0A0A0B",
+      } as React.CSSProperties}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

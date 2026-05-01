@@ -82,7 +82,7 @@ function NewChatMenu({ allAgents, onStart, open, onOpenChange }: { allAgents: Ag
       </Button>
 
       {isOpen && (
-        <div className="absolute top-9 right-0 z-50 w-60 bg-popover border border-border rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute top-9 right-0 z-50 w-60 bg-popover border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)}
@@ -160,7 +160,7 @@ function AddParticipantMenu({ allAgents, participants, onAdd }: {
         <Users className="h-3 w-3 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute top-8 left-0 z-50 w-48 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute top-8 left-0 z-50 w-48 bg-popover border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)}
@@ -357,7 +357,7 @@ function UserMessageBubble({ msg }: { msg: ChatMessage }) {
             <MessageAttachments attachments={msg.attachments} />
           </div>
         )}
-        <div className="px-4 py-2.5 text-sm leading-relaxed bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-2xl rounded-br-md shadow-sm shadow-primary/10">
+        <div className="px-4 py-2.5 text-sm leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-md">
           <ChatMessageContent content={msg.content} />
         </div>
         <div className="flex items-center gap-1.5 px-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
@@ -391,7 +391,7 @@ function AgentMessageBubble({ msg, sender, color, participants }: {
             <MessageAttachments attachments={msg.attachments} />
           </div>
         )}
-        <div className="px-4 py-2.5 text-sm leading-relaxed bg-background/80 backdrop-blur-sm border border-border/40 text-foreground rounded-2xl rounded-bl-md shadow-sm">
+        <div className="px-4 py-2.5 text-sm leading-relaxed bg-muted/50 text-foreground rounded-2xl rounded-bl-md">
           <ChatMessageContent content={msg.content} />
         </div>
         <div className="flex items-center gap-1.5 px-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
@@ -475,7 +475,7 @@ function ChatComposer({
   }, [handleSendWithAttachments, onKeyDown]);
 
   return (
-    <div className="border-t border-border/50 px-5 py-3 shrink-0 bg-card/20">
+    <div className="px-5 py-3 shrink-0">
       {/* Attachment chips */}
       {draftAttachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
@@ -493,7 +493,7 @@ function ChatComposer({
 
       <div className="flex gap-2 items-end">
         <div className="flex-1 relative">
-          <div className="flex items-end gap-2 bg-background/80 border border-border/60 rounded-2xl px-3 py-2 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+          <div className="flex items-end gap-2 bg-muted/40 border border-border/30 rounded-2xl px-3 py-2 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading || !!typingAgentId}
@@ -698,7 +698,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
       {/* Chat header — minimal floating bar */}
-      <div className="flex items-center justify-between px-5 py-2 border-b border-border/50 shrink-0 bg-card/20">
+      <div className="flex items-center justify-between px-5 py-2.5 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           {participants.length === 1 ? (
             <div className="flex items-center gap-2">
@@ -793,7 +793,7 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
       {/* Create issue */}
       <div className="px-5 pt-2 shrink-0">
         <button onClick={handleCreateIssue}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border text-xs font-medium text-muted-foreground hover:border-foreground/30 hover:text-foreground hover:bg-accent/30 transition-colors">
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors">
           <CircleDot className="h-3.5 w-3.5" />
           Create issue from this chat
         </button>
@@ -875,9 +875,9 @@ export function AgentChat() {
   return (
     <div className="flex h-full min-h-0 bg-background">
       {/* Session list sidebar */}
-      <div className="w-72 shrink-0 border-r border-border flex flex-col bg-card/30">
+      <div className="w-72 shrink-0 flex flex-col bg-card/30">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-13 shrink-0 border-b border-border">
+        <div className="flex items-center justify-between px-4 h-13 shrink-0">
           <div className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Agent Chat</span>
@@ -895,7 +895,7 @@ export function AgentChat() {
 
         {/* Search */}
         {sessions.length > 0 && (
-          <div className="px-3 py-2 border-b border-border/50">
+          <div className="px-3 py-2">
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted border border-border/50">
               <Search className="h-3 w-3 text-muted-foreground shrink-0" />
               <input

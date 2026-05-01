@@ -127,7 +127,7 @@ function AddParticipantMenu({
       </button>
 
       {open && (
-        <div className="absolute top-8 left-0 z-50 w-56 bg-popover border border-border rounded-lg shadow-md overflow-hidden">
+        <div className="absolute top-8 left-0 z-50 w-56 bg-popover border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input
@@ -211,7 +211,7 @@ export function ChatHistoryPanel({
       {!expanded ? (
         <button
           onClick={() => setExpanded(true)}
-          className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3 py-1.5 shadow-md hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3 py-1.5 hover:bg-accent transition-colors"
           title="View past conversations"
         >
           <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
@@ -220,7 +220,7 @@ export function ChatHistoryPanel({
         </button>
       ) : (
         <div
-          className="bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+          className="bg-card border border-border rounded-xl overflow-hidden"
           style={{ width: HISTORY_W, animation: "chatPanelIn 0.15s cubic-bezier(0.16,1,0.3,1) both" }}
         >
           {/* Header */}
@@ -504,7 +504,7 @@ export function AgentChatPanel({
 
   return (
     <div
-      className="fixed z-50 flex flex-col bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+      className="fixed z-50 flex flex-col bg-card border border-border rounded-xl overflow-hidden"
       style={{
         left: pos.x,
         top: pos.y,
@@ -553,7 +553,7 @@ export function AgentChatPanel({
             return (
               <div key={msg.id} className="flex justify-end">
                 <div className="flex flex-col items-end gap-0.5 max-w-[78%]">
-                  <div className="px-3 py-2 text-sm leading-relaxed bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-2xl rounded-br-sm shadow-sm">
+                  <div className="px-3 py-2 text-sm leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-sm">
                     {msg.content}
                   </div>
                   <span className="text-[10px] text-muted-foreground/50 px-1">{formatChatTime(msg.ts)}</span>
@@ -582,7 +582,7 @@ export function AgentChatPanel({
                     {sender.name}
                   </span>
                 )}
-                <div className="px-3 py-2 text-sm leading-relaxed bg-background/80 backdrop-blur-sm text-foreground rounded-2xl rounded-bl-sm border border-border/50 shadow-sm whitespace-pre-wrap">
+                <div className="px-3 py-2 text-sm leading-relaxed bg-muted/50 text-foreground rounded-2xl rounded-bl-sm whitespace-pre-wrap">
                   {msg.content}
                 </div>
                 <span className="text-[10px] text-muted-foreground/50 px-1">{formatChatTime(msg.ts)}</span>
@@ -635,8 +635,8 @@ export function AgentChatPanel({
       </div>
 
       {/* ── Input ── */}
-      <div className="border-t border-border px-3 py-2.5 shrink-0 bg-card/80">
-        <div className="flex items-end gap-2 bg-muted/50 border border-border/60 rounded-2xl px-3 py-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 focus-within:bg-muted/70">
+      <div className="px-3 py-2.5 shrink-0">
+        <div className="flex items-end gap-2 bg-muted/50 border border-border/30 rounded-2xl px-3 py-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 focus-within:bg-muted/70">
           <button
             className="shrink-0 text-muted-foreground/50 hover:text-primary transition-colors mb-0.5"
             title="Attach file"

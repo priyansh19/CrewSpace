@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Moon, Settings, Sun } from "lucide-react";
+import { BookOpen, Moon, Settings, Sun, PanelLeft, PanelLeftClose } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "@/lib/router";
 import { CompanyRail } from "./CompanyRail";
 import { Sidebar } from "./Sidebar";
 import { InstanceSidebar } from "./InstanceSidebar";
-import { BreadcrumbBar } from "./BreadcrumbBar";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { CommandPalette } from "./CommandPalette";
 import { NewIssueDialog } from "./NewIssueDialog";
@@ -54,7 +53,7 @@ function readRememberedInstanceSettingsPath(): string {
 
 
 export function Layout() {
-  const { sidebarOpen, setSidebarOpen, toggleSidebar, isMobile } = useSidebar();
+  const { sidebarOpen, setSidebarOpen, toggleSidebar, leftNavOpen, setLeftNavOpen, toggleLeftNav, isMobile } = useSidebar();
   const { openNewIssue, openOnboarding } = useDialog();
   const { togglePanelVisible } = usePanel();
   const {
@@ -149,7 +148,7 @@ export function Layout() {
 
   useKeyboardShortcuts({
     onNewIssue: () => openNewIssue(),
-    onToggleSidebar: toggleSidebar,
+    onToggleSidebar: toggleLeftNav,
     onTogglePanel: togglePanel,
   });
 
@@ -408,13 +407,6 @@ export function Layout() {
         )}
 
         <div className={cn("flex min-w-0 flex-col", isMobile ? "w-full" : "h-full flex-1")}>
-          <div
-            className={cn(
-              isMobile && "sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85",
-            )}
-          >
-            <BreadcrumbBar />
-          </div>
           <div className={cn(isMobile ? "block" : "flex flex-1 min-h-0")}>
             <main
               id="main-content"

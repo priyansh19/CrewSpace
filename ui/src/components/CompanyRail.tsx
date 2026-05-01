@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, PanelLeftClose } from "lucide-react";
 import { AttachIcon, CrewSpaceIcon } from "@/lib/icons";
 import { useQueries } from "@tanstack/react-query";
 import {
@@ -24,6 +24,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { sidebarBadgesApi } from "../api/sidebarBadges";
 import { heartbeatsApi } from "../api/heartbeats";
 import { useLocation, useNavigate } from "@/lib/router";
+import { useSidebar } from "../context/SidebarContext";
 import {
   Tooltip,
   TooltipContent,
@@ -129,7 +130,7 @@ function SortableCompanyItem({
                   isSelected
                     ? "rounded-[14px]"
                     : "rounded-[22px] group-hover:rounded-[14px]",
-                  isDragging && "shadow-lg",
+                  isDragging && "ring-2 ring-primary/30",
                 )}
               />
               {hasLiveAgents && (
@@ -156,6 +157,7 @@ function SortableCompanyItem({
 
 export function CompanyRail() {
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
+  const { toggleLeftNav } = useSidebar();
   const { openOnboarding } = useDialog();
   const navigate = useNavigate();
   const location = useLocation();
@@ -270,8 +272,16 @@ export function CompanyRail() {
 
   return (
     <div className="flex flex-col items-center w-[72px] shrink-0 h-full bg-background border-r border-border">
-      {/* CrewSpace logo */}
-      <div className="flex items-center justify-center h-12 w-full shrink-0">
+      {/* Top row: collapse button + logo */}
+      <div className="flex items-center justify-between h-12 w-full shrink-0 px-2">
+        <button
+          onClick={toggleLeftNav}
+          className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </button>
         <CrewSpaceIcon className="h-5 w-5 text-foreground" />
       </div>
 
@@ -306,7 +316,7 @@ export function CompanyRail() {
       </div>
 
       {/* Separator before add button */}
-      <div className="w-8 h-px bg-border mx-auto shrink-0" />
+      <div className="w-8 h-px bg-border/40 mx-auto shrink-0" />
 
       {/* Add company button */}
       <div className="flex items-center justify-center py-2 shrink-0">
@@ -314,7 +324,7 @@ export function CompanyRail() {
           <TooltipTrigger asChild>
             <button
               onClick={() => openOnboarding()}
-              className="flex items-center justify-center w-11 h-11 rounded-[22px] hover:rounded-[14px] border-2 border-dashed border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-[border-color,color,border-radius] duration-150"
+              className="flex items-center justify-center w-11 h-11 rounded-[22px] hover:rounded-[14px] border border-dashed border-border/60 text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-[border-color,color,border-radius] duration-150"
               aria-label="Add company"
             >
               <Plus className="h-5 w-5" />

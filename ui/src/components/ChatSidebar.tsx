@@ -101,7 +101,7 @@ function NewChatMenu({
       </Button>
 
       {open && (
-        <div className="absolute top-7 right-0 z-50 w-56 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute top-7 right-0 z-50 w-56 bg-popover border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input
@@ -209,7 +209,7 @@ function AddParticipantMenu({
       </button>
 
       {open && (
-        <div className="absolute top-7 left-0 z-50 w-48 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute top-7 left-0 z-50 w-48 bg-popover border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input
@@ -265,7 +265,7 @@ function SessionListItem({
       onClick={onSelect}
       className={cn(
         "w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50 transition-colors text-left",
-        isActive && "bg-primary/8 border-l-2 border-primary",
+        isActive && "bg-primary/10",
       )}
     >
       {/* Stacked avatars */}
@@ -608,7 +608,7 @@ function ChatArea ({
             return (
               <div key={msg.id} className="flex justify-end group">
                 <div className="flex flex-col items-end gap-0.5 max-w-[82%]">
-                  <div className="px-3 py-2 text-xs leading-relaxed bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-2xl rounded-br-sm shadow-sm">
+                  <div className="px-3 py-2 text-xs leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-sm">
                     <ChatMessageContent content={msg.content} />
                   </div>
                   <div className="flex items-center gap-1 px-1">
@@ -642,7 +642,7 @@ function ChatArea ({
                     {sender.name}
                   </span>
                 )}
-                <div className="px-3 py-2 text-xs leading-relaxed bg-background/80 backdrop-blur-sm text-foreground rounded-2xl rounded-bl-sm border border-border/50 shadow-sm">
+                <div className="px-3 py-2 text-xs leading-relaxed bg-muted/50 text-foreground rounded-2xl rounded-bl-sm">
                   <ChatMessageContent content={msg.content} />
                 </div>
                 <div className="flex items-center gap-1 px-1">
@@ -670,7 +670,7 @@ function ChatArea ({
                     style={{ backgroundColor: color }}
                   />
                 </div>
-                <div className="bg-background/80 backdrop-blur-sm border border-border/50 px-3 py-2.5 rounded-2xl rounded-bl-sm shadow-sm">
+                <div className="bg-muted/50 px-3 py-2.5 rounded-2xl rounded-bl-sm">
                   <div className="flex gap-1 items-center h-3">
                     {[0, 150, 300].map((delay) => (
                       <span
@@ -703,7 +703,7 @@ function ChatArea ({
       <div className="px-2.5 pt-2 shrink-0">
         <button
           onClick={handleCreateIssue}
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-dashed border-border text-[11px] font-medium text-muted-foreground hover:border-foreground/40 hover:text-foreground hover:bg-accent/40 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
         >
           <CircleDot className="h-3.5 w-3.5" />
           Create issue from this chat
@@ -711,8 +711,8 @@ function ChatArea ({
       </div>
 
       {/* Input */}
-      <div className="border-t border-border px-3 py-2.5 shrink-0 bg-card/50 mt-2">
-        <div className="flex items-end gap-2 bg-muted/50 border border-border/60 rounded-2xl px-3 py-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 focus-within:bg-muted/70">
+      <div className="px-3 py-2.5 shrink-0 mt-2">
+        <div className="flex items-end gap-2 bg-muted/50 border border-border/30 rounded-2xl px-3 py-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 focus-within:bg-muted/70">
           <button
             className="shrink-0 text-muted-foreground/50 hover:text-primary transition-colors mb-0.5"
             title="Attach file"
@@ -785,9 +785,9 @@ export function ChatSidebar({ onClose }: { onClose?: () => void }) {
   const handleCloseChat = useCallback(() => setActiveSessionId(null), [setActiveSessionId]);
 
   return (
-    <aside className="w-full h-full border-l border-border bg-background flex flex-col">
+    <aside className="w-full h-full bg-background flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 h-12 shrink-0 border-b border-border">
+      <div className="flex items-center justify-between px-3 h-12 shrink-0">
         <div className="flex items-center gap-2">
           <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-sm font-semibold text-foreground">Chats</span>
@@ -816,7 +816,7 @@ export function ChatSidebar({ onClose }: { onClose?: () => void }) {
       >
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-8 gap-3 text-center">
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center">
               <MessageCircle className="h-5 w-5 text-muted-foreground/50" />
             </div>
             <div>
