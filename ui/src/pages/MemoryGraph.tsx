@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useCompany } from "../context/CompanyContext";
+import { useTheme } from "../context/ThemeContext";
 import { agentMemoriesApi, type AgentMemory, type AgentMemoryLink } from "../api/agentMemories";
 import { agentsApi } from "../api/agents";
 import { queryKeys } from "../lib/queryKeys";
@@ -263,6 +264,7 @@ function use2DRenderer({
   search,
   onSelect,
   onHover,
+  isDark,
 }: {
   graph: GraphData;
   selectedId: string | null;
@@ -271,6 +273,7 @@ function use2DRenderer({
   search: string;
   onSelect: (id: string | null) => void;
   onHover: (id: string | null) => void;
+  isDark: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -438,9 +441,15 @@ function use2DRenderer({
       // ── Background ─────────────────────────────────────────────────────────────
       ctx.clearRect(0, 0, w, h);
       const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
-      bg.addColorStop(0, "#0d0f1a");
-      bg.addColorStop(0.6, "#080a12");
-      bg.addColorStop(1, "#05060e");
+      if (isDark) {
+        bg.addColorStop(0, "#0d0f1a");
+        bg.addColorStop(0.6, "#080a12");
+        bg.addColorStop(1, "#05060e");
+      } else {
+        bg.addColorStop(0, "#f8fafc");
+        bg.addColorStop(0.6, "#f1f5f9");
+        bg.addColorStop(1, "#e2e8f0");
+      }
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
 
@@ -454,7 +463,7 @@ function use2DRenderer({
         const p = particles[i];
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(99,102,241,0.25)";
+        ctx.fillStyle = isDark ? "rgba(99,102,241,0.25)" : "rgba(99,102,241,0.15)";
         ctx.fill();
         for (let j = i + 1; j < particles.length; j++) {
           const q2 = particles[j];
@@ -465,7 +474,7 @@ function use2DRenderer({
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q2.x, q2.y);
-            ctx.strokeStyle = `rgba(99,102,241,${alpha})`;
+            ctx.strokeStyle = isDark ? `rgba(99,102,241,${alpha})` : `rgba(99,102,241,${alpha * 0.6})`;
             ctx.lineWidth = 0.5 / zoom;
             ctx.stroke();
           }
@@ -581,7 +590,7 @@ function use2DRenderer({
             const tw = ctx.measureText(lbl).width;
             const lx = pos.x - tw / 2;
             const ly = pos.y - r - 10;
-            ctx.fillStyle = "rgba(8,10,18,0.9)";
+            ctx.fillStyle = isDark ? "rgba(8,10,18,0.9)" : "rgba(255,255,255,0.95)";
             ctx.beginPath();
             (ctx as any).roundRect?.(lx - 6, ly - 13, tw + 12, 18, 4);
             ctx.fill();
@@ -654,17 +663,26 @@ function use2DRenderer({
             ctx.fill();
           }
 
+          // Draw agent initial inside the circle
+          const initial = agent.name.trim().charAt(0).toUpperCase() || "?";
+          ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = isDark ? "#ffffff" : "#ffffff";
+          ctx.fillText(initial, pos.x, pos.y);
+          ctx.textBaseline = "alphabetic";
+
           ctx.globalAlpha = (isDimmed ? 0.15 : 1) * dAlpha;
 
           ctx.font = `700 12px Inter, system-ui, sans-serif`;
           ctx.textAlign = "center";
           const lbl = agent.name;
           const tw = ctx.measureText(lbl).width;
-          ctx.fillStyle = "rgba(5,7,14,0.75)";
+          ctx.fillStyle = isDark ? "rgba(5,7,14,0.75)" : "rgba(255,255,255,0.9)";
           ctx.beginPath();
           (ctx as any).roundRect?.(pos.x - tw / 2 - 5, pos.y + r + 5, tw + 10, 16, 3);
           ctx.fill();
-          ctx.fillStyle = isSel || isHov ? "#ffffff" : rgba(color, 0.95);
+          ctx.fillStyle = isSel || isHov ? (isDark ? "#ffffff" : "#0f172a") : rgba(color, 0.95);
           ctx.fillText(lbl, pos.x, pos.y + r + 17);
           ctx.textAlign = "left";
 
@@ -1009,8 +1027,11 @@ export function MemoryGraph() {
     [memories, links, allAgents],
   );
 
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   const { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView } =
-    use2DRenderer({ graph: graphData, selectedId, hoveredId, filterAgentId, search, onSelect: setSelectedId, onHover: setHoveredId });
+    use2DRenderer({ graph: graphData, selectedId, hoveredId, filterAgentId, search, onSelect: setSelectedId, onHover: setHoveredId, isDark });
 
   const addMutation = useMutation({
     mutationFn: (d: { title: string; content: string; memoryType: string }) => agentMemoriesApi.create(selectedCompanyId!, d),
@@ -1063,8 +1084,8 @@ export function MemoryGraph() {
                   className={cn(
                     "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors border shrink-0",
                     !filterAgentId
-                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50"
-                      : "bg-slate-900/60 border-slate-700/50 text-slate-300 hover:bg-slate-800/80 hover:border-slate-600"
+                      ? "bg-primary/15 text-primary border-primary/40"
+                      : "bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
                 >
                   All
@@ -1076,11 +1097,16 @@ export function MemoryGraph() {
                     <button
                       key={a.id}
                       onClick={() => setFilterAgentId(isActive ? null : a.id)}
-                      className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium border transition-colors shrink-0"
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium border transition-colors shrink-0",
+                        isActive
+                          ? ""
+                          : "bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                      )}
                       style={
                         isActive
-                          ? { color: a.color, background: `${a.color}25`, borderColor: `${a.color}70` }
-                          : { color: "#94a3b8", background: "rgba(15, 23, 42, 0.8)", borderColor: "rgba(71, 85, 105, 0.5)" }
+                          ? { color: a.color, background: `${a.color}18`, borderColor: `${a.color}60` }
+                          : {}
                       }
                     >
                       <span
