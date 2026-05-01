@@ -67,21 +67,12 @@ const OfficeScene = () => {
   return (
     <>
       {isLoading && (
-        <div style={{
-          position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
-          background: "rgba(15, 23, 42, 0.95)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)"
-        }}>
-          <div style={{ textAlign: "center", color: "#fff" }}>
-            <div style={{ fontSize: "24px", fontWeight: 600, marginBottom: "20px" }}>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+          <div className="text-center">
+            <div className="text-2xl font-semibold mb-5 text-foreground">
               Loading your interactive 3D office
             </div>
-            <div style={{
-              width: "40px", height: "40px", border: "3px solid rgba(255,255,255,0.2)",
-              borderTop: "3px solid #fff", borderRadius: "50%",
-              animation: "spin 1s linear infinite", margin: "0 auto"
-            }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <div className="w-10 h-10 border-[3px] border-border border-t-primary rounded-full animate-spin mx-auto" />
           </div>
         </div>
       )}
