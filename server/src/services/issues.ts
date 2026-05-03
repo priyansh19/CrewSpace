@@ -343,6 +343,11 @@ export function normalizeAgentMentionToken(raw: string): string {
   return s.trim();
 }
 
+/** Escapes special regex characters so an arbitrary string can be used in a RegExp. */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function deriveIssueUserContext(
   issue: IssueUserContextInput,
   userId: string,
@@ -1038,6 +1043,9 @@ export function issueService(db: Db) {
           issueNumber,
           identifier,
         } as typeof issues.$inferInsert;
+        if (!values.status) {
+          values.status = values.assigneeAgentId ? "todo" : "backlog";
+        }
         if (values.status === "in_progress" && !values.startedAt) {
           values.startedAt = new Date();
         }
@@ -1751,6 +1759,27 @@ export function issueService(db: Db) {
         }
       }
       return [...resolved];
+    },
+
+    findReferencedAgents: async (companyId: string, body: string, excludeAgentIds: string[] = []) => {
+      const rows = await db.select({ id: agents.id, name: agents.name })
+        .from(agents).where(eq(agents.companyId, companyId));
+      if (rows.length === 0) return [];
+      const excludeSet = new Set(excludeAgentIds.map((id) => id.toLowerCase()));
+      const referenced = new Set<string>();
+      // Strip URLs and markdown links so agent names inside them are not matched.
+      const textWithoutUrls = body
+        .replace(/\[([^\]]*)\]\([^)]+\)/g, "$1")
+        .replace(/https?:\/\/[^\s]+/g, "");
+      for (const agent of rows) {
+        if (excludeSet.has(agent.id.toLowerCase())) continue;
+        // Whole-word, case-insensitive match for the agent's name.
+        const re = new RegExp(`\\b${escapeRegExp(agent.name)}\\b`, "i");
+        if (re.test(textWithoutUrls)) {
+          referenced.add(agent.id);
+        }
+      }
+      return [...referenced];
     },
 
     findMentionedProjectIds: async (issueId: string) => {

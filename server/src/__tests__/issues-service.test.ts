@@ -678,3 +678,103 @@ describeEmbeddedPostgres("issueService.create workspace inheritance", () => {
     });
   });
 });
+
+
+describeEmbeddedPostgres("issueService.findReferencedAgents", () => {
+  let db!: ReturnType<typeof createDb>;
+  let svc!: ReturnType<typeof issueService>;
+  let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
+
+  beforeAll(async () => {
+    tempDb = await startEmbeddedPostgresTestDatabase("crewspace-issues-service-");
+    db = createDb(tempDb.connectionString);
+    svc = issueService(db);
+  }, 20_000);
+
+  afterEach(async () => {
+    await db.delete(issueComments);
+    await db.delete(issueInboxArchives);
+    await db.delete(activityLog);
+    await db.delete(issues);
+    await db.delete(executionWorkspaces);
+    await db.delete(projectWorkspaces);
+    await db.delete(projects);
+    await db.delete(agents);
+    await db.delete(instanceSettings);
+    await db.delete(companies);
+  });
+
+  afterAll(async () => {
+    await tempDb?.cleanup();
+  });
+
+  async function seedCompanyWithAgents() {
+    const companyId = randomUUID();
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Test Co",
+      status: "active",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await instanceSettingsService(db).updateExperimental({ enableIsolatedWorkspaces: true });
+
+    const markId = randomUUID();
+    const carlId = randomUUID();
+    const carlaId = randomUUID();
+
+    await db.insert(agents).values([
+      { id: markId, companyId, name: "Mark", status: "active", adapterType: "claude_local" },
+      { id: carlId, companyId, name: "Carl", status: "active", adapterType: "claude_local" },
+      { id: carlaId, companyId, name: "Carla", status: "active", adapterType: "claude_local" },
+    ]);
+
+    return { companyId, markId, carlId, carlaId };
+  }
+
+  it("detects an agent name as a whole word without @", async () => {
+    const { companyId, carlId } = await seedCompanyWithAgents();
+    const ids = await svc.findReferencedAgents(companyId, "Carl needs to give us a detailed report.");
+    expect(ids).toContain(carlId);
+  });
+
+  it("is case-insensitive", async () => {
+    const { companyId, carlId } = await seedCompanyWithAgents();
+    const ids = await svc.findReferencedAgents(companyId, "CARL should handle this.");
+    expect(ids).toContain(carlId);
+  });
+
+  it("does not match a name inside another word", async () => {
+    const { companyId, carlId, carlaId } = await seedCompanyWithAgents();
+    const ids = await svc.findReferencedAgents(companyId, "Carla will take care of it.");
+    expect(ids).toContain(carlaId);
+    expect(ids).not.toContain(carlId);
+  });
+
+  it("excludes agents passed in excludeAgentIds", async () => {
+    const { companyId, carlId, markId } = await seedCompanyWithAgents();
+    const ids = await svc.findReferencedAgents(companyId, "Mark and Carl both need to review.", [markId]);
+    expect(ids).toContain(carlId);
+    expect(ids).not.toContain(markId);
+  });
+
+  it("returns empty array when no agents match", async () => {
+    const { companyId } = await seedCompanyWithAgents();
+    const ids = await svc.findReferencedAgents(companyId, "No agents mentioned here.");
+    expect(ids).toEqual([]);
+  });
+
+  it("handles multiple implicit references in one comment", async () => {
+    const { companyId, markId, carlId } = await seedCompanyWithAgents();
+    const ids = await svc.findReferencedAgents(companyId, "Mark will draft the doc and Carl will review it.");
+    expect(ids).toContain(markId);
+    expect(ids).toContain(carlId);
+    expect(ids).toHaveLength(2);
+  });
+
+  it("does not match names in URLs or code snippets", async () => {
+    const { companyId, carlId } = await seedCompanyWithAgents();
+    const ids = await svc.findReferencedAgents(companyId, "See https://example.com/carl-docs for info.");
+    expect(ids).not.toContain(carlId);
+  });
+});

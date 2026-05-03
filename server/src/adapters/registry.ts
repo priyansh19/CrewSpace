@@ -78,6 +78,14 @@ import {
   agentConfigurationDoc as kimiAgentConfigurationDoc,
   models as kimiModels,
 } from "@crewspaceai/adapter-kimi-local";
+import {
+  execute as kimiApiExecute,
+  testEnvironment as kimiApiTestEnvironment,
+} from "@crewspaceai/adapter-kimi-api/server";
+import {
+  agentConfigurationDoc as kimiApiAgentConfigurationDoc,
+  models as kimiApiModels,
+} from "@crewspaceai/adapter-kimi-api";
 // TODO: Fix hermes-crewspace-adapter export issue
 // import {
 //   execute as hermesExecute,
@@ -202,6 +210,15 @@ const kimiLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: kimiAgentConfigurationDoc,
 };
 
+const kimiApiAdapter: ServerAdapterModule = {
+  type: "kimi_api",
+  execute: kimiApiExecute,
+  testEnvironment: kimiApiTestEnvironment,
+  models: kimiApiModels,
+  supportsLocalAgentJwt: false,
+  agentConfigurationDoc: kimiApiAgentConfigurationDoc,
+};
+
 // TODO: Fix hermes-crewspace-adapter export issue before re-enabling
 // const hermesLocalAdapter: ServerAdapterModule = {
 //   type: "hermes_local",
@@ -225,6 +242,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     cursorLocalAdapter,
     geminiLocalAdapter,
     kimiLocalAdapter,
+    kimiApiAdapter,
     openclawGatewayAdapter,
     // hermesLocalAdapter, // TODO: Fix hermes-crewspace-adapter export issue before re-enabling
     processAdapter,

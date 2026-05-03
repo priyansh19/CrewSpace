@@ -37,6 +37,11 @@ function firstNonEmptyLine(text: string): string {
   );
 }
 
+function resolveKimiBillingType(_env: Record<string, string>): "subscription" {
+  // Kimi local adapter always uses interactive/session auth.
+  return "subscription";
+}
+
 function parseModelProvider(model: string | null): string | null {
   if (!model) return null;
   const trimmed = model.trim();
@@ -135,6 +140,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   );
+
+  const billingType = resolveKimiBillingType(runtimeEnv);
+
   await ensureCommandResolvable(command, cwd, runtimeEnv);
   const resolvedCommand = await resolveCommandForLogs(command, cwd, runtimeEnv);
   const loggedEnv = buildInvocationEnvForLogs(env, {
@@ -150,7 +158,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     if (fromExtraArgs.length > 0) return fromExtraArgs;
     return asStringArray(config.args);
   })();
-  const skipPermissions = asBoolean(config.dangerouslySkipPermissions, false);
+  // Default true for automated agent runs; --print mode has no TTY,
+  // so any tool-call approval prompt hangs forever.
+  const skipPermissions = asBoolean(config.dangerouslySkipPermissions, true);
 
   const runtimeSessionParams = parseObject(runtime.sessionParams);
   const runtimeSessionId = asString(runtimeSessionParams.sessionId, runtime.sessionId ?? "");
@@ -236,7 +246,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   const buildArgs = (resumeSessionId: string | null) => {
     const args = ["--print", "--output-format", "stream-json", "--input-format", "text"];
-    if (resumeSessionId) args.push("--session", resumeSessionId);
+    if (resumeSessionId) args.push("--resume", resumeSessionId);
     if (model) args.push("--model", model);
     if (skipPermissions) args.push("--yolo");
     if (extraArgs.length > 0) args.push(...extraArgs);
@@ -375,7 +385,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       provider: parseModelProvider(modelId),
       biller: resolveKimiBiller(runtimeEnv, parseModelProvider(modelId)),
       model: modelId,
-      billingType: "unknown",
+      billingType,
       costUsd: attempt.parsed.costUsd,
       resultJson: {
         stdout: attempt.proc.stdout,
@@ -387,11 +397,15 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   };
 
   const initial = await runAttempt(sessionId);
-  const initialFailed =
-    !initial.proc.timedOut && ((initial.proc.exitCode ?? 0) !== 0 || Boolean(initial.parsed.errorMessage));
+  const initialHasError =
+    initial.proc.timedOut ||
+    (initial.proc.exitCode ?? 0) !== 0 ||
+    Boolean(initial.parsed.errorMessage);
+
+  // Unknown session → retry once with a fresh session.
   if (
     sessionId &&
-    initialFailed &&
+    initialHasError &&
     isKimiUnknownSessionError(initial.proc.stdout, initial.rawStderr)
   ) {
     await onLog(
@@ -400,6 +414,17 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     );
     const retry = await runAttempt(null);
     return toResult(retry, true);
+  }
+
+  // Interrupted run (signal kill or timeout) → retry once with the SAME session.
+  const looksLikeInterrupt = initial.proc.signal !== null || initial.proc.timedOut;
+  if (sessionId && initialHasError && looksLikeInterrupt) {
+    await onLog(
+      "stdout",
+      `[crewspace] Kimi session "${sessionId}" was interrupted (signal=${initial.proc.signal ?? "none"}, timedOut=${initial.proc.timedOut}); retrying with same session.\n`,
+    );
+    const retry = await runAttempt(sessionId);
+    return toResult(retry);
   }
 
   return toResult(initial);

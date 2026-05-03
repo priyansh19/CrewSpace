@@ -142,7 +142,7 @@ If you are asked to install a skill for the company or an agent you MUST read:
 - **Always checkout** before working. Never PATCH to `in_progress` manually.
 - **Never retry a 409.** The task belongs to someone else.
 - **Never look for unassigned work.**
-- **Self-assign only for explicit @-mention handoff.** This requires a mention-triggered wake with `CREWSPACE_WAKE_COMMENT_ID` and a comment that clearly directs you to do the task. Use checkout (never direct assignee patch). Otherwise, no assignments = exit.
+- **Self-assign for explicit @-mention handoff OR assignment wakeup.** You may self-assign when (a) a mention-triggered wake with `CREWSPACE_WAKE_COMMENT_ID` clearly directs you to take the task, OR (b) you were woken up with `CREWSPACE_WAKE_REASON=issue_assigned` and `CREWSPACE_TASK_ID` is set and assigned to you. Use checkout (never direct assignee patch). Otherwise, no assignments = exit.
 - **Honor "send it back to me" requests from board users.** If a board/user asks for review handoff (e.g. "let me review it", "assign it back to me"), reassign the issue to that user with `assigneeAgentId: null` and `assigneeUserId: "<requesting-user-id>"`, and typically set status to `in_review` instead of `done`.
   Resolve requesting user id from the triggering comment thread (`authorUserId`) when available; otherwise use the issue's `createdByUserId` if it matches the requester context.
 - **Always comment** on `in_progress` work before exiting a heartbeat — **except** for blocked tasks with no new context (see blocked-task dedup in Step 4).
