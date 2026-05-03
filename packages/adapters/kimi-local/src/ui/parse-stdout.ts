@@ -17,8 +17,7 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
-function extractTextFromContent(content: unknown): string {
-  if (!Array.isArray(content)) return "";
+function extractTextFromContentArray(content: unknown[]): string {
   const texts: string[] = [];
   for (const item of content) {
     const rec = asRecord(item);
@@ -29,8 +28,7 @@ function extractTextFromContent(content: unknown): string {
   return texts.join("");
 }
 
-function extractThinkFromContent(content: unknown): string {
-  if (!Array.isArray(content)) return "";
+function extractThinkFromContentArray(content: unknown[]): string {
   const texts: string[] = [];
   for (const item of content) {
     const rec = asRecord(item);
@@ -39,6 +37,23 @@ function extractThinkFromContent(content: unknown): string {
     }
   }
   return texts.join("");
+}
+
+/** Extract text from assistant content, which may be a plain string (single
+ *  TextPart) or an array of content parts (multiple parts or non-text parts).
+ */
+function extractAssistantContent(event: Record<string, unknown>): { think: string; text: string } {
+  const content = event.content;
+  if (typeof content === "string") {
+    return { think: "", text: content };
+  }
+  if (Array.isArray(content)) {
+    return {
+      think: extractThinkFromContentArray(content),
+      text: extractTextFromContentArray(content),
+    };
+  }
+  return { think: "", text: "" };
 }
 
 export function parseKimiStdoutLine(line: string, ts: string): TranscriptEntry[] {
@@ -50,20 +65,29 @@ export function parseKimiStdoutLine(line: string, ts: string): TranscriptEntry[]
     return [{ kind: "stdout", ts, text: trimmed }];
   }
 
-  // Main response format: {"role":"assistant","content":[...]}
-  if (event.role === "assistant" && Array.isArray(event.content)) {
+  // Main response format: {"role":"assistant","content":"..."} or
+  // {"role":"assistant","content":[{"type":"think",...},{"type":"text",...}]}
+  if (event.role === "assistant") {
+    const { think, text } = extractAssistantContent(event);
     const entries: TranscriptEntry[] = [];
-    const think = extractThinkFromContent(event.content);
-    const text = extractTextFromContent(event.content);
-    if (think) entries.push({ kind: "thinking", ts, text: think });
-    if (text) entries.push({ kind: "assistant", ts, text });
+    if (think) entries.push({ kind: "thinking", ts, text: think, delta: true });
+    if (text) entries.push({ kind: "assistant", ts, text, delta: true });
     return entries.length > 0 ? entries : [{ kind: "stdout", ts, text: trimmed }];
   }
 
-  // Tool result format: {"role":"tool","content":[...]}
+  // Tool result format: {"role":"tool","content":[...],"tool_call_id":"..."}
   if (event.role === "tool" && Array.isArray(event.content)) {
-    const text = extractTextFromContent(event.content);
-    if (text) return [{ kind: "stdout", ts, text }];
+    const text = extractTextFromContentArray(event.content);
+    const toolCallId = asString(event.tool_call_id, "");
+    if (text) {
+      return [{
+        kind: "tool_result",
+        ts,
+        toolUseId: toolCallId,
+        content: text,
+        isError: false,
+      }];
+    }
     return [];
   }
 
@@ -72,12 +96,12 @@ export function parseKimiStdoutLine(line: string, ts: string): TranscriptEntry[]
   if (type === "message" || type === "item.completed") {
     const item = asRecord(event.item) ?? event;
     const text = asString(item.text, asString(item.content, ""));
-    if (text) return [{ kind: "assistant", ts, text }];
+    if (text) return [{ kind: "assistant", ts, text, delta: true }];
   }
 
   if (type === "thinking" || type === "reasoning") {
     const text = asString(event.text, asString(event.content, ""));
-    if (text) return [{ kind: "thinking", ts, text }];
+    if (text) return [{ kind: "thinking", ts, text, delta: true }];
   }
 
   if (type === "error") {

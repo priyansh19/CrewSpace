@@ -1,12 +1,11 @@
 export const type = "kimi_local";
-export const label = "Kimi Code (local)";
-export const DEFAULT_KIMI_LOCAL_MODEL = "kimi-k2";
+export const label = "Kimi (local)";
+// This must match a model ID configured in the Kimi CLI config file
+// (e.g. ~/.kimi/config.toml). The CLI does not accept arbitrary model names.
+export const DEFAULT_KIMI_LOCAL_MODEL = "kimi-code/kimi-for-coding";
 
 export const models = [
-  { id: DEFAULT_KIMI_LOCAL_MODEL, label: DEFAULT_KIMI_LOCAL_MODEL },
-  { id: "kimi-k2-coder", label: "kimi-k2-coder" },
-  { id: "kimi-k2-mini", label: "kimi-k2-mini" },
-  { id: "kimi-k1.6", label: "kimi-k1.6" },
+  { id: DEFAULT_KIMI_LOCAL_MODEL, label: "Kimi-k2.6" },
 ];
 
 export const agentConfigurationDoc = `# kimi_local agent configuration

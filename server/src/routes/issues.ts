@@ -1287,6 +1287,38 @@ export function issueRoutes(db: Db, storage: StorageService) {
             },
           });
         }
+
+        // Implicit agent references (name dropped without @)
+        let referencedIds: string[] = [];
+        try {
+          const excludeIds = [
+            ...mentionedIds,
+            ...(actor.actorType === "agent" && actor.actorId ? [actor.actorId] : []),
+          ];
+          referencedIds = await svc.findReferencedAgents(issue.companyId, commentBody, excludeIds);
+        } catch (err) {
+          logger.warn({ err, issueId: id }, "failed to resolve implicit agent references");
+        }
+
+        for (const referencedId of referencedIds) {
+          if (wakeups.has(referencedId)) continue;
+          wakeups.set(referencedId, {
+            source: "automation",
+            triggerDetail: "system",
+            reason: "issue_comment_referenced",
+            payload: { issueId: id, commentId: comment.id },
+            requestedByActorType: actor.actorType,
+            requestedByActorId: actor.actorId,
+            contextSnapshot: {
+              issueId: id,
+              taskId: id,
+              commentId: comment.id,
+              wakeCommentId: comment.id,
+              wakeReason: "issue_comment_referenced",
+              source: "comment.reference",
+            },
+          });
+        }
       }
 
       for (const [agentId, wakeup] of wakeups.entries()) {
@@ -1678,6 +1710,38 @@ export function issueRoutes(db: Db, storage: StorageService) {
             wakeCommentId: comment.id,
             wakeReason: "issue_comment_mentioned",
             source: "comment.mention",
+          },
+        });
+      }
+
+      // Implicit agent references (name dropped without @)
+      let referencedIds: string[] = [];
+      try {
+        const excludeIds = [
+          ...mentionedIds,
+          ...(actorIsAgent && actor.actorId ? [actor.actorId] : []),
+        ];
+        referencedIds = await svc.findReferencedAgents(issue.companyId, req.body.body, excludeIds);
+      } catch (err) {
+        logger.warn({ err, issueId: id }, "failed to resolve implicit agent references");
+      }
+
+      for (const referencedId of referencedIds) {
+        if (wakeups.has(referencedId)) continue;
+        wakeups.set(referencedId, {
+          source: "automation",
+          triggerDetail: "system",
+          reason: "issue_comment_referenced",
+          payload: { issueId: id, commentId: comment.id },
+          requestedByActorType: actor.actorType,
+          requestedByActorId: actor.actorId,
+          contextSnapshot: {
+            issueId: id,
+            taskId: id,
+            commentId: comment.id,
+            wakeCommentId: comment.id,
+            wakeReason: "issue_comment_referenced",
+            source: "comment.reference",
           },
         });
       }

@@ -1,16 +1,17 @@
 import { asString, asNumber, parseObject, parseJson } from "@crewspaceai/adapter-utils/server-utils";
 
 function extractSessionIdFromStderr(stderr: string): string | null {
-  // Look for: "Created new session: <uuid>" or "Resuming session: <uuid>"
+  // Look for: "Created new session: <uuid>" or "Resuming session: <uuid>" or "To resume this session: <uuid>"
   const createdMatch = stderr.match(/Created new session:\s*([a-f0-9-]{36})/i);
   if (createdMatch) return createdMatch[1];
   const resumedMatch = stderr.match(/Resuming session:\s*([a-f0-9-]{36})/i);
   if (resumedMatch) return resumedMatch[1];
+  const resumeHintMatch = stderr.match(/To resume this session:\s*([a-f0-9-]{36})/i);
+  if (resumeHintMatch) return resumeHintMatch[1];
   return null;
 }
 
-function extractTextFromContent(content: unknown): string {
-  if (!Array.isArray(content)) return "";
+function extractTextFromContentArray(content: unknown[]): string {
   const texts: string[] = [];
   for (const item of content) {
     if (typeof item !== "object" || item === null) continue;
@@ -22,8 +23,7 @@ function extractTextFromContent(content: unknown): string {
   return texts.join("");
 }
 
-function extractThinkFromContent(content: unknown): string {
-  if (!Array.isArray(content)) return "";
+function extractThinkFromContentArray(content: unknown[]): string {
   const texts: string[] = [];
   for (const item of content) {
     if (typeof item !== "object" || item === null) continue;
@@ -33,6 +33,23 @@ function extractThinkFromContent(content: unknown): string {
     }
   }
   return texts.join("");
+}
+
+/** Extract text/think from assistant content, which may be a plain string
+ *  (single TextPart) or an array of content parts.
+ */
+function extractAssistantContent(event: Record<string, unknown>): { think: string; text: string } {
+  const content = event.content;
+  if (typeof content === "string") {
+    return { think: "", text: content };
+  }
+  if (Array.isArray(content)) {
+    return {
+      think: extractThinkFromContentArray(content),
+      text: extractTextFromContentArray(content),
+    };
+  }
+  return { think: "", text: "" };
 }
 
 export function parseKimiJsonl(stdout: string, stderr?: string) {
@@ -69,19 +86,18 @@ export function parseKimiJsonl(stdout: string, stderr?: string) {
       continue;
     }
 
-    // Main response format: {"role":"assistant","content":[...]}
-    if (event.role === "assistant" && Array.isArray(event.content)) {
-      const text = extractTextFromContent(event.content);
-      const think = extractThinkFromContent(event.content);
-      if (think) messages.push(think);
+    // Main response format: {"role":"assistant","content":"..."} or
+    // {"role":"assistant","content":[{"type":"think",...},{"type":"text",...}]}
+    if (event.role === "assistant") {
+      const { text } = extractAssistantContent(event);
       if (text) messages.push(text);
       continue;
     }
 
-    // Tool result format: {"role":"tool","content":[...]}
+    // Tool result format: {"role":"tool","content":[...],"tool_call_id":"..."}
+    // Tool outputs are intermediate data; only the final assistant message belongs
+    // in summary so integrations receive clean final output (matches codex/claude).
     if (event.role === "tool" && Array.isArray(event.content)) {
-      const text = extractTextFromContent(event.content);
-      if (text) messages.push(text);
       continue;
     }
 
@@ -107,8 +123,9 @@ export function parseKimiJsonl(stdout: string, stderr?: string) {
       continue;
     }
 
-    // Fallback: preserve unrecognized JSON lines so they are not silently lost
-    messages.push(line);
+    // Unrecognized JSON lines are intentionally dropped so metadata/progress
+    // events do not pollute the summary consumed by integrations.
+    // (Matches behaviour of codex-local and claude-local adapters.)
   }
 
   return {
@@ -152,6 +169,9 @@ export function cleanKimiStderr(stderr: string): string {
     if (inLoguruBlock) {
       continue;
     }
+
+    // Keep session resume hints — they contain the session ID needed for resume.
+    // They are stripped from user-facing transcripts elsewhere if needed.
 
     result.push(rawLine);
   }

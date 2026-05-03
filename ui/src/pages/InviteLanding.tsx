@@ -21,11 +21,13 @@ const adapterLabels: Record<string, string> = {
   openclaw_gateway: "OpenClaw Gateway",
   cursor: "Cursor (local)",
   hermes_local: "Hermes Agent",
+  kimi_local: "Kimi (local)",
+  kimi_api: "Kimi (API)",
   process: "Process",
   http: "HTTP",
 };
 
-const ENABLED_INVITE_ADAPTERS = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local", "kimi_local"]);
+const ENABLED_INVITE_ADAPTERS = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local", "kimi_local", "kimi_api"]);
 
 function dateTime(value: string) {
   return new Date(value).toLocaleString();

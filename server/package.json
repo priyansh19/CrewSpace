@@ -53,6 +53,7 @@
     "@crewspaceai/adapter-opencode-local": "workspace:*",
     "@crewspaceai/adapter-pi-local": "workspace:*",
     "@crewspaceai/adapter-kimi-local": "workspace:*",
+    "@crewspaceai/adapter-kimi-api": "workspace:*",
     "@crewspaceai/adapter-utils": "workspace:*",
     "@crewspaceai/db": "workspace:*",
     "@crewspaceai/plugin-sdk": "workspace:*",

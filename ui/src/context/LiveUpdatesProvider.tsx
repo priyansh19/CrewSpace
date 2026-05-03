@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import type { Agent, Issue, LiveEvent } from "@crewspaceai/shared";
+import type { Agent, HeartbeatRunEvent, Issue, LiveEvent } from "@crewspaceai/shared";
 import type { RunForIssue } from "../api/activity";
 import type { ActiveRunForIssue, LiveRunForIssue } from "../api/heartbeats";
 import { authApi } from "../api/auth";
@@ -16,6 +16,28 @@ const TOAST_COOLDOWN_MAX = 3;
 const RECONNECT_SUPPRESS_MS = 2000;
 const SOCKET_CONNECTING = 0;
 const SOCKET_OPEN = 1;
+const RUN_BUFFER_MAX_EVENTS = 500;
+const RUN_BUFFER_MAX_LOG_LINES = 2000;
+
+/* ---- Run-streaming context (survives page navigation) ---- */
+
+export type RunLogLine = { ts: string; stream: "stdout" | "stderr" | "system"; chunk: string };
+export type RunDataCallback = (data: { events: HeartbeatRunEvent[]; logLines: RunLogLine[] }) => void;
+
+export interface LiveUpdatesContextValue {
+  socketConnected: boolean;
+  takeRunEvents: (runId: string) => HeartbeatRunEvent[];
+  takeRunLogLines: (runId: string) => RunLogLine[];
+  subscribeRun: (runId: string, callback: RunDataCallback) => () => void;
+}
+
+const LiveUpdatesContext = createContext<LiveUpdatesContextValue | null>(null);
+
+export function useLiveUpdates(): LiveUpdatesContextValue {
+  const ctx = useContext(LiveUpdatesContext);
+  if (!ctx) throw new Error("useLiveUpdates must be used within LiveUpdatesProvider");
+  return ctx;
+}
 
 type LiveUpdatesSocketLike = {
   readyState: number;
@@ -597,6 +619,47 @@ function gatedPushToast(
   if (id !== null) recordToastHit(gate, category);
 }
 
+/* ---- Browser notifications for background runs ---- */
+
+let notificationPermissionRequested = false;
+
+async function ensureNotificationPermission(): Promise<boolean> {
+  if (typeof window === "undefined" || !("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") return false;
+  if (notificationPermissionRequested) return false;
+  notificationPermissionRequested = true;
+  try {
+    const result = await Notification.requestPermission();
+    return result === "granted";
+  } catch {
+    return false;
+  }
+}
+
+function showRunNotification(title: string, body: string, href: string) {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+      tag: href,
+      requireInteraction: false,
+    });
+    n.onclick = () => {
+      window.focus();
+      window.location.href = href;
+      n.close();
+    };
+  } catch {
+    // Ignore notification errors.
+  }
+}
+
+/* ---- Live event handler (with run buffering) ---- */
+
 function handleLiveEvent(
   queryClient: QueryClient,
   expectedCompanyId: string,
@@ -605,12 +668,48 @@ function handleLiveEvent(
   pushToast: (toast: ToastInput) => string | null,
   gate: ToastGate,
   currentActor: { userId: string | null; agentId: string | null },
+  runBuffers: Map<string, { events: HeartbeatRunEvent[]; logLines: RunLogLine[] }>,
+  runSubscribers: Map<string, Set<RunDataCallback>>,
 ) {
   if (event.companyId !== expectedCompanyId) return;
 
   const nameOf = (id: string) => resolveAgentName(queryClient, expectedCompanyId, id);
   const payload = event.payload ?? {};
+
   if (event.type === "heartbeat.run.log") {
+    const runId = readString(payload.runId);
+    const chunk = typeof payload.chunk === "string" ? payload.chunk : "";
+    if (!runId || !chunk) return;
+    const streamRaw = readString(payload.stream);
+    const stream = streamRaw === "stderr" || streamRaw === "system" ? streamRaw : "stdout";
+    const ts = readString((payload as Record<string, unknown>).ts) ?? event.createdAt;
+    const logLine: RunLogLine = { ts, stream, chunk };
+
+    const subs = runSubscribers.get(runId);
+    if (subs && subs.size > 0) {
+      subs.forEach((cb) => cb({ events: [], logLines: [logLine] }));
+    } else {
+      const buffer = runBuffers.get(runId) ?? { events: [], logLines: [] };
+      buffer.logLines.push(logLine);
+      if (buffer.logLines.length > RUN_BUFFER_MAX_LOG_LINES) {
+        buffer.logLines = buffer.logLines.slice(-RUN_BUFFER_MAX_LOG_LINES);
+      }
+      runBuffers.set(runId, buffer);
+      // Browser notification for background agent activity
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        const agentId = readString(payload.agentId);
+        const agentName = agentId ? (nameOf(agentId) ?? `Agent ${shortId(agentId)}`) : "Agent";
+        void ensureNotificationPermission().then((ok) => {
+          if (ok) {
+            showRunNotification(
+              `${agentName} is responding`,
+              "New output received",
+              agentId ? `/agents/${agentId}/runs/${runId}` : `/`,
+            );
+          }
+        });
+      }
+    }
     return;
   }
 
@@ -629,6 +728,60 @@ function handleLiveEvent(
   }
 
   if (event.type === "heartbeat.run.event") {
+    const runId = readString(payload.runId);
+    const seq = typeof payload.seq === "number" ? payload.seq : null;
+    if (!runId || seq === null || !Number.isFinite(seq)) return;
+
+    const streamRaw = readString(payload.stream);
+    const stream =
+      streamRaw === "stdout" || streamRaw === "stderr" || streamRaw === "system"
+        ? streamRaw
+        : null;
+    const levelRaw = readString(payload.level);
+    const level =
+      levelRaw === "info" || levelRaw === "warn" || levelRaw === "error" ? levelRaw : null;
+
+    const liveEvent: HeartbeatRunEvent = {
+      id: seq,
+      companyId: event.companyId,
+      runId,
+      agentId: readString(payload.agentId) ?? "",
+      seq,
+      eventType: readString(payload.eventType) ?? "event",
+      stream,
+      level,
+      color: readString(payload.color),
+      message: readString(payload.message),
+      payload: readRecord(payload.payload),
+      createdAt: new Date(event.createdAt),
+    };
+
+    const subs = runSubscribers.get(runId);
+    if (subs && subs.size > 0) {
+      subs.forEach((cb) => cb({ events: [liveEvent], logLines: [] }));
+    } else {
+      const buffer = runBuffers.get(runId) ?? { events: [], logLines: [] };
+      buffer.events.push(liveEvent);
+      if (buffer.events.length > RUN_BUFFER_MAX_EVENTS) {
+        buffer.events = buffer.events.slice(-RUN_BUFFER_MAX_EVENTS);
+      }
+      runBuffers.set(runId, buffer);
+      // Browser notification for background agent activity
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        const agentId = readString(payload.agentId);
+        const agentName = agentId ? (nameOf(agentId) ?? `Agent ${shortId(agentId)}`) : "Agent";
+        const msg = liveEvent.message ? truncate(liveEvent.message, 80) : "New event";
+        void ensureNotificationPermission().then((ok) => {
+          if (ok) {
+            showRunNotification(
+              `${agentName} replied`,
+              msg,
+              agentId ? `/agents/${agentId}/runs/${runId}` : `/`,
+            );
+          }
+        });
+      }
+    }
     return;
   }
 
@@ -734,6 +887,10 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     agentId: null,
   });
 
+  const [socketConnected, setSocketConnected] = useState(false);
+  const runBuffersRef = useRef(new Map<string, { events: HeartbeatRunEvent[]; logLines: RunLogLine[] }>());
+  const runSubscribersRef = useRef(new Map<string, Set<RunDataCallback>>());
+
   useEffect(() => {
     pathnameRef.current = location.pathname;
   }, [location.pathname]);
@@ -786,6 +943,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
           gateRef.current.suppressUntil = Date.now() + RECONNECT_SUPPRESS_MS;
         }
         reconnectAttempt = 0;
+        setSocketConnected(true);
       };
 
       nextSocket.onmessage = (message) => {
@@ -794,10 +952,20 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
 
         try {
           const parsed = JSON.parse(raw) as LiveEvent;
-          handleLiveEvent(queryClient, liveCompanyId, pathnameRef.current, parsed, pushToast, gateRef.current, {
-            userId: currentActorRef.current.userId,
-            agentId: currentActorRef.current.agentId,
-          });
+          handleLiveEvent(
+            queryClient,
+            liveCompanyId,
+            pathnameRef.current,
+            parsed,
+            pushToast,
+            gateRef.current,
+            {
+              userId: currentActorRef.current.userId,
+              agentId: currentActorRef.current.agentId,
+            },
+            runBuffersRef.current,
+            runSubscribersRef.current,
+          );
         } catch {
           // Ignore non-JSON payloads.
         }
@@ -809,6 +977,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
       };
 
       nextSocket.onclose = () => {
+        setSocketConnected(false);
         if (socket !== nextSocket) return;
         socket = null;
         if (closed) return;
@@ -831,5 +1000,41 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     };
   }, [queryClient, liveCompanyId, pushToast, canConnectSocket, socketAuthKey]);
 
-  return <>{children}</>;
+  const takeRunEvents = useCallback((runId: string) => {
+    const buffer = runBuffersRef.current.get(runId);
+    if (!buffer || buffer.events.length === 0) return [];
+    const taken = buffer.events;
+    buffer.events = [];
+    return taken;
+  }, []);
+
+  const takeRunLogLines = useCallback((runId: string) => {
+    const buffer = runBuffersRef.current.get(runId);
+    if (!buffer || buffer.logLines.length === 0) return [];
+    const taken = buffer.logLines;
+    buffer.logLines = [];
+    return taken;
+  }, []);
+
+  const subscribeRun = useCallback((runId: string, callback: RunDataCallback) => {
+    const subs = runSubscribersRef.current.get(runId) ?? new Set<RunDataCallback>();
+    subs.add(callback);
+    runSubscribersRef.current.set(runId, subs);
+    return () => {
+      subs.delete(callback);
+      if (subs.size === 0) {
+        runSubscribersRef.current.delete(runId);
+        runBuffersRef.current.delete(runId);
+      }
+    };
+  }, []);
+
+  const contextValue: LiveUpdatesContextValue = {
+    socketConnected,
+    takeRunEvents,
+    takeRunLogLines,
+    subscribeRun,
+  };
+
+  return <LiveUpdatesContext.Provider value={contextValue}>{children}</LiveUpdatesContext.Provider>;
 }
