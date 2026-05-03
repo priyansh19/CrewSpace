@@ -1,10 +1,17 @@
-# Replace @cryppadotta if a different maintainer or team should own release infrastructure.
+# Global fallback — repository owner
+* @priyansh19
 
-.github/** @cryppadotta @devinfoley
-scripts/release*.sh @cryppadotta @devinfoley
-scripts/release-*.mjs @cryppadotta @devinfoley
-scripts/create-github-release.sh @cryppadotta @devinfoley
-scripts/rollback-latest.sh @cryppadotta @devinfoley
-doc/RELEASING.md @cryppadotta @devinfoley
-doc/PUBLISHING.md @cryppadotta @devinfoley
-doc/RELEASE-AUTOMATION-SETUP.md @cryppadotta @devinfoley
+# Release infrastructure owned by the DevOps / release team
+.github/** @priyansh19
+scripts/release*.sh @priyansh19
+scripts/release-*.mjs @priyansh19
+scripts/create-github-release.sh @priyansh19
+scripts/rollback-latest.sh @priyansh19
+doc/RELEASING.md @priyansh19
+doc/PUBLISHING.md @priyansh19
+doc/RELEASE-AUTOMATION-SETUP.md @priyansh19
+
+# Docker and deployment infrastructure
+docker/** @priyansh19
+scripts/docker-*.sh @priyansh19
+scripts/docker-*.mjs @priyansh19
