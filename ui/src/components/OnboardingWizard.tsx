@@ -36,6 +36,7 @@ import {
 } from "@crewspaceai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
+import { DEFAULT_KIMI_LOCAL_MODEL } from "@crewspaceai/adapter-kimi-local";
 import { resolveRouteOnboardingOptions } from "../lib/onboarding-route";
 import { AsciiArtAnimation } from "./AsciiArtAnimation";
 import { OpenCodeLogoIcon } from "./OpenCodeLogoIcon";
@@ -67,6 +68,7 @@ type AdapterType =
   | "opencode_local"
   | "pi_local"
   | "cursor"
+  | "kimi_local"
   | "http"
   | "openclaw_gateway";
 
@@ -213,7 +215,8 @@ export function OnboardingWizard() {
     adapterType === "hermes_local" ||
     adapterType === "opencode_local" ||
     adapterType === "pi_local" ||
-    adapterType === "cursor";
+    adapterType === "cursor" ||
+    adapterType === "kimi_local";
   const effectiveAdapterCommand =
     command.trim() ||
     (adapterType === "codex_local"
@@ -228,6 +231,8 @@ export function OnboardingWizard() {
       ? "agent"
       : adapterType === "opencode_local"
       ? "opencode"
+      : adapterType === "kimi_local"
+      ? "kimi"
       : "claude");
 
   useEffect(() => {
@@ -326,12 +331,14 @@ export function OnboardingWizard() {
             ? model || DEFAULT_GEMINI_LOCAL_MODEL
           : adapterType === "cursor"
           ? model || DEFAULT_CURSOR_LOCAL_MODEL
+          : adapterType === "kimi_local"
+          ? model || DEFAULT_KIMI_LOCAL_MODEL
           : model,
       command,
       args,
       url,
       dangerouslySkipPermissions:
-        adapterType === "claude_local" || adapterType === "opencode_local",
+        adapterType === "claude_local" || adapterType === "opencode_local" || adapterType === "kimi_local",
       dangerouslyBypassSandbox:
         adapterType === "codex_local"
           ? DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX
@@ -795,7 +802,7 @@ export function OnboardingWizard() {
                           }}
                         >
                           {opt.recommended && (
-                            <span className="absolute -top-1.5 right-1.5 bg-green-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+                            <span className="absolute -top-1.5 right-1.5 bg-success text-primary-foreground text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
                               Recommended
                             </span>
                           )}
@@ -855,6 +862,12 @@ export function OnboardingWizard() {
                             desc: "Local multi-provider agent"
                           },
                           {
+                            value: "kimi_local" as const,
+                            label: "Kimi Code",
+                            icon: Terminal,
+                            desc: "Local Kimi agent"
+                          },
+                          {
                             value: "openclaw_gateway" as const,
                             label: "OpenClaw Gateway",
                             icon: Bot,
@@ -884,6 +897,10 @@ export function OnboardingWizard() {
                               }
                               if (nextType === "cursor" && !model) {
                                 setModel(DEFAULT_CURSOR_LOCAL_MODEL);
+                                return;
+                              }
+                              if (nextType === "kimi_local" && !model) {
+                                setModel(DEFAULT_KIMI_LOCAL_MODEL);
                                 return;
                               }
                               if (nextType === "opencode_local") {
@@ -916,7 +933,8 @@ export function OnboardingWizard() {
                     adapterType === "hermes_local" ||
                     adapterType === "opencode_local" ||
                     adapterType === "pi_local" ||
-                    adapterType === "cursor") && (
+                    adapterType === "cursor" ||
+                    adapterType === "kimi_local") && (
                     <div className="space-y-3">
                       <div>
                         <label className="text-xs text-muted-foreground mb-1 block">
@@ -1049,7 +1067,7 @@ export function OnboardingWizard() {
 
                       {adapterEnvResult &&
                       adapterEnvResult.status === "pass" ? (
-                        <div className="flex items-center gap-2 rounded-md border border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10 px-3 py-2 text-xs text-green-700 dark:text-green-300 animate-in fade-in slide-in-from-bottom-1 duration-300">
+                        <div className="flex items-center gap-2 rounded-md border border-success/30 dark:border-success/40 bg-success/10 dark:bg-success/10 px-3 py-2 text-xs text-success dark:text-success animate-in fade-in slide-in-from-bottom-1 duration-300">
                           <Check className="h-3.5 w-3.5 shrink-0" />
                           <span className="font-medium">Passed</span>
                         </div>
@@ -1093,6 +1111,8 @@ export function OnboardingWizard() {
                                 ? `${effectiveAdapterCommand} --output-format json "Respond with hello."`
                               : adapterType === "opencode_local"
                                 ? `${effectiveAdapterCommand} run --format json "Respond with hello."`
+                              : adapterType === "kimi_local"
+                                ? `${effectiveAdapterCommand} --print --output-format stream-json --input-format text --yolo -p "Respond with hello."`
                               : `${effectiveAdapterCommand} --print - --output-format stream-json --verbose`}
                           </p>
                           <p className="text-muted-foreground">
@@ -1102,7 +1122,8 @@ export function OnboardingWizard() {
                           {adapterType === "cursor" ||
                           adapterType === "codex_local" ||
                           adapterType === "gemini_local" ||
-                          adapterType === "opencode_local" ? (
+                          adapterType === "opencode_local" ||
+                          adapterType === "kimi_local" ? (
                             <p className="text-muted-foreground">
                               If auth fails, set{" "}
                               <span className="font-mono">
@@ -1110,6 +1131,8 @@ export function OnboardingWizard() {
                                   ? "CURSOR_API_KEY"
                                   : adapterType === "gemini_local"
                                     ? "GEMINI_API_KEY"
+                                  : adapterType === "kimi_local"
+                                    ? "MOONSHOT_API_KEY"
                                     : "OPENAI_API_KEY"}
                               </span>{" "}
                               in env or run{" "}
@@ -1120,7 +1143,9 @@ export function OnboardingWizard() {
                                     ? "codex login"
                                     : adapterType === "gemini_local"
                                       ? "gemini auth"
-                                      : "opencode auth login"}
+                                  : adapterType === "kimi_local"
+                                    ? "kimi login"
+                                    : "opencode auth login"}
                               </span>
                               .
                             </p>
@@ -1223,7 +1248,7 @@ export function OnboardingWizard() {
                         </p>
                         <p className="text-xs text-muted-foreground">Company</p>
                       </div>
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
+                      <Check className="h-4 w-4 text-success shrink-0" />
                     </div>
                     <div className="flex items-center gap-3 px-3 py-2.5">
                       <Bot className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -1235,7 +1260,7 @@ export function OnboardingWizard() {
                           {getUIAdapter(adapterType).label}
                         </p>
                       </div>
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
+                      <Check className="h-4 w-4 text-success shrink-0" />
                     </div>
                     <div className="flex items-center gap-3 px-3 py-2.5">
                       <ListTodo className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -1245,7 +1270,7 @@ export function OnboardingWizard() {
                         </p>
                         <p className="text-xs text-muted-foreground">Task</p>
                       </div>
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
+                      <Check className="h-4 w-4 text-success shrink-0" />
                     </div>
                   </div>
                 </div>
@@ -1336,7 +1361,7 @@ export function OnboardingWizard() {
           {/* Right half — ASCII art (hidden on mobile) */}
           <div
             className={cn(
-              "hidden md:block overflow-hidden bg-[#1d1d1d] transition-[width,opacity] duration-500 ease-in-out",
+              "hidden md:block overflow-hidden bg-background transition-[width,opacity] duration-500 ease-in-out",
               step === 1 ? "w-1/2 opacity-100" : "w-0 opacity-0"
             )}
           >
@@ -1361,10 +1386,10 @@ function AdapterEnvironmentResult({
       : "Failed";
   const statusClass =
     result.status === "pass"
-      ? "text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10"
+      ? "text-success dark:text-success border-success/30 dark:border-success/40 bg-success/10 dark:bg-success/10"
       : result.status === "warn"
       ? "text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10"
-      : "text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10";
+      : "text-destructive dark:text-destructive border-destructive/30 dark:border-destructive/40 bg-destructive/10 dark:bg-destructive/100/10";
 
   return (
     <div className={`rounded-md border px-2.5 py-2 text-[11px] ${statusClass}`}>
@@ -1401,3 +1426,5 @@ function AdapterEnvironmentResult({
     </div>
   );
 }
+
+

@@ -241,6 +241,19 @@ export function registerAgentCommands(program: Command): void {
 
           const now = new Date().toISOString().replaceAll(":", "-");
           const keyName = opts.keyName?.trim() ? opts.keyName.trim() : `local-cli-${now}`;
+
+          // Revoke any existing non-revoked keys with the same name to prevent duplication
+          const existingKeys = await ctx.api.get<Array<{ id: string; name: string; revokedAt: string | null }>>(
+            `/api/agents/${agentRow.id}/keys`
+          );
+          if (existingKeys) {
+            for (const existing of existingKeys) {
+              if (existing.name === keyName && !existing.revokedAt) {
+                await ctx.api.delete(`/api/agents/${agentRow.id}/keys/${existing.id}`).catch(() => {});
+              }
+            }
+          }
+
           const key = await ctx.api.post<CreatedAgentKey>(`/api/agents/${agentRow.id}/keys`, { name: keyName });
           if (!key) {
             throw new Error("Failed to create API key");

@@ -49,6 +49,7 @@ export function OpenCodeLocalConfigFields({
           </div>
         </Field>
       )}
+
       <ToggleField
         label="Skip permissions"
         hint={help.dangerouslySkipPermissions}

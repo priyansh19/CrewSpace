@@ -33,6 +33,7 @@ import { terminalRoutes } from "./routes/terminal.js";
 import { sprintRoutes } from "./routes/sprints.js";
 import { chatSessionRoutes } from "./routes/chat-sessions.js";
 import { sharedWorkspaceRoutes } from "./routes/shared-workspace.js";
+import { githubIntegrationRoutes } from "./routes/github-integration.js";
 import { pluginRoutes } from "./routes/plugins.js";
 import { pluginUiStaticRoutes } from "./routes/plugin-ui-static.js";
 import { applyUiBranding } from "./ui-branding.js";
@@ -168,6 +169,17 @@ export async function createApp(
   if (opts.sharedWorkspaceDir) {
     api.use(sharedWorkspaceRoutes(db, opts.sharedWorkspaceDir));
   }
+
+  const githubConfig = process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY
+    ? {
+        appId: process.env.GITHUB_APP_ID,
+        privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+        clientId: process.env.GITHUB_APP_CLIENT_ID ?? "",
+        clientSecret: process.env.GITHUB_APP_CLIENT_SECRET ?? "",
+        slug: process.env.GITHUB_APP_SLUG ?? "",
+      }
+    : undefined;
+  api.use(githubIntegrationRoutes(db, githubConfig));
   const hostServicesDisposers = new Map<string, () => void>();
   const workerManager = createPluginWorkerManager();
   const pluginRegistry = pluginRegistryService(db);

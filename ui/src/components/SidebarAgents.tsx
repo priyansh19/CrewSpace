@@ -117,7 +117,12 @@ export function SidebarAgents() {
                 )}
               >
                 <AgentAvatar agent={agent} size="xs" />
-                <span className="flex-1 truncate">{agent.name}</span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-[13px] font-medium truncate leading-tight">{agent.name}</span>
+                  <span className="text-[10px] text-muted-foreground truncate leading-tight">
+                    {agent.title ?? (agent.role === "general" ? "Agent" : (agent.role ? agent.role.charAt(0).toUpperCase() + agent.role.slice(1) : ""))}
+                  </span>
+                </div>
                 {(agent.pauseReason === "budget" || runCount > 0) && (
                   <span className="ml-auto flex items-center gap-1.5 shrink-0">
                     {agent.pauseReason === "budget" ? (
@@ -126,7 +131,7 @@ export function SidebarAgents() {
                     {runCount > 0 ? (
                       <span className="relative flex h-2 w-2">
                         <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
                       </span>
                     ) : null}
                     {runCount > 0 ? (
@@ -160,3 +165,4 @@ export function SidebarAgents() {
     </Collapsible>
   );
 }
+

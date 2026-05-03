@@ -61,13 +61,13 @@ function BootstrapPendingPage({ hasActiveInvite = false }: { hasActiveInvite?: b
   return (
     <div className="mx-auto max-w-xl py-10">
       <div className="rounded-lg border border-border bg-card p-6">
-        <h1 className="text-xl font-semibold">Instance setup required</h1>
+        <h1 className="text-xl font-semibold text-foreground">Instance setup required</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {hasActiveInvite
             ? "No instance admin exists yet. A bootstrap invite is already active. Check your CrewSpace startup logs for the first admin invite URL, or run this command to rotate it:"
             : "No instance admin exists yet. Run this command in your CrewSpace environment to generate the first admin invite URL:"}
         </p>
-        <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-muted/30 p-3 text-xs">
+        <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-accent p-3 text-xs text-foreground">
 {`pnpm crewspaceai auth bootstrap-ceo`}
         </pre>
       </div>
@@ -101,7 +101,7 @@ function CloudAccessGate() {
   });
 
   if (healthQuery.isLoading || (isAuthenticatedMode && sessionQuery.isLoading)) {
-    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground bg-background">Loading...</div>;
   }
 
   if (healthQuery.error) {
@@ -167,6 +167,7 @@ function boardRoutes() {
       <Route path="projects/:projectId/workspaces/:workspaceId" element={<ProjectWorkspaceDetail />} />
       <Route path="projects/:projectId/workspaces" element={<ProjectDetail />} />
       <Route path="projects/:projectId/configuration" element={<ProjectDetail />} />
+      <Route path="projects/:projectId/github" element={<ProjectDetail />} />
       <Route path="projects/:projectId/budget" element={<ProjectDetail />} />
       <Route path="issues" element={<Issues />} />
       <Route path="issues/all" element={<Navigate to="/issues" replace />} />
@@ -231,7 +232,7 @@ function OnboardingRoutePage() {
   return (
     <div className="mx-auto max-w-xl py-10">
       <div className="rounded-lg border border-border bg-card p-6">
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{description}</p>
         <div className="mt-4">
           <Button
@@ -254,7 +255,7 @@ function CompanyRootRedirect() {
   const location = useLocation();
 
   if (loading) {
-    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground bg-background">Loading...</div>;
   }
 
   const targetCompany = selectedCompany ?? companies[0] ?? null;
@@ -278,7 +279,7 @@ function UnprefixedBoardRedirect() {
   const { companies, selectedCompany, loading } = useCompany();
 
   if (loading) {
-    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground bg-background">Loading...</div>;
   }
 
   const targetCompany = selectedCompany ?? companies[0] ?? null;
@@ -308,7 +309,7 @@ function NoCompaniesStartPage() {
   return (
     <div className="mx-auto max-w-xl py-10">
       <div className="rounded-lg border border-border bg-card p-6">
-        <h1 className="text-xl font-semibold">Create your first company</h1>
+        <h1 className="text-xl font-semibold text-foreground">Create your first company</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Get started by creating a company.
         </p>
@@ -361,6 +362,7 @@ export function App() {
           <Route path="taskboard" element={<UnprefixedBoardRedirect />} />
           <Route path="blockers" element={<UnprefixedBoardRedirect />} />
           <Route path="terminal" element={<UnprefixedBoardRedirect />} />
+          <Route path="workspace" element={<UnprefixedBoardRedirect />} />
           <Route path="projects" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/overview" element={<UnprefixedBoardRedirect />} />
@@ -369,6 +371,7 @@ export function App() {
           <Route path="projects/:projectId/workspaces" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/workspaces/:workspaceId" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/configuration" element={<UnprefixedBoardRedirect />} />
+          <Route path="projects/:projectId/github" element={<UnprefixedBoardRedirect />} />
           <Route path="execution-workspaces/:workspaceId" element={<UnprefixedBoardRedirect />} />
           <Route path="tests/ux/runs" element={<UnprefixedBoardRedirect />} />
           <Route path=":companyPrefix" element={<Layout />}>

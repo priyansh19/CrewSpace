@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { tryDicebearDataUri } from "../components/AgentAvatar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, Link2, Trash2, Search, Brain, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ interface AgentNode {
   memCount: number;
   hasMemories: boolean;
   r: number;
+  icon?: string | null;
 }
 
 interface MemNode {
@@ -95,7 +97,11 @@ function buildGraphData(
 
   // Build agents — allAgents provides names, fallback for memory-only agents
   const agentNameMap = new Map<string, string>();
-  for (const a of allAgents) agentNameMap.set(a.id, a.name);
+  const agentIconMap = new Map<string, string | null>();
+  for (const a of allAgents) {
+    agentNameMap.set(a.id, a.name);
+    agentIconMap.set(a.id, a.icon ?? null);
+  }
   for (const m of memories) {
     for (const a of m.agents) {
       if (!agentNameMap.has(a.agentId)) agentNameMap.set(a.agentId, a.agentName ?? "Agent");
@@ -111,6 +117,7 @@ function buildGraphData(
       memCount: cnt,
       hasMemories: cnt > 0,
       r: 18 + Math.min(cnt * 1.5, 12),
+      icon: agentIconMap.get(id) ?? null,
     };
   });
 
@@ -275,6 +282,7 @@ function use2DRenderer({
   onHover: (id: string | null) => void;
   isDark: boolean;
 }) {
+  const avatarImgRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -321,6 +329,20 @@ function use2DRenderer({
     setSize({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
+
+  // Preload dicebear avatar images for agents
+  useEffect(() => {
+    const cache = avatarImgRef.current;
+    for (const agent of graph.agents) {
+      if (cache.has(agent.id)) continue;
+      const seed = agent.icon || agent.id || agent.name || "unknown";
+      const dataUri = tryDicebearDataUri(seed, 128);
+      if (!dataUri) continue;
+      const img = new Image();
+      img.src = dataUri;
+      cache.set(agent.id, img);
+    }
+  }, [graph.agents]);
 
   // Place nodes on 3D Fibonacci sphere when graph changes
   useEffect(() => {
@@ -442,13 +464,13 @@ function use2DRenderer({
       ctx.clearRect(0, 0, w, h);
       const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
       if (isDark) {
-        bg.addColorStop(0, "#0d0f1a");
-        bg.addColorStop(0.6, "#080a12");
-        bg.addColorStop(1, "#05060e");
+        bg.addColorStop(0, "#181715");
+        bg.addColorStop(0.6, "#141312");
+        bg.addColorStop(1, "#0e0d0c");
       } else {
-        bg.addColorStop(0, "#f8fafc");
-        bg.addColorStop(0.6, "#f1f5f9");
-        bg.addColorStop(1, "#e2e8f0");
+        bg.addColorStop(0, "#faf9f5");
+        bg.addColorStop(0.6, "#f5f3ee");
+        bg.addColorStop(1, "#efe9de");
       }
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
@@ -463,7 +485,7 @@ function use2DRenderer({
         const p = particles[i];
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = isDark ? "rgba(99,102,241,0.25)" : "rgba(99,102,241,0.15)";
+        ctx.fillStyle = isDark ? "rgba(204,120,92,0.25)" : "rgba(204,120,92,0.15)";
         ctx.fill();
         for (let j = i + 1; j < particles.length; j++) {
           const q2 = particles[j];
@@ -474,7 +496,7 @@ function use2DRenderer({
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q2.x, q2.y);
-            ctx.strokeStyle = isDark ? `rgba(99,102,241,${alpha})` : `rgba(99,102,241,${alpha * 0.6})`;
+            ctx.strokeStyle = isDark ? `rgba(204,120,92,${alpha})` : `rgba(204,120,92,${alpha * 0.6})`;
             ctx.lineWidth = 0.5 / zoom;
             ctx.stroke();
           }
@@ -590,7 +612,7 @@ function use2DRenderer({
             const tw = ctx.measureText(lbl).width;
             const lx = pos.x - tw / 2;
             const ly = pos.y - r - 10;
-            ctx.fillStyle = isDark ? "rgba(8,10,18,0.9)" : "rgba(255,255,255,0.95)";
+            ctx.fillStyle = isDark ? "rgba(24,23,21,0.9)" : "rgba(250,249,245,0.95)";
             ctx.beginPath();
             (ctx as any).roundRect?.(lx - 6, ly - 13, tw + 12, 18, 4);
             ctx.fill();
@@ -625,7 +647,25 @@ function use2DRenderer({
           ctx.fillStyle = halo;
           ctx.fill();
 
-          if (!agent.hasMemories) {
+          const avatarImg = avatarImgRef.current.get(agent.id);
+          const hasAvatar = avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0;
+
+          if (hasAvatar) {
+            // Draw clipped avatar image
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(avatarImg, pos.x - r, pos.y - r, r * 2, r * 2);
+            ctx.restore();
+
+            // Border
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(color, isSel ? 1 : isHov ? 0.9 : 0.65);
+            ctx.lineWidth = isSel ? 2.5 : 1.5;
+            ctx.stroke();
+          } else if (!agent.hasMemories) {
             ctx.save();
             ctx.setLineDash([4, 4]);
             ctx.beginPath();
@@ -663,14 +703,16 @@ function use2DRenderer({
             ctx.fill();
           }
 
-          // Draw agent initial inside the circle
-          const initial = agent.name.trim().charAt(0).toUpperCase() || "?";
-          ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = isDark ? "#ffffff" : "#ffffff";
-          ctx.fillText(initial, pos.x, pos.y);
-          ctx.textBaseline = "alphabetic";
+          // Draw agent initial as fallback when no avatar
+          if (!hasAvatar) {
+            const initial = agent.name.trim().charAt(0).toUpperCase() || "?";
+            ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = isDark ? "#faf9f5" : "#141413";
+            ctx.fillText(initial, pos.x, pos.y);
+            ctx.textBaseline = "alphabetic";
+          }
 
           ctx.globalAlpha = (isDimmed ? 0.15 : 1) * dAlpha;
 
@@ -678,11 +720,11 @@ function use2DRenderer({
           ctx.textAlign = "center";
           const lbl = agent.name;
           const tw = ctx.measureText(lbl).width;
-          ctx.fillStyle = isDark ? "rgba(5,7,14,0.75)" : "rgba(255,255,255,0.9)";
+          ctx.fillStyle = isDark ? "rgba(24,23,21,0.75)" : "rgba(250,249,245,0.9)";
           ctx.beginPath();
           (ctx as any).roundRect?.(pos.x - tw / 2 - 5, pos.y + r + 5, tw + 10, 16, 3);
           ctx.fill();
-          ctx.fillStyle = isSel || isHov ? (isDark ? "#ffffff" : "#0f172a") : rgba(color, 0.95);
+          ctx.fillStyle = isSel || isHov ? (isDark ? "#faf9f5" : "#141413") : rgba(color, 0.95);
           ctx.fillText(lbl, pos.x, pos.y + r + 17);
           ctx.textAlign = "left";
 
@@ -876,7 +918,7 @@ function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, 
         </header>
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="rounded-full px-2.5 py-1 text-[10px] font-medium capitalize text-white"
+            <span className="rounded-full px-2.5 py-1 text-[10px] font-medium capitalize text-primary-foreground"
               style={{ background: typeColor(mem.memoryType) }}>{mem.memoryType}</span>
             {ownerAgent && (
               <button onClick={() => onSelectNode(ownerAgent.id)}
@@ -935,8 +977,8 @@ function AddMemoryModal({ onClose, onAdd }: {
   const [content, setContent] = useState("");
   const [memoryType, setMemoryType] = useState("fact");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-background border border-border rounded-xl shadow-2xl w-[480px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60" onClick={onClose}>
+      <div className="bg-background border border-border rounded-lg shadow-2xl w-[480px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Add Memory Node</h2>
           <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -948,7 +990,7 @@ function AddMemoryModal({ onClose, onAdd }: {
           {MEMORY_TYPES.map((t) => (
             <button key={t} onClick={() => setMemoryType(t)}
               className={cn("px-2.5 py-1 text-[11px] font-medium rounded-full border capitalize transition-colors",
-                memoryType === t ? "text-white border-transparent" : "border-border text-muted-foreground hover:border-foreground/30")}
+                memoryType === t ? "text-primary-foreground border-transparent" : "border-border text-muted-foreground hover:border-foreground/30")}
               style={memoryType === t ? { background: typeColor(t) } : {}}>{t}</button>
           ))}
         </div>
@@ -970,8 +1012,8 @@ function LinkModal({ sourceMemory, memories, onClose, onLink }: {
 }) {
   const [targetId, setTargetId] = useState(""); const [relType, setRelType] = useState("related_to"); const [label, setLabel] = useState("");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-background border border-border rounded-xl shadow-2xl w-[420px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60" onClick={onClose}>
+      <div className="bg-background border border-border rounded-lg shadow-2xl w-[420px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Link Memory</h2>
           <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -1174,13 +1216,13 @@ export function MemoryGraph() {
               <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-lg border border-border bg-background/90 px-3 py-2.5 text-[10px] backdrop-blur">
                 <p className="font-semibold text-foreground/70 mb-0.5">Legend</p>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-3 w-3 rounded-full border border-amber-400 bg-amber-400/30" /><span>Agent (with memories)</span>
+                  <div className="h-3 w-3 rounded-full border border-primary bg-primary/30" /><span>Agent (with memories)</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-3 w-3 rounded-full border border-dashed border-violet-400" /><span>Agent (no memories)</span>
+                  <div className="h-3 w-3 rounded-full border border-dashed border-muted-foreground" /><span>Agent (no memories)</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-2 w-2 rounded-full border border-indigo-400 bg-indigo-400/20" /><span>Memory node</span>
+                  <div className="h-2 w-2 rounded-full border border-primary bg-primary/20" /><span>Memory node</span>
                 </div>
               </div>
               <p className="pointer-events-none absolute bottom-3 right-3 text-[10px] text-muted-foreground/40">
@@ -1208,3 +1250,4 @@ export function MemoryGraph() {
     </div>
   );
 }
+

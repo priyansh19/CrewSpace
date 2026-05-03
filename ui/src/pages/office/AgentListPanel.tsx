@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import type { OfficeAgent } from "@/stores/officeStore";
 import { Users, X } from "lucide-react";
+import { AgentAvatar } from "@/components/AgentAvatar";
 
 const ROLE_COLORS: Record<string, string> = {
   ceo: "#d97706",
@@ -11,19 +12,6 @@ const ROLE_COLORS: Record<string, string> = {
   designer: "#9a5ec8",
   security: "#3aaa6a",
   manager: "#e87d3e",
-};
-
-const ROLE_ICONS: Record<string, string> = {
-  ceo: "👔",
-  cmo: "📣",
-  cto: "💻",
-  pm: "📊",
-  engineer: "⚙️",
-  researcher: "🔬",
-  developer: "👨‍💻",
-  designer: "🎨",
-  security: "🔐",
-  manager: "👥",
 };
 
 interface AgentListPanelProps {
@@ -42,10 +30,6 @@ export function AgentListPanel({
   const activeAgents = useMemo(() => {
     return agents.filter((a) => a.status !== "sleeping");
   }, [agents]);
-
-  const getRoleIcon = (role: string) => {
-    return ROLE_ICONS[role.toLowerCase()] || "🧍";
-  };
 
   return (
     <>
@@ -99,7 +83,7 @@ export function AgentListPanel({
             top: "16px",
             right: "16px",
             zIndex: 20,
-            width: "187px",
+            width: "240px",
             maxHeight: "47vh",
             background: "rgba(8,10,24,0.92)",
             color: "#c0d0f0",
@@ -181,8 +165,6 @@ export function AgentListPanel({
                 const isSelected = selectedAgentId === agent.id;
                 const roleColor =
                   ROLE_COLORS[agent.role.toLowerCase()] || "#999999";
-                const roleIcon = getRoleIcon(agent.role);
-
                 return (
                   <div
                     key={agent.id}
@@ -217,15 +199,14 @@ export function AgentListPanel({
                       }
                     }}
                   >
-                    {/* Icon */}
-                    <div
-                      style={{
-                        fontSize: "14px",
-                        minWidth: "20px",
-                        textAlign: "center",
-                      }}
-                    >
-                      {roleIcon}
+                    {/* Avatar */}
+                    <div className="shrink-0">
+                      <AgentAvatar
+                        agent={agent as { id: string; name: string; icon?: string | null }}
+                        size="xs"
+                        variant="square"
+                        animate={false}
+                      />
                     </div>
 
                     {/* Name and Role */}

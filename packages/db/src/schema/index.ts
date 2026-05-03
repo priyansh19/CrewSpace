@@ -62,3 +62,9 @@ export { terminalHistory } from "./terminal_history.js";
 export { chatSessions } from "./chat_sessions.js";
 export { chatSessionParticipants } from "./chat_session_participants.js";
 export { chatMessages } from "./chat_messages.js";
+export { sharedWorkspaceFiles } from "./shared_workspace_files.js";
+export { sharedWorkspacePermissions } from "./shared_workspace_permissions.js";
+export { projectGithubRepos } from "./project_github_repos.js";
+export { projectRepoPermissions } from "./project_repo_permissions.js";
+export { githubOAuthStates } from "./github_oauth_states.js";
+

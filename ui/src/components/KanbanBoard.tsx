@@ -155,7 +155,7 @@ function KanbanCard({
           {isLive && (
             <span className="relative flex h-2 w-2 shrink-0 mt-0.5">
               <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
             </span>
           )}
         </div>
@@ -272,3 +272,4 @@ export function KanbanBoard({
     </DndContext>
   );
 }
+

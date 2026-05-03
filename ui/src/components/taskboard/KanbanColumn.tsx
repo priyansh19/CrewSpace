@@ -153,9 +153,9 @@ export function KanbanColumn({
           <span
             className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0"
             style={isOverWip
-              ? { color: "#fca5a5", backgroundColor: "rgba(239,68,68,0.2)" }
+              ? { color: "var(--destructive)", backgroundColor: "rgba(239,68,68,0.2)" }
               : isNearWip
-                ? { color: "#fcd34d", backgroundColor: "rgba(245,158,11,0.2)" }
+                ? { color: "var(--warning)", backgroundColor: "rgba(245,158,11,0.2)" }
                 : { color: cfg.accentColor, backgroundColor: `${cfg.accentColor}20` }}
             title={isOverWip ? "WIP limit exceeded" : `WIP limit: ${limit}`}
           >
@@ -241,3 +241,4 @@ export function KanbanColumn({
     </div>
   );
 }
+

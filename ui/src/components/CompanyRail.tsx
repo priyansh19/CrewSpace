@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, PanelLeftClose } from "lucide-react";
-import { AttachIcon, CrewSpaceIcon } from "@/lib/icons";
+import { Plus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { AttachIcon } from "@/lib/icons";
 import { useQueries } from "@tanstack/react-query";
 import {
   DndContext,
@@ -31,7 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { Company } from "@crewspaceai/shared";
-import { CompanyPatternIcon } from "./CompanyPatternIcon";
+import { CompanyAvatar } from "./CompanyAvatar";
 
 const ORDER_STORAGE_KEY = "crewspace.companyOrder";
 
@@ -122,27 +122,28 @@ function SortableCompanyItem({
             <div
               className={cn("relative overflow-visible transition-transform duration-150", isDragging && "scale-105")}
             >
-              <CompanyPatternIcon
+              <CompanyAvatar
                 companyName={company.name}
                 logoUrl={company.logoUrl}
-                brandColor={company.brandColor}
+                size="md"
                 className={cn(
                   isSelected
                     ? "rounded-[14px]"
                     : "rounded-[22px] group-hover:rounded-[14px]",
                   isDragging && "ring-2 ring-primary/30",
                 )}
+                selected={isSelected}
               />
               {hasLiveAgents && (
                 <span className="pointer-events-none absolute -right-0.5 -top-0.5 z-10">
                   <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-blue-400 opacity-80" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background" />
+                    <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-primary/50" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
                   </span>
                 </span>
               )}
               {hasUnreadInbox && (
-                <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 z-10 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />
+                <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 z-10 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />
               )}
             </div>
           </a>
@@ -157,7 +158,7 @@ function SortableCompanyItem({
 
 export function CompanyRail() {
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
-  const { toggleLeftNav } = useSidebar();
+  const { toggleSidebar, sidebarOpen } = useSidebar();
   const { openOnboarding } = useDialog();
   const navigate = useNavigate();
   const location = useLocation();
@@ -272,17 +273,21 @@ export function CompanyRail() {
 
   return (
     <div className="flex flex-col items-center w-[72px] shrink-0 h-full bg-background border-r border-border">
-      {/* Top row: collapse button + logo */}
-      <div className="flex items-center justify-between h-12 w-full shrink-0 px-2">
+      {/* Top row: collapse button */}
+      <div className="flex items-center justify-center h-12 w-full shrink-0">
         <button
-          onClick={toggleLeftNav}
-          className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-          aria-label="Collapse sidebar"
-          title="Collapse sidebar"
+          type="button"
+          onClick={toggleSidebar}
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
-          <PanelLeftClose className="h-4 w-4" />
+          {sidebarOpen ? (
+            <PanelLeftClose className="h-5 w-5" />
+          ) : (
+            <PanelLeftOpen className="h-5 w-5" />
+          )}
         </button>
-        <CrewSpaceIcon className="h-5 w-5 text-foreground" />
       </div>
 
       {/* Company list */}

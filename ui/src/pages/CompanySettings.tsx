@@ -232,7 +232,7 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           General
         </div>
-        <div className="space-y-3 rounded-md border border-border px-4 py-4">
+        <div className="space-y-3 rounded-lg border border-border px-4 py-4">
           <Field label="Company name" hint="The display name for your company.">
             <input
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
@@ -261,7 +261,7 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Appearance
         </div>
-        <div className="space-y-3 rounded-md border border-border px-4 py-4">
+        <div className="space-y-3 rounded-lg border border-border px-4 py-4">
           <div className="flex items-start gap-4">
             <div className="shrink-0">
               <CompanyPatternIcon
@@ -320,7 +320,7 @@ export function CompanySettings() {
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={brandColor || "#6366f1"}
+                    value={brandColor || "#cc785c"}
                     onChange={(e) => setBrandColor(e.target.value)}
                     className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
                   />
@@ -381,7 +381,7 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Hiring
         </div>
-        <div className="rounded-md border border-border px-4 py-3">
+        <div className="rounded-lg border border-border px-4 py-3">
           <ToggleField
             label="Require board approval for new hires"
             hint="New agent hires stay pending until approved by board."
@@ -397,7 +397,7 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Invites
         </div>
-        <div className="space-y-3 rounded-md border border-border px-4 py-4">
+        <div className="space-y-3 rounded-lg border border-border px-4 py-4">
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">
               Generate an OpenClaw agent invite snippet.
@@ -421,7 +421,7 @@ export function CompanySettings() {
           )}
           {inviteSnippet && (
             <div
-              className="rounded-md border border-border bg-muted/30 p-2"
+              className="rounded-lg border border-border bg-muted/30 p-2"
               data-testid="company-settings-invites-snippet"
             >
               <div className="flex items-center justify-between gap-2">
@@ -431,7 +431,7 @@ export function CompanySettings() {
                 {snippetCopied && (
                   <span
                     key={snippetCopyDelightId}
-                    className="flex items-center gap-1 text-xs text-green-600 animate-pulse"
+                    className="flex items-center gap-1 text-xs text-primary animate-pulse"
                   >
                     <Check className="h-3 w-3" />
                     Copied
@@ -441,7 +441,7 @@ export function CompanySettings() {
               <div className="mt-1 space-y-1.5">
                 <textarea
                   data-testid="company-settings-invites-snippet-textarea"
-                  className="h-[28rem] w-full rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs outline-none"
+                  className="h-[28rem] w-full rounded-lg border border-border bg-background px-2 py-1.5 font-mono text-xs outline-none"
                   value={inviteSnippet}
                   readOnly
                 />
@@ -475,7 +475,7 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Company Packages
         </div>
-        <div className="rounded-md border border-border px-4 py-4">
+        <div className="rounded-lg border border-border px-4 py-4">
           <p className="text-sm text-muted-foreground">
             Import and export have moved to dedicated pages accessible from the{" "}
             <a href="/org" className="underline hover:text-foreground">Org Chart</a> header.
@@ -502,7 +502,7 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-destructive uppercase tracking-wide">
           Danger Zone
         </div>
-        <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-4">
+        <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-4">
           <p className="text-sm text-muted-foreground">
             Archive this company to hide it from the sidebar. This persists in
             the database.
@@ -666,3 +666,4 @@ function buildResolutionTestUrl(input: AgentSnippetInput): string | null {
     return null;
   }
 }
+

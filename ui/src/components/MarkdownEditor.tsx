@@ -586,7 +586,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
                 {option.kind === "project" && option.projectId ? (
                   <span
                     className="inline-flex h-2 w-2 rounded-full border border-border/50"
-                    style={{ backgroundColor: option.projectColor ?? "#64748b" }}
+                    style={{ backgroundColor: option.projectColor ?? "#6c6a64" }}
                   />
                 ) : (
                   <AgentIcon
@@ -622,3 +622,4 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     </div>
   );
 });
+

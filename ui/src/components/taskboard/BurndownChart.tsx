@@ -99,7 +99,7 @@ export function BurndownChart({ points, totalIssues, height = 160 }: BurndownCha
       <polyline
         points={idealPts}
         fill="none"
-        stroke="#94a3b8"
+        stroke="var(--muted-foreground)"
         strokeWidth={1.5}
         strokeDasharray="4 3"
         strokeLinecap="round"
@@ -111,7 +111,7 @@ export function BurndownChart({ points, totalIssues, height = 160 }: BurndownCha
       <polyline
         points={actualPts}
         fill="none"
-        stroke="#3b82f6"
+        stroke="var(--primary)"
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -119,7 +119,7 @@ export function BurndownChart({ points, totalIssues, height = 160 }: BurndownCha
 
       {/* Dot on last actual */}
       {lastActual && (
-        <circle cx={toX(n - 1)} cy={toY(lastActual.remaining)} r={3} fill="#3b82f6" />
+        <circle cx={toX(n - 1)} cy={toY(lastActual.remaining)} r={3} fill="var(--primary)" />
       )}
     </svg>
   );
@@ -129,3 +129,4 @@ function fmtDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+

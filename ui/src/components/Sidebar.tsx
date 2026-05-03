@@ -15,7 +15,6 @@ import {
   Brain,
   ShieldAlert,
   KanbanSquare,
-  Zap,
   ChevronRight,
   Building2,
   TerminalSquare,
@@ -35,6 +34,7 @@ import { useInboxBadge } from "../hooks/useInboxBadge";
 import { Button } from "@/components/ui/button";
 import { PluginSlotOutlet } from "@/plugins/slots";
 import { cn } from "@/lib/utils";
+import { CompanyAvatar } from "./CompanyAvatar";
 
 export function Sidebar() {
   const { openNewIssue } = useDialog();
@@ -63,10 +63,19 @@ export function Sidebar() {
       {/* Brand header */}
       <div className="flex items-center gap-2 px-4 h-13 shrink-0 border-b border-border/50">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* CrewSpace logo mark */}
-          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
-            <Zap className="h-3.5 w-3.5 text-primary-foreground" fill="currentColor" />
-          </div>
+          {/* Company avatar */}
+          {selectedCompany ? (
+            <CompanyAvatar
+              companyName={selectedCompany.name}
+              logoUrl={selectedCompany.logoUrl}
+              size="sm"
+              className="rounded-md shrink-0"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
+              <span className="text-[10px] font-bold text-primary-foreground">C</span>
+            </div>
+          )}
           <span className="text-sm font-bold text-foreground tracking-tight">CrewSpace</span>
           {selectedCompany?.brandColor && (
             <div

@@ -48,7 +48,7 @@ export function CompleteSprintModal({
           {/* Summary */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-green-200 dark:border-green-900/50 bg-green-50 dark:bg-green-950/20 p-3 text-center">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto mb-1" />
+              <CheckCircle2 className="h-5 w-5 text-success mx-auto mb-1" />
               <p className="text-2xl font-bold text-green-700 dark:text-green-400">{completedCount}</p>
               <p className="text-xs text-muted-foreground">Completed</p>
             </div>
@@ -106,3 +106,4 @@ export function CompleteSprintModal({
     </Dialog>
   );
 }
+

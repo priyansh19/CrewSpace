@@ -92,6 +92,76 @@ export async function testEnvironment(
     });
   }
 
+  // Provider reachability check for custom OpenAI-compatible endpoints
+  const baseUrl = asString(config.baseUrl, "").trim();
+  if (baseUrl) {
+    try {
+      const url = new URL(baseUrl);
+      const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+      if (isLocalhost) {
+        checks.push({
+          code: "opencode_provider_localhost",
+          level: "info",
+          message: `Provider endpoint is localhost: ${baseUrl}`,
+          hint: "Ensure the local service (Ollama, vLLM, etc.) is running before starting the agent.",
+        });
+      } else {
+        checks.push({
+          code: "opencode_provider_url_valid",
+          level: "info",
+          message: `Provider base URL is valid: ${baseUrl}`,
+        });
+      }
+    } catch {
+      checks.push({
+        code: "opencode_provider_url_invalid",
+        level: "error",
+        message: `Invalid provider base URL: ${baseUrl}`,
+        hint: "Enter a valid URL like https://integrate.api.nvidia.com/v1 or http://localhost:11434/v1",
+      });
+    }
+
+    // Check for API key presence when using external provider
+    const hasApiKey =
+      asString(envConfig.NVIDIA_API_KEY, "").trim() ||
+      asString(envConfig.NVAPI_KEY, "").trim() ||
+      asString(envConfig.OPENAI_API_KEY, "").trim() ||
+      asString(envConfig.TOGETHER_API_KEY, "").trim() ||
+      asString(envConfig.GROQ_API_KEY, "").trim() ||
+      asString(envConfig.OPENROUTER_API_KEY, "").trim();
+
+    if (!hasApiKey) {
+      const isLocalhostEndpoint = (() => {
+        try {
+          const url = new URL(baseUrl);
+          return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+        } catch {
+          return false;
+        }
+      })();
+      if (isLocalhostEndpoint) {
+        checks.push({
+          code: "opencode_provider_local_no_key",
+          level: "info",
+          message: "No API key found for local provider — this is expected for Ollama/vLLM.",
+        });
+      } else {
+        checks.push({
+          code: "opencode_provider_api_key_missing",
+          level: "warn",
+          message: "No API key found for the external provider.",
+          hint: "Add the provider's API key in Environment variables (e.g., NVIDIA_API_KEY, OPENAI_API_KEY).",
+        });
+      }
+    } else {
+      checks.push({
+        code: "opencode_provider_api_key_present",
+        level: "info",
+        message: "Provider API key is configured.",
+      });
+    }
+  }
+
   // Prevent OpenCode from writing an opencode.json into the working directory.
   env.OPENCODE_DISABLE_PROJECT_CONFIG = "true";
   const preparedRuntimeConfig = await prepareOpenCodeRuntimeConfig({ env, config });

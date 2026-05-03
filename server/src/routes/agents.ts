@@ -2394,6 +2394,25 @@ export function agentRoutes(db: Db) {
     });
   });
 
+/** Extract plain text from Kimi's stream-json output for chat streaming. */
+function extractKimiChatText(raw: string): string {
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const texts: string[] = [];
+  for (const line of lines) {
+    try {
+      const obj = JSON.parse(line);
+      if (obj.role === "assistant" && Array.isArray(obj.content)) {
+        for (const item of obj.content) {
+          if (item.type === "text" && typeof item.text === "string") {
+            texts.push(item.text);
+          }
+        }
+      }
+    } catch { /* not JSON — treat as plain text */ texts.push(line); }
+  }
+  return texts.join("");
+}
+
   // ── Streaming agent chat (SSE) ───────────────────────────────────────────────
   // Streams tokens from claude stdout as Server-Sent Events so the UI can
   // display them progressively — first token appears in ~1-2s instead of
@@ -2449,8 +2468,38 @@ export function agentRoutes(db: Db) {
       `\n\n[User message]\n${latest}\n\nPlease respond as ${agent.name} in a direct, conversational way.`;
 
     const cfg = agent.adapterConfig as Record<string, unknown> | null;
-    const claudeCmd = typeof cfg?.command === "string" && cfg.command ? cfg.command : "claude";
+    const adapterType = agent.adapterType;
     const homeDir = process.env.CREWSPACE_HOME ?? "/crewspace";
+
+    // Build adapter-specific command + args
+    const command = typeof cfg?.command === "string" && cfg.command
+      ? cfg.command
+      : adapterType === "kimi_local"
+        ? "kimi"
+        : adapterType === "codex_local"
+          ? "codex"
+          : adapterType === "gemini_local"
+            ? "gemini"
+            : adapterType === "cursor"
+              ? "agent"
+              : "claude";
+
+    const args = (() => {
+      if (adapterType === "kimi_local") {
+        const a = ["--print", "--output-format", "stream-json", "--input-format", "text"];
+        if (cfg?.dangerouslySkipPermissions !== false) a.push("--yolo");
+        return a;
+      }
+      if (adapterType === "codex_local") {
+        const a = ["--print", "-", "--output-format", "text"];
+        if (cfg?.dangerouslyBypassSandbox === true || cfg?.dangerouslyBypassApprovalsAndSandbox === true) {
+          a.push("--dangerously-skip-permissions");
+        }
+        return a;
+      }
+      // Default: claude_local and others
+      return ["--print", "-", "--output-format", "text", "--dangerously-skip-permissions"];
+    })();
 
     // Open SSE stream immediately so the browser doesn't wait
     res.setHeader("Content-Type", "text/event-stream");
@@ -2459,11 +2508,7 @@ export function agentRoutes(db: Db) {
     res.setHeader("X-Accel-Buffering", "no"); // disable nginx buffering if present
     res.flushHeaders();
 
-    const proc = spawn(
-      claudeCmd,
-      ["--print", "-", "--output-format", "text", "--dangerously-skip-permissions"],
-      { env: { ...process.env, HOME: homeDir } },
-    );
+    const proc = spawn(command, args, { env: { ...process.env, HOME: homeDir } });
 
     proc.stdin.write(fullPrompt);
     proc.stdin.end();
@@ -2472,15 +2517,17 @@ export function agentRoutes(db: Db) {
     let fullResponse = "";
     proc.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
-      fullResponse += text;
+      // For JSON-output adapters, extract text from JSON before streaming
+      const streamText = adapterType === "kimi_local" ? extractKimiChatText(text) : text;
+      fullResponse += streamText;
       // Stream each chunk as an SSE event immediately
-      res.write(`data: ${JSON.stringify({ t: text })}\n\n`);
+      res.write(`data: ${JSON.stringify({ t: streamText })}\n\n`);
     });
     proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
 
     proc.on("close", (code) => {
       if (code !== 0) {
-        console.warn(`[agent-chat] claude exited ${code}. stderr: ${stderr.substring(0, 300)}`);
+        console.warn(`[agent-chat] ${command} exited ${code}. stderr: ${stderr.substring(0, 300)}`);
         res.write(`data: ${JSON.stringify({ err: "Agent unavailable — check adapter config." })}\n\n`);
       } else if (fullResponse) {
         // Fire-and-forget: extract memories from this conversation
@@ -2495,7 +2542,7 @@ export function agentRoutes(db: Db) {
           companyId: agent.companyId,
           agentId: id,
           agentName: agent.name,
-          claudeCmd,
+          claudeCmd: command,
           homeDir,
           messages: allMessages,
         }).catch(() => { /* silenced — non-critical */ });
@@ -2515,5 +2562,127 @@ export function agentRoutes(db: Db) {
     req.on("close", () => { proc.kill(); });
   });
 
+  // ── Suggest unique agent name (LLM-powered) ──────────────────────────────────
+  router.post("/companies/:companyId/agents/suggest-name", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+
+    const body = req.body as { usedNames?: string[]; isFirst?: boolean };
+    const usedNames = Array.isArray(body.usedNames) ? body.usedNames : [];
+    const isFirst = body.isFirst === true;
+
+    // Find the company's first agent to borrow its adapter config
+    const companyAgents = await svc.list(companyId);
+    const primaryAgent = companyAgents[0];
+
+    if (!primaryAgent) {
+      // No agents yet — fallback to static pool
+      const pool = isFirst
+        ? ["Mark", "Russel", "Jake", "Orion", "Atlas", "Cyrus", "Nico", "Phoenix"]
+        : ["Mark", "Russel", "Carl", "Liza", "Nina", "Jake", "Milo", "Zoe", "Lexi", "Kai", "Ivy", "Nico", "Arlo", "Sage", "Remy", "Orion", "Nova", "Mae", "Finn", "Elara", "Cyrus", "Wren", "Theo", "Luna", "Jett", "Reese", "Cade", "Dahlia", "Koa", "Sienna", "Atlas", "Iris", "Phoenix", "Juno", "Ezra", "Cleo", "Rowan", "Aria", "Silas", "Tessa"];
+      const available = pool.filter((n) => !usedNames.some((u) => u.toLowerCase() === n.toLowerCase()));
+      const name = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : `Agent${Math.floor(Math.random() * 1000)}`;
+      res.json({ name });
+      return;
+    }
+
+    const cfg = primaryAgent.adapterConfig as Record<string, unknown> | null;
+    const adapterType = primaryAgent.adapterType;
+    const homeDir = process.env.CREWSPACE_HOME ?? "/crewspace";
+
+    const command = typeof cfg?.command === "string" && cfg.command
+      ? cfg.command
+      : adapterType === "kimi_local"
+        ? "kimi"
+        : adapterType === "codex_local"
+          ? "codex"
+          : adapterType === "gemini_local"
+            ? "gemini"
+            : adapterType === "cursor"
+              ? "agent"
+              : "claude";
+
+    const prompt =
+      `You are a creative naming assistant. Suggest a single unique first name for an AI agent. ` +
+      `The name should be a real human first name, creative and modern. ` +
+      `Do NOT use any of these already-taken names: ${usedNames.join(", ") || "(none yet)"}. ` +
+      `Respond with ONLY the name, nothing else.`;
+
+    const args = (() => {
+      if (adapterType === "kimi_local") {
+        const a = ["--print", "--output-format", "stream-json", "--input-format", "text"];
+        if (cfg?.dangerouslySkipPermissions !== false) a.push("--yolo");
+        return a;
+      }
+      if (adapterType === "codex_local") {
+        const a = ["--print", "-", "--output-format", "text"];
+        if (cfg?.dangerouslyBypassSandbox === true || cfg?.dangerouslyBypassApprovalsAndSandbox === true) {
+          a.push("--dangerously-skip-permissions");
+        }
+        return a;
+      }
+      return ["--print", "-", "--output-format", "text", "--dangerously-skip-permissions"];
+    })();
+
+    try {
+      const proc = spawn(command, args, { env: { ...process.env, HOME: homeDir } });
+      proc.stdin.write(prompt);
+      proc.stdin.end();
+
+      let stdout = "";
+      let stderr = "";
+      proc.stdout.on("data", (chunk: Buffer) => {
+        const text = chunk.toString();
+        stdout += adapterType === "kimi_local" ? extractKimiChatText(text) : text;
+      });
+      proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+
+      proc.on("close", (code) => {
+        if (code !== 0) {
+          console.warn(`[suggest-name] ${command} exited ${code}. stderr: ${stderr.substring(0, 300)}`);
+          // Fallback to static pool
+          const fallback = fallbackSuggestName(usedNames, isFirst);
+          res.json({ name: fallback });
+          return;
+        }
+        const raw = stdout.trim();
+        // Clean up: take first line, remove quotes, trim
+        const cleaned = raw.split(/\r?\n/)[0]?.replace(/^["']|["']$/g, "").trim() || "";
+        // Validate: must be a single word, alphabetic, not in used names
+        const isValid = /^[A-Za-z]+$/.test(cleaned) && cleaned.length >= 2 && cleaned.length <= 20 && !usedNames.some((u) => u.toLowerCase() === cleaned.toLowerCase());
+        if (isValid) {
+          res.json({ name: cleaned });
+        } else {
+          const fallback = fallbackSuggestName(usedNames, isFirst);
+          res.json({ name: fallback });
+        }
+      });
+
+      proc.on("error", (err) => {
+        console.error(`[suggest-name] spawn error: ${err.message}`);
+        res.json({ name: fallbackSuggestName(usedNames, isFirst) });
+      });
+    } catch (err) {
+      console.error(`[suggest-name] unexpected error: ${err instanceof Error ? err.message : String(err)}`);
+      res.json({ name: fallbackSuggestName(usedNames, isFirst) });
+    }
+  });
+
   return router;
+}
+
+function fallbackSuggestName(usedNames: string[], isFirst: boolean): string {
+  const CEO_NAMES = ["Mark", "Russel", "Jake", "Orion", "Atlas", "Cyrus", "Nico", "Phoenix"];
+  const AGENT_NAMES = ["Mark", "Russel", "Carl", "Liza", "Nina", "Jake", "Milo", "Zoe", "Lexi", "Kai", "Ivy", "Nico", "Arlo", "Sage", "Remy", "Orion", "Nova", "Mae", "Finn", "Elara", "Cyrus", "Wren", "Theo", "Luna", "Jett", "Reese", "Cade", "Dahlia", "Koa", "Sienna", "Atlas", "Iris", "Phoenix", "Juno", "Ezra", "Cleo", "Rowan", "Aria", "Silas", "Tessa"];
+  const pool = isFirst ? CEO_NAMES : AGENT_NAMES;
+  const available = pool.filter((n) => !usedNames.some((u) => u.toLowerCase() === n.toLowerCase()));
+  if (available.length === 0) {
+    const base = pool[Math.floor(Math.random() * pool.length)];
+    let i = 2;
+    while (usedNames.some((u) => u.toLowerCase() === `${base}${i}`.toLowerCase())) {
+      i++;
+    }
+    return `${base}${i}`;
+  }
+  return available[Math.floor(Math.random() * available.length)];
 }

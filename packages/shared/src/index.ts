@@ -323,6 +323,14 @@ export type {
   PluginWebhookDeliveryRecord,
   QuotaWindow,
   ProviderQuotaResult,
+  SharedWorkspaceFile,
+  SharedWorkspacePermission,
+  WorkspaceFileListItem,
+  ProjectGithubRepo,
+  ProjectRepoPermission,
+  GithubConnectRequest,
+  GithubAgentPermissionUpdate,
+  GithubRepoSummary,
 } from "./types/index.js";
 
 export {

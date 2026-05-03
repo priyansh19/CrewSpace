@@ -67,6 +67,17 @@ import {
 import {
   agentConfigurationDoc as piAgentConfigurationDoc,
 } from "@crewspaceai/adapter-pi-local";
+import {
+  execute as kimiExecute,
+  listKimiSkills,
+  syncKimiSkills,
+  testEnvironment as kimiTestEnvironment,
+  sessionCodec as kimiSessionCodec,
+} from "@crewspaceai/adapter-kimi-local/server";
+import {
+  agentConfigurationDoc as kimiAgentConfigurationDoc,
+  models as kimiModels,
+} from "@crewspaceai/adapter-kimi-local";
 // TODO: Fix hermes-crewspace-adapter export issue
 // import {
 //   execute as hermesExecute,
@@ -178,6 +189,19 @@ const piLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: piAgentConfigurationDoc,
 };
 
+const kimiLocalAdapter: ServerAdapterModule = {
+  type: "kimi_local",
+  execute: kimiExecute,
+  testEnvironment: kimiTestEnvironment,
+  listSkills: listKimiSkills,
+  syncSkills: syncKimiSkills,
+  sessionCodec: kimiSessionCodec,
+  sessionManagement: getAdapterSessionManagement("kimi_local") ?? undefined,
+  models: kimiModels,
+  supportsLocalAgentJwt: true,
+  agentConfigurationDoc: kimiAgentConfigurationDoc,
+};
+
 // TODO: Fix hermes-crewspace-adapter export issue before re-enabling
 // const hermesLocalAdapter: ServerAdapterModule = {
 //   type: "hermes_local",
@@ -200,6 +224,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     piLocalAdapter,
     cursorLocalAdapter,
     geminiLocalAdapter,
+    kimiLocalAdapter,
     openclawGatewayAdapter,
     // hermesLocalAdapter, // TODO: Fix hermes-crewspace-adapter export issue before re-enabling
     processAdapter,

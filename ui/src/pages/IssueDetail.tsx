@@ -936,10 +936,10 @@ export function IssueDetail() {
           <span className="text-sm font-mono text-muted-foreground shrink-0">{issue.identifier ?? issue.id.slice(0, 8)}</span>
 
           {hasLiveRuns && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-medium text-cyan-600 dark:text-cyan-400 shrink-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/30 px-2 py-0.5 text-[10px] font-medium text-primary shrink-0">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-400" />
+                <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
               </span>
               Live
             </span>
@@ -948,7 +948,7 @@ export function IssueDetail() {
           {issue.originKind === "routine_execution" && issue.originId && (
             <Link
               to={`/routines/${issue.originId}`}
-              className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/30 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400 shrink-0 hover:bg-violet-500/20 transition-colors"
+              className="inline-flex items-center gap-1 rounded-full bg-accent border-border px-2 py-0.5 text-[10px] font-medium text-foreground shrink-0 hover:bg-accent/80 transition-colors"
             >
               <Repeat className="h-3 w-3" />
               Routine
@@ -998,7 +998,7 @@ export function IssueDetail() {
               onClick={copyIssueToClipboard}
               title="Copy issue as markdown"
             >
-              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
             </Button>
             <Button
               variant="ghost"
@@ -1017,7 +1017,7 @@ export function IssueDetail() {
               onClick={copyIssueToClipboard}
               title="Copy issue as markdown"
             >
-              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
             </Button>
             <Button
               variant="ghost"

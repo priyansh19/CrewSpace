@@ -250,7 +250,6 @@ export function PluginManager() {
                         {installedPlugin ? (
                           <Badge
                             variant={installedPlugin.status === "ready" ? "default" : "secondary"}
-                            className={installedPlugin.status === "ready" ? "bg-green-600 hover:bg-green-700" : ""}
                           >
                             {installedPlugin.status}
                           </Badge>
@@ -383,10 +382,7 @@ export function PluginManager() {
                                 ? "destructive"
                               : "secondary"
                           }
-                          className={cn(
-                            "shrink-0",
-                            plugin.status === "ready" ? "bg-green-600 hover:bg-green-700" : ""
-                          )}
+                          className="shrink-0"
                         >
                           {plugin.status}
                         </Badge>

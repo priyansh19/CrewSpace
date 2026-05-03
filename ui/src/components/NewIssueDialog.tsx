@@ -1101,8 +1101,8 @@ export function NewIssueDialog() {
                   option && currentProject ? (
                     <>
                       <span
-                        className="h-3.5 w-3.5 shrink-0 rounded-sm"
-                        style={{ backgroundColor: currentProject.color ?? "#6366f1" }}
+                        className={cn("h-3.5 w-3.5 shrink-0 rounded-sm", !currentProject.color && "bg-muted")}
+                        style={{ backgroundColor: currentProject.color || undefined }}
                       />
                       <span className="truncate">{option.label}</span>
                     </>
@@ -1116,8 +1116,8 @@ export function NewIssueDialog() {
                   return (
                     <>
                       <span
-                        className="h-3.5 w-3.5 shrink-0 rounded-sm"
-                        style={{ backgroundColor: project?.color ?? "#6366f1" }}
+                        className={cn("h-3.5 w-3.5 shrink-0 rounded-sm", !project?.color && "bg-muted")}
+                        style={{ backgroundColor: project?.color || undefined }}
                       />
                       <span className="truncate">{option.label}</span>
                     </>
@@ -1222,13 +1222,13 @@ export function NewIssueDialog() {
                       data-slot="toggle"
                       className={cn(
                         "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                        assigneeChrome ? "bg-green-600" : "bg-muted"
+                        assigneeChrome ? "bg-primary" : "bg-muted"
                       )}
                       onClick={() => setAssigneeChrome((value) => !value)}
                     >
                       <span
                         className={cn(
-                          "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                          "inline-block h-3.5 w-3.5 rounded-full bg-primary-foreground transition-transform",
                           assigneeChrome ? "translate-x-4.5" : "translate-x-0.5"
                         )}
                       />
@@ -1484,3 +1484,4 @@ export function NewIssueDialog() {
     </Dialog>
   );
 }
+

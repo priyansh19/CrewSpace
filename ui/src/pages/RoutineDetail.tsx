@@ -605,7 +605,7 @@ export function RoutineDetail() {
   const automationLabelClassName = routine.status === "archived"
     ? "text-muted-foreground"
     : automationEnabled
-      ? "text-emerald-400"
+      ? "text-primary"
       : "text-muted-foreground";
 
   return (
@@ -652,7 +652,7 @@ export function RoutineDetail() {
             aria-label={automationEnabled ? "Pause automatic triggers" : "Enable automatic triggers"}
             disabled={automationToggleDisabled}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              automationEnabled ? "bg-emerald-500" : "bg-muted"
+              automationEnabled ? "bg-primary" : "bg-muted"
             } ${automationToggleDisabled ? "cursor-not-allowed opacity-50" : ""}`}
             onClick={() => updateRoutineStatus.mutate(automationEnabled ? "paused" : "active")}
           >
@@ -670,7 +670,7 @@ export function RoutineDetail() {
 
       {/* Secret message banner */}
       {secretMessage && (
-        <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4 space-y-3 text-sm">
+        <div className="rounded-lg border border-border bg-accent p-4 space-y-3 text-sm">
           <div>
             <p className="font-medium">{secretMessage.title}</p>
             <p className="text-xs text-muted-foreground">Save this now. CrewSpace will not show the secret value again.</p>
@@ -758,7 +758,7 @@ export function RoutineDetail() {
                 <>
                   <span
                     className="h-3.5 w-3.5 shrink-0 rounded-sm"
-                    style={{ backgroundColor: currentProject.color ?? "#64748b" }}
+                    style={{ backgroundColor: currentProject.color ?? "var(--muted-foreground)" }}
                   />
                   <span className="truncate">{option.label}</span>
                 </>
@@ -773,7 +773,7 @@ export function RoutineDetail() {
                 <>
                   <span
                     className="h-3.5 w-3.5 shrink-0 rounded-sm"
-                    style={{ backgroundColor: project?.color ?? "#64748b" }}
+                    style={{ backgroundColor: project?.color ?? "var(--muted-foreground)" }}
                   />
                   <span className="truncate">{option.label}</span>
                 </>
@@ -847,7 +847,7 @@ export function RoutineDetail() {
       {/* Save bar */}
       <div className="flex items-center justify-between">
         {isEditDirty ? (
-          <span className="text-xs text-amber-600">Unsaved changes</span>
+          <span className="text-xs text-primary">Unsaved changes</span>
         ) : (
           <span />
         )}
@@ -872,7 +872,7 @@ export function RoutineDetail() {
           <TabsTrigger value="runs" className="gap-1.5">
             <Play className="h-3.5 w-3.5" />
             Runs
-            {hasLiveRun && <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />}
+            {hasLiveRun && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
           </TabsTrigger>
 <TabsTrigger value="activity" className="gap-1.5">
             <ActivityIcon className="h-3.5 w-3.5" />

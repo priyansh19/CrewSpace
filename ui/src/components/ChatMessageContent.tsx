@@ -25,7 +25,7 @@ function CopyCodeButton({ code }: { code: string }) {
       className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-all opacity-0 group-hover:opacity-100 bg-background/80 text-muted-foreground hover:text-foreground border border-border/50"
       title="Copy code"
     >
-      {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+      {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
@@ -33,16 +33,16 @@ function CopyCodeButton({ code }: { code: string }) {
 export function ChatMessageContent({ content, className }: ChatMessageContentProps) {
   return (
     <div
-      className={cn("prose prose-sm max-w-none dark:prose-invert text-[#0A0A0B]", className)}
+      className={cn("prose prose-sm max-w-none dark:prose-invert text-foreground", className)}
       style={{
-        "--tw-prose-body": "#0A0A0B",
-        "--tw-prose-headings": "#0A0A0B",
-        "--tw-prose-bold": "#0A0A0B",
-        "--tw-prose-code": "#0A0A0B",
-        "--tw-prose-invert-body": "#0A0A0B",
-        "--tw-prose-invert-headings": "#0A0A0B",
-        "--tw-prose-invert-bold": "#0A0A0B",
-        "--tw-prose-invert-code": "#0A0A0B",
+        "--tw-prose-body": "var(--foreground)",
+        "--tw-prose-headings": "var(--foreground)",
+        "--tw-prose-bold": "var(--foreground)",
+        "--tw-prose-code": "var(--foreground)",
+        "--tw-prose-invert-body": "var(--foreground)",
+        "--tw-prose-invert-headings": "var(--foreground)",
+        "--tw-prose-invert-bold": "var(--foreground)",
+        "--tw-prose-invert-code": "var(--foreground)",
       } as React.CSSProperties}
     >
       <ReactMarkdown

@@ -492,7 +492,7 @@ export function CommentThread({
               <Button
                 size="sm"
                 variant="outline"
-                className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive dark:border-destructive/40 dark:text-destructive dark:hover:bg-destructive/100/10"
                 disabled={interruptingQueuedRunId === queuedComments[0].queueTargetRunId}
                 onClick={() => void onInterruptQueued(queuedComments[0]!.queueTargetRunId!)}
               >
@@ -603,3 +603,4 @@ export function CommentThread({
     </div>
   );
 }
+

@@ -1,9 +1,10 @@
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import * as THREE from "three";
 import { useOfficeStore } from "@/stores/officeStore";
+import { useTheme } from "@/context/ThemeContext";
 import OfficeFloor from "./OfficeFloor";
 import HumanAgent from "./HumanAgent";
 
@@ -61,8 +62,18 @@ const OfficeScene = () => {
   const selectedId  = useOfficeStore((s) => s.selectedAgentId);
   const selectAgent = useOfficeStore((s) => s.selectAgent);
   const controlsRef = useRef<any>(null);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
-  const handleSceneReady = () => setTimeout(() => setInitialLoadComplete(), 10_000);
+  const handleSceneReady = () => setTimeout(() => setInitialLoadComplete(), 2_000);
+
+  const canvasBg = isDark ? "#141413" : "#e8e0d4";
+  const ambientColor = isDark ? "#5a5a55" : "#ffd9a8";
+  const dirColor = isDark ? "#6a6a60" : "#ffd4a8";
+  const hemiSky = isDark ? "#3a3a35" : "#ffe8cc";
+  const hemiGround = isDark ? "#2a2a25" : "#d8cfc0";
+  const ambientIntensity = isDark ? 0.45 : 0.85;
+  const dirIntensity = isDark ? 0.7 : 1.2;
 
   return (
     <>
@@ -83,19 +94,19 @@ const OfficeScene = () => {
         antialias: true,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.05,
+        toneMappingExposure: isDark ? 0.85 : 1.05,
       }}
       performance={{ min: 0.5 }}
-      style={{ background: "#f0e8e0", width: "100%", height: "100%" }}
+      style={{ background: canvasBg, width: "100%", height: "100%" }}
       onPointerMissed={() => selectAgent(null)}
       frameloop="always"
       shadows="soft"
     >
-      <ambientLight intensity={0.85} color="#ffd9a8" />
+      <ambientLight intensity={ambientIntensity} color={ambientColor} />
       <directionalLight
         position={[20, 30, 15]}
-        intensity={1.2}
-        color="#ffd4a8"
+        intensity={dirIntensity}
+        color={dirColor}
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-far={120}
@@ -106,11 +117,7 @@ const OfficeScene = () => {
         shadow-bias={-0.0005}
       />
       <hemisphereLight
-        args={[
-          "#ffe8cc",
-          "#d8cfc0",
-          0.5,
-        ]}
+        args={[hemiSky, hemiGround, isDark ? 0.3 : 0.5]}
       />
 
       <OfficeFloor />

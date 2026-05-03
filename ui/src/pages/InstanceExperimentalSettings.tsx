@@ -89,13 +89,13 @@ export function InstanceExperimentalSettings() {
             disabled={toggleMutation.isPending}
             className={cn(
               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-              enableIsolatedWorkspaces ? "bg-green-600" : "bg-muted",
+              enableIsolatedWorkspaces ? "bg-primary" : "bg-muted",
             )}
             onClick={() => toggleMutation.mutate({ enableIsolatedWorkspaces: !enableIsolatedWorkspaces })}
           >
             <span
               className={cn(
-                "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                "inline-block h-3.5 w-3.5 rounded-full bg-primary-foreground transition-transform",
                 enableIsolatedWorkspaces ? "translate-x-4.5" : "translate-x-0.5",
               )}
             />
@@ -119,7 +119,7 @@ export function InstanceExperimentalSettings() {
             disabled={toggleMutation.isPending}
             className={cn(
               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-              autoRestartDevServerWhenIdle ? "bg-green-600" : "bg-muted",
+              autoRestartDevServerWhenIdle ? "bg-primary" : "bg-muted",
             )}
             onClick={() =>
               toggleMutation.mutate({ autoRestartDevServerWhenIdle: !autoRestartDevServerWhenIdle })
@@ -127,7 +127,7 @@ export function InstanceExperimentalSettings() {
           >
             <span
               className={cn(
-                "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                "inline-block h-3.5 w-3.5 rounded-full bg-primary-foreground transition-transform",
                 autoRestartDevServerWhenIdle ? "translate-x-4.5" : "translate-x-0.5",
               )}
             />
@@ -137,3 +137,4 @@ export function InstanceExperimentalSettings() {
     </div>
   );
 }
+

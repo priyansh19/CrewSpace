@@ -17,6 +17,7 @@ import {
 } from "@crewspaceai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
+import { DEFAULT_KIMI_LOCAL_MODEL } from "@crewspaceai/adapter-kimi-local";
 import {
   Popover,
   PopoverContent,
@@ -318,7 +319,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     adapterType === "hermes_local" ||
     adapterType === "opencode_local" ||
     adapterType === "pi_local" ||
-    adapterType === "cursor";
+    adapterType === "cursor" ||
+    adapterType === "kimi_local";
   const isHermesLocal = adapterType === "hermes_local";
   const showLegacyWorkingDirectoryField =
     isLocal && shouldShowLegacyWorkingDirectoryField({ isCreate, adapterConfig: config });
@@ -549,7 +551,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                     }}
                   />
                 </Field>
-                <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                <div className="rounded-md border border-border bg-accent px-3 py-2 text-xs text-muted-foreground">
                   Prompt template is replayed on every heartbeat. Keep it compact and dynamic to avoid recurring token cost and cache churn.
                 </div>
               </>
@@ -686,7 +688,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   }}
                 />
               </Field>
-              <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+              <div className="rounded-md border border-border bg-accent px-3 py-2 text-xs text-muted-foreground">
                 Prompt template is replayed on every heartbeat. Prefer small task framing and variables like <code>{"{{ context.* }}"}</code> or <code>{"{{ run.* }}"}</code>; avoid repeating stable instructions here.
               </div>
             </>
@@ -733,6 +735,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                           ? "agent"
                         : adapterType === "opencode_local"
                           ? "opencode"
+                        : adapterType === "kimi_local"
+                          ? "kimi"
                           : "claude"
                   }
                 />
@@ -785,7 +789,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   {adapterType === "codex_local" &&
                     codexSearchEnabled &&
                     currentThinkingEffort === "minimal" && (
-                      <p className="text-xs text-amber-400">
+                      <p className="text-xs text-primary">
                         Codex may reject `minimal` thinking when search is enabled.
                       </p>
                     )}
@@ -812,7 +816,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                       }}
                     />
                   </Field>
-                  <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  <div className="rounded-md border border-border bg-accent px-3 py-2 text-xs text-muted-foreground">
                     Bootstrap prompt is legacy and will be removed in a future release. Consider moving this content into the agent&apos;s prompt template or instructions file instead.
                   </div>
                 </>
@@ -992,10 +996,10 @@ function AdapterEnvironmentResult({ result }: { result: AdapterEnvironmentTestRe
     result.status === "pass" ? "Passed" : result.status === "warn" ? "Warnings" : "Failed";
   const statusClass =
     result.status === "pass"
-      ? "text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10"
+      ? "text-success border-success/30 bg-success/10"
       : result.status === "warn"
-        ? "text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10"
-        : "text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10";
+        ? "text-primary border-primary/30 bg-primary/10"
+        : "text-destructive border-destructive/30 bg-destructive/10";
 
   return (
     <div className={`rounded-md border px-3 py-2 text-xs ${statusClass}`}>
@@ -1024,7 +1028,7 @@ function AdapterEnvironmentResult({ result }: { result: AdapterEnvironmentTestRe
 
 /* ---- Internal sub-components ---- */
 
-const ENABLED_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local"]);
+const ENABLED_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local", "kimi_local"]);
 
 /** Display list includes all real adapter types plus UI-only coming-soon entries. */
 const ADAPTER_DISPLAY_LIST: { value: string; label: string; comingSoon: boolean }[] = [
@@ -1503,7 +1507,7 @@ function ModelDropdown({
               <span className="block w-full text-left truncate font-mono text-xs" title={value}>
                 {value}
               </span>
-              <span className="shrink-0 ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
+              <span className="shrink-0 ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-success/15 text-success border border-success/20">
                 current
               </span>
             </button>
@@ -1522,7 +1526,7 @@ function ModelDropdown({
               <span className="block w-full text-left truncate font-mono text-xs" title={detectedModel}>
                 {detectedModel}
               </span>
-              <span className="shrink-0 ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">
+              <span className="shrink-0 ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20">
                 detected
               </span>
             </button>
@@ -1646,3 +1650,4 @@ function ThinkingEffortDropdown({
     </Field>
   );
 }
+
