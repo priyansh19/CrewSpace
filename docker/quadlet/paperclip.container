@@ -1,7 +1,5 @@
 [Unit]
 Description=CrewSpace AI Agent Orchestrator
-Requires=crewspace-db.service
-After=crewspace-db.service
 
 [Container]
 Image=crewspace-local

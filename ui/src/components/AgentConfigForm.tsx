@@ -17,6 +17,7 @@ import {
 } from "@crewspaceai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
+import { DEFAULT_KIMI_LOCAL_MODEL } from "@crewspaceai/adapter-kimi-local";
 import {
   Popover,
   PopoverContent,
@@ -318,7 +319,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     adapterType === "hermes_local" ||
     adapterType === "opencode_local" ||
     adapterType === "pi_local" ||
-    adapterType === "cursor";
+    adapterType === "cursor" ||
+    adapterType === "kimi_local";
   const isHermesLocal = adapterType === "hermes_local";
   const showLegacyWorkingDirectoryField =
     isLocal && shouldShowLegacyWorkingDirectoryField({ isCreate, adapterConfig: config });
@@ -733,6 +735,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                           ? "agent"
                         : adapterType === "opencode_local"
                           ? "opencode"
+                        : adapterType === "kimi_local"
+                          ? "kimi"
                           : "claude"
                   }
                 />
@@ -1024,7 +1028,7 @@ function AdapterEnvironmentResult({ result }: { result: AdapterEnvironmentTestRe
 
 /* ---- Internal sub-components ---- */
 
-const ENABLED_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local"]);
+const ENABLED_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local", "kimi_local"]);
 
 /** Display list includes all real adapter types plus UI-only coming-soon entries. */
 const ADAPTER_DISPLAY_LIST: { value: string; label: string; comingSoon: boolean }[] = [

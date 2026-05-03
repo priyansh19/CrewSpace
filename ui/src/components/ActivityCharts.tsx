@@ -58,10 +58,12 @@ export function ChartCard({
   title,
   subtitle,
   children,
+  heightClass = "h-48",
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  heightClass?: string;
 }) {
   return (
     <div className="border border-border rounded-lg p-4 space-y-3 bg-card">
@@ -71,7 +73,7 @@ export function ChartCard({
           <span className="text-[10px] text-muted-foreground/60">{subtitle}</span>
         )}
       </div>
-      <div className="h-48">{children}</div>
+      <div className={heightClass}>{children}</div>
     </div>
   );
 }

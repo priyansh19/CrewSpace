@@ -251,24 +251,28 @@ export function Dashboard() {
               />
             </div>
 
-            {/* Performance Charts Grid */}
+            {/* Primary Insight Charts — Run Activity + Success Rate */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ChartCard title="Agent Status" subtitle="Resource availability">
-                <AgentStatusDonut agents={data.agents} />
-              </ChartCard>
-              <ChartCard title="Task Velocity" subtitle="Created vs completed (14d)">
-                <TaskVelocityChart issues={issues ?? []} />
-              </ChartCard>
-              <ChartCard title="Run Activity" subtitle="Last 14 days">
+              <ChartCard title="Run Activity" subtitle="Execution volume & outcomes (14d)" heightClass="h-56">
                 <RunActivityChart runs={runs ?? []} />
               </ChartCard>
-              <ChartCard title="Success Rate" subtitle="Daily % (14d)">
+              <ChartCard title="Success Rate" subtitle="Daily run quality trend (14d)" heightClass="h-56">
                 <SuccessRateChart runs={runs ?? []} />
               </ChartCard>
             </div>
 
-            {/* Agent Utilization — full width */}
-            <ChartCard title="Agent Utilization" subtitle="Top agents by runs (14d)">
+            {/* Secondary Insight Charts — Agent Status + Task Velocity */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ChartCard title="Agent Status" subtitle="Fleet availability" heightClass="h-52">
+                <AgentStatusDonut agents={data.agents} />
+              </ChartCard>
+              <ChartCard title="Task Velocity" subtitle="Created vs completed (14d)" heightClass="h-52">
+                <TaskVelocityChart issues={issues ?? []} />
+              </ChartCard>
+            </div>
+
+            {/* Operational Detail — Agent Utilization full width */}
+            <ChartCard title="Agent Utilization" subtitle="Top performers by run count (14d)" heightClass="h-52">
               <AgentUtilizationChart runs={runs ?? []} agents={agents ?? []} />
             </ChartCard>
 

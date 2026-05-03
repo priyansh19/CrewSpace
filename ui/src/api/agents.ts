@@ -203,6 +203,9 @@ export const agentsApi = {
    * Streaming chat — returns an async generator that yields text chunks.
    * The server responds with SSE: data: {"t":"..."} ... data: [DONE]
    */
+  suggestName: (companyId: string, body: { usedNames: string[]; isFirst: boolean }) =>
+    api.post<{ name: string }>(`/companies/${companyId}/agents/suggest-name`, body),
+
   chatStream: async function* (
     id: string,
     messages: Array<{ role: "user" | "assistant"; content: string }>,

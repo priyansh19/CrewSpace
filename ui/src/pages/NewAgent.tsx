@@ -28,6 +28,7 @@ import {
 } from "@crewspaceai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
+import { DEFAULT_KIMI_LOCAL_MODEL } from "@crewspaceai/adapter-kimi-local";
 
 const SUPPORTED_ADVANCED_ADAPTER_TYPES = new Set<CreateConfigValues["adapterType"]>([
   "claude_local",
@@ -38,6 +39,7 @@ const SUPPORTED_ADVANCED_ADAPTER_TYPES = new Set<CreateConfigValues["adapterType
   "cursor",
   "hermes_local",
   "openclaw_gateway",
+  "kimi_local",
 ]);
 
 function createValuesForAdapterType(
@@ -55,6 +57,8 @@ function createValuesForAdapterType(
     nextValues.model = DEFAULT_CURSOR_LOCAL_MODEL;
   } else if (adapterType === "opencode_local") {
     nextValues.model = "";
+  } else if (adapterType === "kimi_local") {
+    nextValues.model = DEFAULT_KIMI_LOCAL_MODEL;
   }
   return nextValues;
 }
@@ -75,6 +79,7 @@ export function NewAgent() {
   const [selectedSkillKeys, setSelectedSkillKeys] = useState<string[]>([]);
   const [roleOpen, setRoleOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
 
   const { data: agents } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId!),
@@ -111,16 +116,29 @@ export function NewAgent() {
     ]);
   }, [setBreadcrumbs]);
 
+  // Fetch LLM-suggested name
+  const { data: suggestedNameData } = useQuery({
+    queryKey: queryKeys.agents.suggestName(selectedCompanyId ?? "", agents?.map((a) => a.name) ?? []),
+    queryFn: () => agentsApi.suggestName(selectedCompanyId!, { usedNames: agents?.map((a) => a.name) ?? [], isFirst: isFirstAgent }),
+    enabled: !!selectedCompanyId && agents !== undefined && !nameManuallyEdited,
+    staleTime: 0,
+  });
+
   // Auto-suggest a cool name when the page loads or agents data changes,
   // but only if the user hasn't manually typed anything yet.
   useEffect(() => {
+    if (nameManuallyEdited) return;
+    if (suggestedNameData?.name && name === "") {
+      setName(suggestedNameData.name);
+      return;
+    }
     if (name === "" && agents !== undefined) {
       setName(suggestAgentName(agents.map((a) => a.name), isFirstAgent));
     }
     if (isFirstAgent && title === "") {
       setTitle("CEO");
     }
-  }, [agents, isFirstAgent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [agents, isFirstAgent, suggestedNameData, nameManuallyEdited]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const requested = presetAdapterType;
@@ -231,14 +249,19 @@ export function NewAgent() {
             className="flex-1 text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
             placeholder="Name your agent (e.g. Mark, Liza, Kai)"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => { setName(e.target.value); setNameManuallyEdited(true); }}
             autoFocus
           />
           <button
             type="button"
             title="Suggest a name"
             className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-            onClick={() => setName(suggestAgentName((agents ?? []).map((a) => a.name), isFirstAgent))}
+            onClick={() => {
+              setNameManuallyEdited(true);
+              agentsApi.suggestName(selectedCompanyId!, { usedNames: (agents ?? []).map((a) => a.name), isFirst: isFirstAgent })
+                .then((res) => setName(res.name))
+                .catch(() => setName(suggestAgentName((agents ?? []).map((a) => a.name), isFirstAgent)));
+            }}
           >
             <Dices className="h-4 w-4" />
           </button>

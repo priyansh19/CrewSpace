@@ -387,10 +387,25 @@ function groupToolBlocks(blocks: TranscriptBlock[]): TranscriptBlock[] {
   return grouped;
 }
 
+/** Check if a stderr line is part of an internal loguru logging error block.
+ *  These are non-fatal Python log rotation errors on Windows and should be hidden.
+ */
+function isLoguruErrorLine(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("--- Logging error in Loguru") ||
+    trimmed === "Traceback (most recent call last):" ||
+    trimmed === "--- End of logging error ---" ||
+    trimmed.includes("loguru") ||
+    /^[a-zA-Z_][a-zA-Z0-9_]*Error:/.test(trimmed) ||
+    trimmed.startsWith("File \"") ||
+    /^\s+\S/.test(trimmed); // indented continuation lines
+}
+
 export function normalizeTranscript(entries: TranscriptEntry[], streaming: boolean): TranscriptBlock[] {
   const blocks: TranscriptBlock[] = [];
   const pendingToolBlocks = new Map<string, Extract<TranscriptBlock, { type: "tool" }>>();
   const pendingActivityBlocks = new Map<string, Extract<TranscriptBlock, { type: "activity" }>>();
+  let inLoguruBlock = false;
 
   for (const entry of entries) {
     const previous = blocks[blocks.length - 1];
@@ -499,17 +514,40 @@ export function normalizeTranscript(entries: TranscriptEntry[], streaming: boole
       if (shouldHideNiceModeStderr(entry.text)) {
         continue;
       }
+
+      // Filter out internal loguru logging errors (non-fatal Windows log rotation issues)
+      const lines = entry.text.split(/\r?\n/);
+      const keptLines: string[] = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("--- Logging error in Loguru") || trimmed === "Traceback (most recent call last):") {
+          inLoguruBlock = true;
+          continue;
+        }
+        if (trimmed === "--- End of logging error ---") {
+          inLoguruBlock = false;
+          continue;
+        }
+        if (!inLoguruBlock) {
+          keptLines.push(line);
+        }
+      }
+      if (keptLines.length === 0) {
+        continue;
+      }
+
       // Batch consecutive stderr entries into a single group
+      const text = keptLines.join("\n");
       const prev = blocks[blocks.length - 1];
       if (prev && prev.type === "stderr_group") {
-        prev.lines.push({ ts: entry.ts, text: entry.text });
+        prev.lines.push({ ts: entry.ts, text });
         prev.endTs = entry.ts;
       } else {
         blocks.push({
           type: "stderr_group",
           ts: entry.ts,
           endTs: entry.ts,
-          lines: [{ ts: entry.ts, text: entry.text }],
+          lines: [{ ts: entry.ts, text }],
         });
       }
       continue;
@@ -1167,9 +1205,33 @@ function RawTranscriptView({
   density: TranscriptDensity;
 }) {
   const compact = density === "compact";
+
+  // Filter out internal loguru logging errors in raw mode too
+  let inLoguruBlock = false;
+  const filteredEntries = entries.filter((entry) => {
+    if (entry.kind !== "stderr") return true;
+    const lines = entry.text.split(/\r?\n/);
+    const keptLines: string[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("--- Logging error in Loguru") || trimmed === "Traceback (most recent call last):") {
+        inLoguruBlock = true;
+        continue;
+      }
+      if (trimmed === "--- End of logging error ---") {
+        inLoguruBlock = false;
+        continue;
+      }
+      if (!inLoguruBlock) {
+        keptLines.push(line);
+      }
+    }
+    return keptLines.length > 0;
+  });
+
   return (
     <div className={cn("font-mono", compact ? "space-y-1 text-[11px]" : "space-y-1.5 text-xs")}>
-      {entries.map((entry, idx) => (
+      {filteredEntries.map((entry, idx) => (
         <div
           key={`${entry.kind}-${entry.ts}-${idx}`}
           className={cn(

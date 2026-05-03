@@ -415,6 +415,22 @@ a.crewspace-mention-chip, a.crewspace-project-mention-chip { display: inline-fle
   100% { opacity: 1; transform: scale(1); }
 }
 
+/* Avatar subtle float animation */
+@keyframes avatarFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.02); }
+}
+.agent-avatar-animated,
+.company-avatar-animated {
+  animation: avatarFloat 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar-animated,
+  .company-avatar-animated {
+    animation: none;
+  }
+}
+
 /* Z-index stacking */
 [class*="_popupContainer_"] { z-index: 81 !important; }
 [class*="_dialogOverlay_"] { z-index: 80; }

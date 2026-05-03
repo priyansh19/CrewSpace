@@ -19,6 +19,7 @@ Use when:
 - You want CrewSpace to run OpenCode locally as the agent runtime
 - You want provider/model routing in OpenCode format (provider/model)
 - You want OpenCode session resume across heartbeats via --session
+- You want to use NVIDIA NIM, Ollama, vLLM, or any OpenAI-compatible endpoint
 
 Don't use when:
 - You need webhook-style external invocation (use openclaw_gateway or http)
