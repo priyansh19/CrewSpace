@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: crewspace-staging
+
+namePrefix: staging-
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: crewspace
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: ghcr.io/priyansh19/crewspace:canary
+  - target:
+      kind: Ingress
+      name: crewspace
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.REPLACE_ME
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: staging.REPLACE_ME
+      - op: replace
+        path: /spec/tls/0/secretName
+        value: staging-crewspace-tls

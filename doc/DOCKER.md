@@ -82,11 +82,14 @@ Pass `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` to enable local adapter runs.
 CrewSpace server + PostgreSQL 17. The database is health-checked before the server starts.
 
 ```sh
+cd docker
 BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
-  docker compose -f docker/docker-compose.yml up --build
+  docker compose up --build
 ```
 
 PostgreSQL data persists in a named Docker volume (`pgdata`). CrewSpace data persists in `crewspace-data`.
+
+**Note:** The server container waits for the database to be healthy via `depends_on` with `condition: service_healthy`.
 
 ### Untrusted PR review
 

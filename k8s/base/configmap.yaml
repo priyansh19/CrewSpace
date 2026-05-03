@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crewspace-config
+  namespace: crewspace
+data:
+  PORT: "3100"
+  SERVE_UI: "true"
+  CREWSPACE_DEPLOYMENT_MODE: "authenticated"
+  CREWSPACE_DEPLOYMENT_EXPOSURE: "private"
+  CREWSPACE_INSTANCE_ID: "default"
+  HOST: "0.0.0.0"

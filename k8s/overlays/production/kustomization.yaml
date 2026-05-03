@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: crewspace-production
+
+namePrefix: production-
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: crewspace
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: ghcr.io/priyansh19/crewspace:latest
+      - op: add
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: add
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+  - target:
+      kind: Ingress
+      name: crewspace
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: REPLACE_ME
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: REPLACE_ME
+      - op: replace
+        path: /spec/tls/0/secretName
+        value: production-crewspace-tls

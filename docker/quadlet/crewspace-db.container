@@ -1,0 +1,23 @@
+[Unit]
+Description=CrewSpace PostgreSQL Database
+
+[Container]
+Image=docker.io/library/postgres:17-alpine
+ContainerName=crewspace-db
+Pod=crewspace.pod
+Volume=crewspace-pgdata:/var/lib/postgresql/data:Z
+Environment=POSTGRES_USER=crewspace
+Environment=POSTGRES_PASSWORD=crewspace
+Environment=POSTGRES_DB=crewspace
+HealthcheckCmd=pg_isready -U crewspace -d crewspace
+HealthcheckInterval=5s
+HealthcheckRetries=5
+HealthcheckStartPeriod=10s
+HealthcheckTimeout=5s
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target
