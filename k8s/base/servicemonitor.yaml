@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: crewspace
+  namespace: crewspace
+  labels:
+    app: crewspace
+spec:
+  selector:
+    matchLabels:
+      app: crewspace
+  endpoints:
+    - port: http
+      path: /api/health
+      interval: 30s
+      scrapeTimeout: 10s

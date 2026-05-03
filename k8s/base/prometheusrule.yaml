@@ -1,0 +1,40 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: crewspace-alerts
+  namespace: crewspace
+  labels:
+    app: crewspace
+spec:
+  groups:
+    - name: crewspace
+      rules:
+        - alert: CrewSpaceDown
+          expr: up{job="crewspace"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "CrewSpace is down"
+            description: "CrewSpace instance {{ $labels.instance }} has been down for more than 1 minute."
+        - alert: CrewSpaceHighErrorRate
+          expr: |
+            (
+              sum(rate(http_requests_total{job="crewspace",status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total{job="crewspace"}[5m]))
+            ) > 0.05
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "CrewSpace high error rate"
+            description: "Error rate is above 5% for more than 2 minutes."
+        - alert: CrewSpaceDatabaseDown
+          expr: pg_up{job="crewspace-db"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "CrewSpace database is down"
+            description: "PostgreSQL database for CrewSpace is unreachable."
