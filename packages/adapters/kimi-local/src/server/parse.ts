@@ -22,6 +22,19 @@ function extractTextFromContent(content: unknown): string {
   return texts.join("");
 }
 
+function extractThinkFromContent(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  const texts: string[] = [];
+  for (const item of content) {
+    if (typeof item !== "object" || item === null) continue;
+    const rec = item as Record<string, unknown>;
+    if (rec.type === "think" && typeof rec.think === "string") {
+      texts.push(rec.think);
+    }
+  }
+  return texts.join("");
+}
+
 export function parseKimiJsonl(stdout: string, stderr?: string) {
   let sessionId: string | null = stderr ? extractSessionIdFromStderr(stderr) : null;
   const messages: string[] = [];
@@ -59,6 +72,15 @@ export function parseKimiJsonl(stdout: string, stderr?: string) {
     // Main response format: {"role":"assistant","content":[...]}
     if (event.role === "assistant" && Array.isArray(event.content)) {
       const text = extractTextFromContent(event.content);
+      const think = extractThinkFromContent(event.content);
+      if (think) messages.push(think);
+      if (text) messages.push(text);
+      continue;
+    }
+
+    // Tool result format: {"role":"tool","content":[...]}
+    if (event.role === "tool" && Array.isArray(event.content)) {
+      const text = extractTextFromContent(event.content);
       if (text) messages.push(text);
       continue;
     }
@@ -82,7 +104,11 @@ export function parseKimiJsonl(stdout: string, stderr?: string) {
       const err = parseObject(event.error);
       const msg = asString(err?.message, "").trim();
       if (msg) errorMessage = msg;
+      continue;
     }
+
+    // Fallback: preserve unrecognized JSON lines so they are not silently lost
+    messages.push(line);
   }
 
   return {

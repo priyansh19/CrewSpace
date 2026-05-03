@@ -29,6 +29,18 @@ function extractTextFromContent(content: unknown): string {
   return texts.join("");
 }
 
+function extractThinkFromContent(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  const texts: string[] = [];
+  for (const item of content) {
+    const rec = asRecord(item);
+    if (rec && rec.type === "think" && typeof rec.think === "string") {
+      texts.push(rec.think);
+    }
+  }
+  return texts.join("");
+}
+
 export function parseKimiStdoutLine(line: string, ts: string): TranscriptEntry[] {
   const trimmed = line.trim();
   if (!trimmed) return [];
@@ -40,8 +52,18 @@ export function parseKimiStdoutLine(line: string, ts: string): TranscriptEntry[]
 
   // Main response format: {"role":"assistant","content":[...]}
   if (event.role === "assistant" && Array.isArray(event.content)) {
+    const entries: TranscriptEntry[] = [];
+    const think = extractThinkFromContent(event.content);
     const text = extractTextFromContent(event.content);
-    if (text) return [{ kind: "assistant", ts, text }];
+    if (think) entries.push({ kind: "thinking", ts, text: think });
+    if (text) entries.push({ kind: "assistant", ts, text });
+    return entries.length > 0 ? entries : [{ kind: "stdout", ts, text: trimmed }];
+  }
+
+  // Tool result format: {"role":"tool","content":[...]}
+  if (event.role === "tool" && Array.isArray(event.content)) {
+    const text = extractTextFromContent(event.content);
+    if (text) return [{ kind: "stdout", ts, text }];
     return [];
   }
 
