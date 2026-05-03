@@ -37,6 +37,17 @@ function firstNonEmptyLine(text: string): string {
   );
 }
 
+function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean {
+  const raw = env[key];
+  return typeof raw === "string" && raw.trim().length > 0;
+}
+
+function resolveKimiBillingType(env: Record<string, string>): "api" | "subscription" {
+  return hasNonEmptyEnvValue(env, "KIMI_API_KEY") || hasNonEmptyEnvValue(env, "MOONSHOT_API_KEY")
+    ? "api"
+    : "subscription";
+}
+
 function parseModelProvider(model: string | null): string | null {
   if (!model) return null;
   const trimmed = model.trim();
@@ -135,6 +146,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   );
+
+  const billingType = resolveKimiBillingType(runtimeEnv);
+  if (billingType === "subscription") {
+    await onLog(
+      "stdout",
+      "[crewspace] Warning: No KIMI_API_KEY or MOONSHOT_API_KEY detected. " +
+        "Kimi CLI will use interactive/session auth. If the run hangs, run `kimi login` or set an API key.\n",
+    );
+  }
+
   await ensureCommandResolvable(command, cwd, runtimeEnv);
   const resolvedCommand = await resolveCommandForLogs(command, cwd, runtimeEnv);
   const loggedEnv = buildInvocationEnvForLogs(env, {
@@ -150,7 +171,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     if (fromExtraArgs.length > 0) return fromExtraArgs;
     return asStringArray(config.args);
   })();
-  const skipPermissions = asBoolean(config.dangerouslySkipPermissions, false);
+  // Default true for automated agent runs; --print mode has no TTY,
+  // so any tool-call approval prompt hangs forever.
+  const skipPermissions = asBoolean(config.dangerouslySkipPermissions, true);
 
   const runtimeSessionParams = parseObject(runtime.sessionParams);
   const runtimeSessionId = asString(runtimeSessionParams.sessionId, runtime.sessionId ?? "");
@@ -236,7 +259,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   const buildArgs = (resumeSessionId: string | null) => {
     const args = ["--print", "--output-format", "stream-json", "--input-format", "text"];
-    if (resumeSessionId) args.push("--session", resumeSessionId);
+    if (resumeSessionId) args.push("--resume", resumeSessionId);
     if (model) args.push("--model", model);
     if (skipPermissions) args.push("--yolo");
     if (extraArgs.length > 0) args.push(...extraArgs);
@@ -375,7 +398,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       provider: parseModelProvider(modelId),
       biller: resolveKimiBiller(runtimeEnv, parseModelProvider(modelId)),
       model: modelId,
-      billingType: "unknown",
+      billingType,
       costUsd: attempt.parsed.costUsd,
       resultJson: {
         stdout: attempt.proc.stdout,

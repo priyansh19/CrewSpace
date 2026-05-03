@@ -80,7 +80,11 @@ export async function testEnvironment(
   for (const [key, value] of Object.entries(envConfig)) {
     if (typeof value === "string") env[key] = value;
   }
-  const runtimeEnv = ensurePathInEnv({ ...process.env, ...env });
+  const runtimeEnv = Object.fromEntries(
+    Object.entries(ensurePathInEnv({ ...process.env, ...env })).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
   try {
     await ensureCommandResolvable(command, cwd, runtimeEnv);
     checks.push({
@@ -97,22 +101,22 @@ export async function testEnvironment(
     });
   }
 
-  const configApiKey = env.MOONSHOT_API_KEY;
-  const hostApiKey = process.env.MOONSHOT_API_KEY;
+  const configApiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
+  const hostApiKey = process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY;
   if (isNonEmpty(configApiKey) || isNonEmpty(hostApiKey)) {
     const source = isNonEmpty(configApiKey) ? "adapter config env" : "server environment";
     checks.push({
       code: "kimi_api_key_present",
       level: "info",
-      message: "MOONSHOT_API_KEY is set for Kimi authentication.",
+      message: "KIMI_API_KEY or MOONSHOT_API_KEY is set for Kimi authentication.",
       detail: `Detected in ${source}.`,
     });
   } else {
     checks.push({
       code: "kimi_api_key_missing",
       level: "warn",
-      message: "MOONSHOT_API_KEY is not set. Kimi runs may fail until authentication is configured.",
-      hint: "Set MOONSHOT_API_KEY in adapter env or shell environment.",
+      message: "KIMI_API_KEY / MOONSHOT_API_KEY not set. Kimi runs may fail until authentication is configured.",
+      hint: "Set KIMI_API_KEY or MOONSHOT_API_KEY in adapter env or shell environment, or run `kimi login`.",
     });
   }
 
@@ -147,7 +151,7 @@ export async function testEnvironment(
         args,
         {
           cwd,
-          env,
+          env: runtimeEnv,
           timeoutSec: 45,
           graceSec: 5,
           stdin: "Respond with hello.",

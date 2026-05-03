@@ -18,7 +18,7 @@ Core fields:
 - instructionsFilePath (string, optional): absolute path to a markdown instructions file prepended to stdin prompt at runtime
 - model (string, optional): Kimi model id
 - promptTemplate (string, optional): run prompt template
-- dangerouslySkipPermissions (boolean, optional): pass --dangerously-skip-permissions to Kimi
+- dangerouslySkipPermissions (boolean, optional): pass --yolo to Kimi CLI so tool calls are auto-approved in non-interactive mode
 - command (string, optional): defaults to "kimi"
 - extraArgs (string[], optional): additional CLI args
 - env (object, optional): KEY=VALUE environment variables
