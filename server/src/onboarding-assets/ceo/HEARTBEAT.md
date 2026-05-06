@@ -69,4 +69,4 @@ If `CREWSPACE_APPROVAL_ID` is set:
 - Always use the CrewSpace skill for coordination.
 - Always include `X-CrewSpace-Run-Id` header on mutating API calls.
 - Comment in concise markdown: status line + bullets + links.
-- Self-assign via checkout only when explicitly @-mentioned.
+- Self-assign via checkout when explicitly @-mentioned OR when woken up with reason "issue_assigned".

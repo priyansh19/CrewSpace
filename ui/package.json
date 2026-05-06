@@ -34,6 +34,7 @@
     "@crewspaceai/adapter-opencode-local": "workspace:*",
     "@crewspaceai/adapter-pi-local": "workspace:*",
     "@crewspaceai/adapter-kimi-local": "workspace:*",
+    "@crewspaceai/adapter-kimi-api": "workspace:*",
     "@crewspaceai/adapter-utils": "workspace:*",
     "@crewspaceai/shared": "workspace:*",
     "@dicebear/collection": "^9.4.2",

@@ -126,9 +126,10 @@ export function NewAgent() {
 
   // Auto-suggest a cool name when the page loads or agents data changes,
   // but only if the user hasn't manually typed anything yet.
+  // API-suggested name always takes precedence over the local fallback.
   useEffect(() => {
     if (nameManuallyEdited) return;
-    if (suggestedNameData?.name && name === "") {
+    if (suggestedNameData?.name) {
       setName(suggestedNameData.name);
       return;
     }
@@ -138,7 +139,7 @@ export function NewAgent() {
     if (isFirstAgent && title === "") {
       setTitle("CEO");
     }
-  }, [agents, isFirstAgent, suggestedNameData, nameManuallyEdited]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [agents, isFirstAgent, suggestedNameData, nameManuallyEdited, name]);
 
   useEffect(() => {
     const requested = presetAdapterType;

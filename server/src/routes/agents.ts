@@ -2588,6 +2588,14 @@ function extractKimiChatText(raw: string): string {
 
     const cfg = primaryAgent.adapterConfig as Record<string, unknown> | null;
     const adapterType = primaryAgent.adapterType;
+
+    // Non-CLI adapters cannot spawn a process to generate names; use static fallback.
+    const nonCliAdapters = new Set(["kimi_api", "openclaw_gateway", "http"]);
+    if (nonCliAdapters.has(adapterType)) {
+      res.json({ name: fallbackSuggestName(usedNames, isFirst) });
+      return;
+    }
+
     const homeDir = process.env.CREWSPACE_HOME ?? "/crewspace";
 
     const command = typeof cfg?.command === "string" && cfg.command
@@ -2600,7 +2608,11 @@ function extractKimiChatText(raw: string): string {
             ? "gemini"
             : adapterType === "cursor"
               ? "agent"
-              : "claude";
+              : adapterType === "opencode_local"
+                ? "opencode"
+                : adapterType === "pi_local"
+                  ? "pi"
+                  : "claude";
 
     const prompt =
       `You are a creative naming assistant. Suggest a single unique first name for an AI agent. ` +

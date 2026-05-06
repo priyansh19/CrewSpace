@@ -30,7 +30,7 @@ test.describe("CEO Terminal", () => {
     await page.goto(currentUrl.replace(/\/[^/]+$/, "/terminal"));
 
     // Toolbar should be visible
-    await expect(page.locator("text=CEO Terminal").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("text=Console").first()).toBeVisible({ timeout: 10_000 });
 
     // Input bar should be present and focused
     const input = page.locator('[data-testid="terminal-input"]');

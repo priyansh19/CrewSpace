@@ -80,7 +80,11 @@ export async function testEnvironment(
   for (const [key, value] of Object.entries(envConfig)) {
     if (typeof value === "string") env[key] = value;
   }
-  const runtimeEnv = ensurePathInEnv({ ...process.env, ...env });
+  const runtimeEnv = Object.fromEntries(
+    Object.entries(ensurePathInEnv({ ...process.env, ...env })).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
   try {
     await ensureCommandResolvable(command, cwd, runtimeEnv);
     checks.push({
@@ -97,25 +101,6 @@ export async function testEnvironment(
     });
   }
 
-  const configApiKey = env.MOONSHOT_API_KEY;
-  const hostApiKey = process.env.MOONSHOT_API_KEY;
-  if (isNonEmpty(configApiKey) || isNonEmpty(hostApiKey)) {
-    const source = isNonEmpty(configApiKey) ? "adapter config env" : "server environment";
-    checks.push({
-      code: "kimi_api_key_present",
-      level: "info",
-      message: "MOONSHOT_API_KEY is set for Kimi authentication.",
-      detail: `Detected in ${source}.`,
-    });
-  } else {
-    checks.push({
-      code: "kimi_api_key_missing",
-      level: "warn",
-      message: "MOONSHOT_API_KEY is not set. Kimi runs may fail until authentication is configured.",
-      hint: "Set MOONSHOT_API_KEY in adapter env or shell environment.",
-    });
-  }
-
   const canRunProbe =
     checks.every((check) => check.code !== "kimi_cwd_invalid" && check.code !== "kimi_command_unresolvable");
   if (canRunProbe) {
@@ -129,7 +114,9 @@ export async function testEnvironment(
       });
     } else {
       const model = asString(config.model, "").trim();
-      const skipPermissions = asBoolean(config.dangerouslySkipPermissions, false);
+      // Default true for automated agent runs; --print mode has no TTY,
+      // so any tool-call approval prompt hangs forever.
+      const skipPermissions = asBoolean(config.dangerouslySkipPermissions, true);
       const extraArgs = (() => {
         const fromExtraArgs = asStringArray(config.extraArgs);
         if (fromExtraArgs.length > 0) return fromExtraArgs;
@@ -147,7 +134,7 @@ export async function testEnvironment(
         args,
         {
           cwd,
-          env,
+          env: runtimeEnv,
           timeoutSec: 45,
           graceSec: 5,
           stdin: "Respond with hello.",
@@ -178,7 +165,7 @@ export async function testEnvironment(
           ...(hasHello
             ? {}
             : {
-                hint: "Try the probe manually (`kimi run --format json -` then prompt: Respond with hello) to inspect full output.",
+                hint: "Try the probe manually (`echo 'Respond with hello.' | kimi --print --output-format stream-json --input-format text --yolo`) to inspect full output."
               }),
         });
       } else if (KIMI_AUTH_REQUIRED_RE.test(authEvidence)) {
@@ -187,7 +174,7 @@ export async function testEnvironment(
           level: "warn",
           message: "Kimi CLI is installed, but authentication is not ready.",
           ...(detail ? { detail } : {}),
-          hint: "Configure MOONSHOT_API_KEY in adapter env/shell, then retry the probe.",
+          hint: "Run `kimi login` to authenticate the Kimi CLI.",
         });
       } else {
         checks.push({
@@ -195,7 +182,7 @@ export async function testEnvironment(
           level: "error",
           message: "Kimi hello probe failed.",
           ...(detail ? { detail } : {}),
-          hint: "Run `kimi run --format json -` manually in this working directory and prompt `Respond with hello` to debug.",
+          hint: "Run `echo 'Respond with hello.' | kimi --print --output-format stream-json --input-format text --yolo` manually in this working directory to debug."
         });
       }
     }

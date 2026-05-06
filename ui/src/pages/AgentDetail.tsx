@@ -20,6 +20,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useCompany } from "../context/CompanyContext";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
+import { useLiveUpdates } from "../context/LiveUpdatesProvider";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { AgentConfigForm } from "../components/AgentConfigForm";
@@ -92,7 +93,6 @@ import {
   type HeartbeatRun,
   type HeartbeatRunEvent,
   type AgentRuntimeState,
-  type LiveEvent,
   type WorkspaceOperation,
 } from "@crewspaceai/shared";
 import { redactHomePathUserSegments, redactHomePathUserSegmentsInValue } from "@crewspaceai/adapter-utils";
@@ -3554,8 +3554,8 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
   const [logError, setLogError] = useState<string | null>(null);
   const [logOffset, setLogOffset] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isStreamingConnected, setIsStreamingConnected] = useState(false);
   const [transcriptMode, setTranscriptMode] = useState<TranscriptMode>("nice");
+  const liveUpdates = useLiveUpdates();
   const logEndRef = useRef<HTMLDivElement>(null);
   const pendingLogLineRef = useRef("");
   const scrollContainerRef = useRef<ScrollContainer | null>(null);
@@ -3755,9 +3755,51 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
     };
   }, [run.id, run.logRef, run.logBytes, isLive]);
 
-  // Poll for live updates
+  // Subscribe to global live-updates stream for this run (survives navigation)
   useEffect(() => {
-    if (!isLive || isStreamingConnected) return;
+    if (!isLive) return;
+
+    // Drain any buffered events/logs that arrived while we were away
+    const bufferedEvents = liveUpdates.takeRunEvents(run.id);
+    const bufferedLogs = liveUpdates.takeRunLogLines(run.id);
+    if (bufferedEvents.length > 0) {
+      setEvents((prev) => {
+        const merged = [...prev, ...bufferedEvents];
+        const seen = new Set<number>();
+        return merged.filter((e) => {
+          if (seen.has(e.seq)) return false;
+          seen.add(e.seq);
+          return true;
+        });
+      });
+    }
+    if (bufferedLogs.length > 0) {
+      setLogLines((prev) => [...prev, ...bufferedLogs]);
+    }
+
+    const unsubscribe = liveUpdates.subscribeRun(run.id, (data) => {
+      if (data.events.length > 0) {
+        setEvents((prev) => {
+          const merged = [...prev, ...data.events];
+          const seen = new Set<number>();
+          return merged.filter((e) => {
+            if (seen.has(e.seq)) return false;
+            seen.add(e.seq);
+            return true;
+          });
+        });
+      }
+      if (data.logLines.length > 0) {
+        setLogLines((prev) => [...prev, ...data.logLines]);
+      }
+    });
+
+    return unsubscribe;
+  }, [isLive, run.id, liveUpdates]);
+
+  // Poll for live updates (fallback when global socket is down)
+  useEffect(() => {
+    if (!isLive || liveUpdates.socketConnected) return;
     const interval = setInterval(async () => {
       const maxSeq = events.length > 0 ? Math.max(...events.map((e) => e.seq)) : 0;
       try {
@@ -3770,11 +3812,11 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [run.id, isLive, isStreamingConnected, events]);
+  }, [run.id, isLive, liveUpdates.socketConnected, events]);
 
-  // Poll shell log for running runs
+  // Poll shell log for running runs (fallback when global socket is down)
   useEffect(() => {
-    if (!isLive || isStreamingConnected) return;
+    if (!isLive || liveUpdates.socketConnected) return;
     const interval = setInterval(async () => {
       try {
         const result = await heartbeatsApi.log(run.id, logOffset, 256_000);
@@ -3792,119 +3834,10 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [run.id, isLive, isStreamingConnected, logOffset]);
+  }, [run.id, isLive, liveUpdates.socketConnected, logOffset]);
 
-  // Stream live updates from websocket (primary path for running runs).
-  useEffect(() => {
-    if (!isLive) return;
-
-    let closed = false;
-    let reconnectTimer: number | null = null;
-    let socket: WebSocket | null = null;
-
-    const scheduleReconnect = () => {
-      if (closed) return;
-      reconnectTimer = window.setTimeout(connect, 1500);
-    };
-
-    const connect = () => {
-      if (closed) return;
-      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-      const url = `${protocol}://${window.location.host}/api/companies/${encodeURIComponent(run.companyId)}/events/ws`;
-      socket = new WebSocket(url);
-
-      socket.onopen = () => {
-        setIsStreamingConnected(true);
-      };
-
-      socket.onmessage = (message) => {
-        const rawMessage = typeof message.data === "string" ? message.data : "";
-        if (!rawMessage) return;
-
-        let event: LiveEvent;
-        try {
-          event = JSON.parse(rawMessage) as LiveEvent;
-        } catch {
-          return;
-        }
-
-        if (event.companyId !== run.companyId) return;
-        const payload = asRecord(event.payload);
-        const eventRunId = asNonEmptyString(payload?.runId);
-        if (!payload || eventRunId !== run.id) return;
-
-        if (event.type === "heartbeat.run.log") {
-          const chunk = typeof payload.chunk === "string" ? payload.chunk : "";
-          if (!chunk) return;
-          const streamRaw = asNonEmptyString(payload.stream);
-          const stream = streamRaw === "stderr" || streamRaw === "system" ? streamRaw : "stdout";
-          const ts = asNonEmptyString((payload as Record<string, unknown>).ts) ?? event.createdAt;
-          setLogLines((prev) => [...prev, { ts, stream, chunk }]);
-          return;
-        }
-
-        if (event.type !== "heartbeat.run.event") return;
-
-        const seq = typeof payload.seq === "number" ? payload.seq : null;
-        if (seq === null || !Number.isFinite(seq)) return;
-
-        const streamRaw = asNonEmptyString(payload.stream);
-        const stream =
-          streamRaw === "stdout" || streamRaw === "stderr" || streamRaw === "system"
-            ? streamRaw
-            : null;
-        const levelRaw = asNonEmptyString(payload.level);
-        const level =
-          levelRaw === "info" || levelRaw === "warn" || levelRaw === "error"
-            ? levelRaw
-            : null;
-
-        const liveEvent: HeartbeatRunEvent = {
-          id: seq,
-          companyId: run.companyId,
-          runId: run.id,
-          agentId: run.agentId,
-          seq,
-          eventType: asNonEmptyString(payload.eventType) ?? "event",
-          stream,
-          level,
-          color: asNonEmptyString(payload.color),
-          message: asNonEmptyString(payload.message),
-          payload: asRecord(payload.payload),
-          createdAt: new Date(event.createdAt),
-        };
-
-        setEvents((prev) => {
-          if (prev.some((existing) => existing.seq === seq)) return prev;
-          return [...prev, liveEvent];
-        });
-      };
-
-      socket.onerror = () => {
-        socket?.close();
-      };
-
-      socket.onclose = () => {
-        setIsStreamingConnected(false);
-        scheduleReconnect();
-      };
-    };
-
-    connect();
-
-    return () => {
-      closed = true;
-      setIsStreamingConnected(false);
-      if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
-      if (socket) {
-        socket.onopen = null;
-        socket.onmessage = null;
-        socket.onerror = null;
-        socket.onclose = null;
-        socket.close(1000, "run_detail_unmount");
-      }
-    };
-  }, [isLive, run.companyId, run.id, run.agentId]);
+  // Global WebSocket via LiveUpdatesProvider handles real-time streaming.
+  // Polling below acts as fallback when the global socket is disconnected.
 
   const censorUsernameInLogs = useQuery({
     queryKey: queryKeys.instance.generalSettings,

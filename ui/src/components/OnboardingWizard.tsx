@@ -38,6 +38,7 @@ import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
 import { DEFAULT_KIMI_LOCAL_MODEL } from "@crewspaceai/adapter-kimi-local";
 import { resolveRouteOnboardingOptions } from "../lib/onboarding-route";
+import { suggestAgentName } from "../lib/agent-names";
 import { AsciiArtAnimation } from "./AsciiArtAnimation";
 import { OpenCodeLogoIcon } from "./OpenCodeLogoIcon";
 import {
@@ -115,7 +116,7 @@ export function OnboardingWizard() {
   const [companyGoal, setCompanyGoal] = useState("");
 
   // Step 2
-  const [agentName, setAgentName] = useState("CEO");
+  const [agentName, setAgentName] = useState(() => suggestAgentName([], true));
   const [adapterType, setAdapterType] = useState<AdapterType>("claude_local");
   const [model, setModel] = useState("");
   const [command, setCommand] = useState("");
@@ -293,7 +294,7 @@ export function OnboardingWizard() {
     setError(null);
     setCompanyName("");
     setCompanyGoal("");
-    setAgentName("CEO");
+    setAgentName(suggestAgentName([], true));
     setAdapterType("claude_local");
     setModel("");
     setCommand("");
@@ -1122,8 +1123,7 @@ export function OnboardingWizard() {
                           {adapterType === "cursor" ||
                           adapterType === "codex_local" ||
                           adapterType === "gemini_local" ||
-                          adapterType === "opencode_local" ||
-                          adapterType === "kimi_local" ? (
+                          adapterType === "opencode_local" ? (
                             <p className="text-muted-foreground">
                               If auth fails, set{" "}
                               <span className="font-mono">
@@ -1131,8 +1131,6 @@ export function OnboardingWizard() {
                                   ? "CURSOR_API_KEY"
                                   : adapterType === "gemini_local"
                                     ? "GEMINI_API_KEY"
-                                  : adapterType === "kimi_local"
-                                    ? "MOONSHOT_API_KEY"
                                     : "OPENAI_API_KEY"}
                               </span>{" "}
                               in env or run{" "}
@@ -1143,11 +1141,15 @@ export function OnboardingWizard() {
                                     ? "codex login"
                                     : adapterType === "gemini_local"
                                       ? "gemini auth"
-                                  : adapterType === "kimi_local"
-                                    ? "kimi login"
-                                    : "opencode auth login"}
+                                      : "opencode auth login"}
                               </span>
                               .
+                            </p>
+                          ) : adapterType === "kimi_local" ? (
+                            <p className="text-muted-foreground">
+                              If auth fails, run{" "}
+                              <span className="font-mono">kimi login</span>
+                              {" "}to authenticate the Kimi CLI.
                             </p>
                           ) : (
                             <p className="text-muted-foreground">

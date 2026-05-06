@@ -993,7 +993,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
 
 function AdapterEnvironmentResult({ result }: { result: AdapterEnvironmentTestResult }) {
   const statusLabel =
-    result.status === "pass" ? "Passed" : result.status === "warn" ? "Warnings" : "Failed";
+    result.status === "pass"
+      ? "Connection succeeded"
+      : result.status === "warn"
+        ? "Warnings"
+        : "Failed";
   const statusClass =
     result.status === "pass"
       ? "text-success border-success/30 bg-success/10"
@@ -1009,26 +1013,28 @@ function AdapterEnvironmentResult({ result }: { result: AdapterEnvironmentTestRe
           {new Date(result.testedAt).toLocaleTimeString()}
         </span>
       </div>
-      <div className="mt-2 space-y-1.5">
-        {result.checks.map((check, idx) => (
-          <div key={`${check.code}-${idx}`} className="text-[11px] leading-relaxed break-words">
-            <span className="font-medium uppercase tracking-wide opacity-80">
-              {check.level}
-            </span>
-            <span className="mx-1 opacity-60">·</span>
-            <span>{check.message}</span>
-            {check.detail && <span className="block opacity-75 break-all">({check.detail})</span>}
-            {check.hint && <span className="block opacity-90 break-words">Hint: {check.hint}</span>}
-          </div>
-        ))}
-      </div>
+      {result.status !== "pass" && (
+        <div className="mt-2 space-y-1.5">
+          {result.checks.map((check, idx) => (
+            <div key={`${check.code}-${idx}`} className="text-[11px] leading-relaxed break-words">
+              <span className="font-medium uppercase tracking-wide opacity-80">
+                {check.level}
+              </span>
+              <span className="mx-1 opacity-60">·</span>
+              <span>{check.message}</span>
+              {check.detail && <span className="block opacity-75 break-all">({check.detail})</span>}
+              {check.hint && <span className="block opacity-90 break-words">Hint: {check.hint}</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ---- Internal sub-components ---- */
 
-const ENABLED_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local", "kimi_local"]);
+const ENABLED_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "gemini_local", "opencode_local", "pi_local", "cursor", "hermes_local", "kimi_local", "kimi_api"]);
 
 /** Display list includes all real adapter types plus UI-only coming-soon entries. */
 const ADAPTER_DISPLAY_LIST: { value: string; label: string; comingSoon: boolean }[] = [
