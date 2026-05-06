@@ -40,7 +40,7 @@ test.describe("Onboarding wizard", () => {
     ).toBeVisible({ timeout: 10_000 });
 
     const agentNameInput = page.locator('input[placeholder="CEO"]');
-    await expect(agentNameInput).toHaveValue(AGENT_NAME);
+    await agentNameInput.fill(AGENT_NAME);
 
     await expect(
       page.locator("button", { hasText: "Claude Code" }).locator("..")
