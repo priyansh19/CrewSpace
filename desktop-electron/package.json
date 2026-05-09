@@ -1,0 +1,70 @@
+{
+  "name": "crewspace-desktop",
+  "version": "0.0.1",
+  "description": "CrewSpace — AI agent company control plane",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:dir": "electron-builder --dir",
+    "postinstall": ""
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0"
+  },
+  "build": {
+    "appId": "com.crewspaceai.desktop",
+    "productName": "CrewSpace",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../server/dist",
+        "to": "server/dist"
+      },
+      {
+        "from": "../server/ui-dist",
+        "to": "server/ui-dist"
+      },
+      {
+        "from": "../server/node_modules",
+        "to": "server/node_modules"
+      },
+      {
+        "from": "../packages",
+        "to": "server/packages"
+      },
+      {
+        "from": "../node_modules",
+        "to": "server/root-node_modules"
+      },
+      {
+        "from": "../pnpm-workspace.yaml",
+        "to": "server/pnpm-workspace.yaml"
+      },
+      {
+        "from": "../package.json",
+        "to": "server/package.json"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
