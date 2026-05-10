@@ -240,9 +240,30 @@ input:focus, select:focus, textarea:focus {
 
 /* ── Dialogs ───────────────────────────────────────────────────────────────── */
 [data-slot="dialog-content"], [role="dialog"] {
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px color-mix(in oklab, var(--border) 60%, transparent);
   background: var(--card);
+}
+
+/* ── Popovers ──────────────────────────────────────────────────────────────── */
+[data-slot="popover-content"] {
+  border-radius: var(--radius-xl);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.15), 0 0 0 1px color-mix(in oklab, var(--border) 60%, transparent);
+  background: var(--card);
+}
+
+/* ── Dropdown Menus ────────────────────────────────────────────────────────── */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.15), 0 0 0 1px color-mix(in oklab, var(--border) 60%, transparent);
+  background: var(--card);
+}
+
+/* ── Sheets ────────────────────────────────────────────────────────────────── */
+[data-slot="sheet-content"] {
+  background: var(--card);
+  box-shadow: -16px 0 48px -12px rgba(0, 0, 0, 0.18);
 }
 
 /* ── Primary button ────────────────────────────────────────────────────────── */

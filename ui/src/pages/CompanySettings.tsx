@@ -8,8 +8,10 @@ import { accessApi } from "../api/access";
 import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
-import { Settings, Check, Download, Upload } from "lucide-react";
+import { Settings, Check, Download, Upload, Palette } from "lucide-react";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { OrgIconPicker } from "../components/OrgIconPicker";
 import {
   Field,
   ToggleField,
@@ -52,6 +54,14 @@ export function CompanySettings() {
   const [inviteSnippet, setInviteSnippet] = useState<string | null>(null);
   const [snippetCopied, setSnippetCopied] = useState(false);
   const [snippetCopyDelightId, setSnippetCopyDelightId] = useState(0);
+
+  // Confirm dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ title: "", description: "", onConfirm: () => {} });
 
   const generalDirty =
     !!selectedCompany &&
@@ -264,19 +274,89 @@ export function CompanySettings() {
         <div className="space-y-3 rounded-lg border border-border px-4 py-4">
           <div className="flex items-start gap-4">
             <div className="shrink-0">
-              <CompanyPatternIcon
+              <OrgIconPicker
                 companyName={companyName || selectedCompany.name}
-                logoUrl={logoUrl || null}
-                brandColor={brandColor || null}
-                className="rounded-[14px]"
-              />
+                brandColor={brandColor}
+                onChange={(c) => setBrandColor(c)}
+              >
+                <button
+                  type="button"
+                  className="relative group cursor-pointer"
+                  title="Click to change icon"
+                >
+                  <CompanyPatternIcon
+                    companyName={companyName || selectedCompany.name}
+                    logoUrl={logoUrl || null}
+                    brandColor={brandColor || null}
+                    className="rounded-[14px]"
+                  />
+                  <div className="absolute inset-0 rounded-[14px] bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <span className="text-[10px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow">
+                      Change
+                    </span>
+                  </div>
+                </button>
+              </OrgIconPicker>
             </div>
             <div className="flex-1 space-y-3">
               <Field
-                label="Logo"
-                hint="Upload a PNG, JPEG, WEBP, GIF, or SVG logo image."
+                label="Organization icon"
+                hint="Pick a pattern and color for your company."
               >
-                <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <OrgIconPicker
+                    companyName={companyName || selectedCompany.name}
+                    brandColor={brandColor}
+                    onChange={(c) => setBrandColor(c)}
+                  >
+                    <Button size="sm" variant="outline">
+                      <Palette className="h-3.5 w-3.5 mr-1.5" />
+                      Choose icon
+                    </Button>
+                  </OrgIconPicker>
+                  {brandColor && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setBrandColor("")}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                </div>
+              </Field>
+              <Field
+                label="Brand color"
+                hint="Fine-tune the hue for the company icon."
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandColor || "#cc785c"}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
+                  />
+                  <input
+                    type="text"
+                    value={brandColor}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "" || /^#[0-9a-fA-F]{0,6}$/.test(v)) {
+                        setBrandColor(v);
+                      }
+                    }}
+                    placeholder="Auto"
+                    className="w-28 rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm font-mono outline-none"
+                  />
+                </div>
+              </Field>
+              {/* Legacy logo upload — kept for advanced use */}
+              <details className="group">
+                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  Upload custom logo instead
+                </summary>
+                <div className="mt-2 space-y-2">
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
@@ -303,51 +383,11 @@ export function CompanySettings() {
                           : "Logo upload failed")}
                     </span>
                   )}
-                  {clearLogoMutation.isError && (
-                    <span className="text-xs text-destructive">
-                      {clearLogoMutation.error.message}
-                    </span>
-                  )}
                   {logoUploadMutation.isPending && (
                     <span className="text-xs text-muted-foreground">Uploading logo...</span>
                   )}
                 </div>
-              </Field>
-              <Field
-                label="Brand color"
-                hint="Sets the hue for the company icon. Leave empty for auto-generated color."
-              >
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={brandColor || "#cc785c"}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
-                  />
-                  <input
-                    type="text"
-                    value={brandColor}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "" || /^#[0-9a-fA-F]{0,6}$/.test(v)) {
-                        setBrandColor(v);
-                      }
-                    }}
-                    placeholder="Auto"
-                    className="w-28 rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm font-mono outline-none"
-                  />
-                  {brandColor && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setBrandColor("")}
-                      className="text-xs text-muted-foreground"
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </div>
-              </Field>
+              </details>
             </div>
           </div>
         </div>

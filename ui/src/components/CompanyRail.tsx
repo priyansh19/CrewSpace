@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { AttachIcon } from "@/lib/icons";
+import { AttachIcon, CrewSpaceIcon } from "@/lib/icons";
 import { useQueries } from "@tanstack/react-query";
 import {
   DndContext,
@@ -273,21 +273,40 @@ export function CompanyRail() {
 
   return (
     <div className="flex flex-col items-center w-[72px] shrink-0 h-full bg-background border-r border-border">
-      {/* Top row: collapse button */}
-      <div className="flex items-center justify-center h-12 w-full shrink-0">
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {sidebarOpen ? (
-            <PanelLeftClose className="h-5 w-5" />
-          ) : (
-            <PanelLeftOpen className="h-5 w-5" />
-          )}
-        </button>
+      {/* Top row: logo + collapse button */}
+      <div className="flex items-center justify-between px-2 h-12 w-full shrink-0">
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-accent/40 transition-colors cursor-default">
+              <CrewSpaceIcon className="h-5 w-5 text-foreground" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            <p>CrewSpace</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSidebar();
+              }}
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="h-5 w-5" />
+              ) : (
+                <PanelLeftOpen className="h-5 w-5" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            <p>{sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Company list */}
