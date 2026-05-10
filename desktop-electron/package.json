@@ -28,37 +28,12 @@
     ],
     "extraResources": [
       {
-        "from": "../server/dist",
-        "to": "server/dist"
-      },
-      {
-        "from": "../server/ui-dist",
-        "to": "server/ui-dist"
-      },
-      {
-        "from": "../server/node_modules",
-        "to": "server/node_modules"
-      },
-      {
-        "from": "../packages",
-        "to": "server/packages"
-      },
-      {
-        "from": "../node_modules",
-        "to": "server/root-node_modules"
-      },
-      {
-        "from": "../pnpm-workspace.yaml",
-        "to": "server/pnpm-workspace.yaml"
-      },
-      {
-        "from": "../package.json",
-        "to": "server/package.json"
+        "from": "server-prod",
+        "to": "server"
       }
     ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": "nsis"
     },
     "nsis": {
       "oneClick": false,

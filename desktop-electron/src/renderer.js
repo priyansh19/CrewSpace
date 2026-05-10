@@ -25,6 +25,7 @@ function getElements() {
     statusText: document.getElementById("status-text"),
     progressFill: document.getElementById("progress-fill"),
     detail: document.getElementById("detail"),
+    lanUrl: document.getElementById("lan-url"),
   };
 }
 
@@ -40,6 +41,14 @@ function setProgress(el, pct, messageIndex) {
     DETAILS[messageIndex] ?? DETAILS[DETAILS.length - 1];
 }
 
+function showError(el, title, message) {
+  el.card.classList.add("is-error");
+  el.spinner.style.display = "none";
+  el.statusText.textContent = title;
+  el.detail.textContent = message;
+  el.progressFill.style.width = "100%";
+}
+
 async function pollHealth(serverUrl, maxAttempts = 120) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -50,7 +59,7 @@ async function pollHealth(serverUrl, maxAttempts = 120) {
     }
 
     try {
-      const resp = await fetch(`${serverUrl}api/health`, {
+      const resp = await fetch(`${serverUrl}/api/health`, {
         method: "GET",
         cache: "no-store",
       });
@@ -64,8 +73,37 @@ async function pollHealth(serverUrl, maxAttempts = 120) {
   return false;
 }
 
+// Update loading-screen title bar maximize button icon
+function updateMaximizeButton(isMax) {
+  const btn = document.querySelector('.titlebar-btn:nth-child(2)');
+  if (!btn) return;
+  if (isMax) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="1.5" ry="1.5"></rect><path d="M4 16V4h12"></path></svg>';
+    btn.title = 'Restore';
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>';
+    btn.title = 'Maximize';
+  }
+}
+
+if (window.electronAPI.onWindowMaximizedChanged) {
+  window.electronAPI.onWindowMaximizedChanged((isMax) => updateMaximizeButton(isMax));
+}
+
 async function run() {
   const el = getElements();
+
+  // Listen for main-process server events
+  if (window.electronAPI.onServerCrashed) {
+    window.electronAPI.onServerCrashed((code) => {
+      showError(el, "Server crashed", `Exit code: ${code}. Please restart CrewSpace.`);
+    });
+  }
+  if (window.electronAPI.onServerError) {
+    window.electronAPI.onServerError((message) => {
+      showError(el, "Server error", message);
+    });
+  }
 
   try {
     const serverUrl = await window.electronAPI.getServerUrl();
@@ -95,20 +133,24 @@ async function run() {
       el.statusText.textContent = "Ready";
       el.detail.textContent = "Launching CrewSpace";
 
-      await sleep(400);
+      // Show LAN URL if available
+      try {
+        const lanUrl = await window.electronAPI.getLanServerUrl();
+        if (lanUrl && el.lanUrl) {
+          el.lanUrl.textContent = `LAN: ${lanUrl}`;
+          el.lanUrl.style.display = "block";
+        }
+      } catch {
+        // ignore
+      }
+
+      await sleep(800);
       window.location.replace(serverUrl);
     } else {
-      el.card.classList.add("is-error");
-      el.statusText.textContent = "Server failed to start";
-      el.detail.textContent =
-        "Please check the logs or restart CrewSpace. If this persists, contact support.";
-      el.progressFill.style.width = "100%";
+      showError(el, "Server failed to start", "Please check the logs or restart CrewSpace. If this persists, contact support.");
     }
   } catch (err) {
-    el.card.classList.add("is-error");
-    el.statusText.textContent = "Unexpected error";
-    el.detail.textContent = String(err);
-    el.progressFill.style.width = "100%";
+    showError(el, "Unexpected error", String(err));
   }
 }
 

@@ -16,13 +16,13 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, copyFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { existsSync, copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
-const binaryDir = join(repoRoot, "desktop", "src-tauri", "binaries");
+const binaryDir = join(repoRoot, "desktop-electron", "server-exe");
 const serverDist = join(repoRoot, "server", "dist");
 const serverNodeModules = join(repoRoot, "server", "node_modules");
 
@@ -97,7 +97,6 @@ function main() {
   };
 
   const configPath = join(binaryDir, "pkg-config.json");
-  import { writeFileSync } from "node:fs";
   writeFileSync(configPath, JSON.stringify(pkgConfig, null, 2));
 
   console.log(`[package-server] Running pkg for ${entry}...`);
