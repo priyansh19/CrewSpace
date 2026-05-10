@@ -147,11 +147,27 @@ function spawnServer(port) {
   });
 
   proc.stdout.on("data", (data) => {
-    console.log("[server]", data.toString().trimEnd());
+    try {
+      console.log("[server]", data.toString().trimEnd());
+    } catch {
+      /* Ignore EPIPE from closed console streams during shutdown */
+    }
   });
 
   proc.stderr.on("data", (data) => {
-    console.error("[server]", data.toString().trimEnd());
+    try {
+      console.error("[server]", data.toString().trimEnd());
+    } catch {
+      /* Ignore EPIPE from closed console streams during shutdown */
+    }
+  });
+
+  proc.stdout.on("error", () => {
+    /* Ignore stdout stream errors (e.g. EPIPE on shutdown) */
+  });
+
+  proc.stderr.on("error", () => {
+    /* Ignore stderr stream errors (e.g. EPIPE on shutdown) */
   });
 
   proc.on("close", (code) => {

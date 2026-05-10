@@ -1,7 +1,7 @@
 export { execute } from "./execute.js";
 export { listKimiSkills, syncKimiSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";
-export { parseKimiJsonl, isKimiUnknownSessionError } from "./parse.js";
+export { parseKimiJsonl, isKimiUnknownSessionError, isKimiMaxTurnsResult, detectKimiLoginRequired } from "./parse.js";
 import type { AdapterSessionCodec } from "@crewspaceai/adapter-utils";
 
 function readNonEmptyString(value: unknown): string | null {

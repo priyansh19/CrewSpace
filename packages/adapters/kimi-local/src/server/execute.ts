@@ -23,7 +23,7 @@ import {
   runChildProcess,
   sanitizeCwd,
 } from "@crewspaceai/adapter-utils/server-utils";
-import { cleanKimiStderr, isKimiUnknownSessionError, parseKimiJsonl } from "./parse.js";
+import { cleanKimiStderr, detectKimiLoginRequired, isKimiUnknownSessionError, isKimiMaxTurnsResult, parseKimiJsonl } from "./parse.js";
 import { ensureKimiSkillsInjected } from "./skills.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -37,9 +37,15 @@ function firstNonEmptyLine(text: string): string {
   );
 }
 
-function resolveKimiBillingType(_env: Record<string, string>): "subscription" {
-  // Kimi local adapter always uses interactive/session auth.
-  return "subscription";
+function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean {
+  const raw = env[key];
+  return typeof raw === "string" && raw.trim().length > 0;
+}
+
+function resolveKimiBillingType(env: Record<string, string>): "api" | "subscription" {
+  return hasNonEmptyEnvValue(env, "KIMI_API_KEY") || hasNonEmptyEnvValue(env, "MOONSHOT_API_KEY")
+    ? "api"
+    : "subscription";
 }
 
 function parseModelProvider(model: string | null): string | null {
@@ -142,6 +148,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   );
 
   const billingType = resolveKimiBillingType(runtimeEnv);
+  if (billingType === "subscription") {
+    // Subscription mode requires `kimi login` interactive auth.
+    // In non-interactive --print mode this will hang on OAuth/device flow.
+    // We still allow it (the user may have run login already), but we log a warning.
+    await onLog(
+      "stdout",
+      "[crewspace] Warning: No KIMI_API_KEY or MOONSHOT_API_KEY detected. " +
+        "Kimi CLI will use interactive/session auth. If the run hangs, run `kimi login` or set an API key.\n",
+    );
+  }
 
   await ensureCommandResolvable(command, cwd, runtimeEnv);
   const resolvedCommand = await resolveCommandForLogs(command, cwd, runtimeEnv);
@@ -336,6 +352,17 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     },
     clearSessionOnMissingSession = false,
   ): AdapterExecutionResult => {
+    const loginMeta = detectKimiLoginRequired({
+      stdout: attempt.proc.stdout,
+      stderr: attempt.proc.stderr,
+    });
+    const errorMeta =
+      loginMeta.loginUrl != null
+        ? {
+            loginUrl: loginMeta.loginUrl,
+          }
+        : undefined;
+
     if (attempt.proc.timedOut) {
       return {
         exitCode: attempt.proc.exitCode,
@@ -343,6 +370,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         timedOut: true,
         errorMessage: `Timed out after ${timeoutSec}s`,
         clearSession: clearSessionOnMissingSession,
+        errorCode: loginMeta.requiresLogin ? "kimi_auth_required" : null,
+        errorMeta,
       };
     }
 
@@ -369,11 +398,15 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       `Kimi exited with code ${synthesizedExitCode ?? -1}`;
     const modelId = model || null;
 
+    const clearSessionForMaxTurns = isKimiMaxTurnsResult(attempt.parsed.errorMessage);
+
     return {
       exitCode: synthesizedExitCode,
       signal: attempt.proc.signal,
       timedOut: false,
       errorMessage: (synthesizedExitCode ?? 0) === 0 ? null : fallbackErrorMessage,
+      errorCode: loginMeta.requiresLogin ? "kimi_auth_required" : null,
+      errorMeta,
       usage: {
         inputTokens: attempt.parsed.usage.inputTokens,
         outputTokens: attempt.parsed.usage.outputTokens,
@@ -392,7 +425,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         stderr: attempt.proc.stderr,
       },
       summary: attempt.parsed.summary,
-      clearSession: Boolean(clearSessionOnMissingSession && !attempt.parsed.sessionId),
+      clearSession: clearSessionForMaxTurns || Boolean(clearSessionOnMissingSession && !attempt.parsed.sessionId),
     };
   };
 

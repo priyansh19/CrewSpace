@@ -101,6 +101,25 @@ export async function testEnvironment(
     });
   }
 
+  const configApiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
+  const hostApiKey = process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY;
+  if (isNonEmpty(configApiKey) || isNonEmpty(hostApiKey)) {
+    const source = isNonEmpty(configApiKey) ? "adapter config env" : "server environment";
+    checks.push({
+      code: "kimi_api_key_present",
+      level: "info",
+      message: "Kimi API key is set for authentication.",
+      detail: `Detected in ${source}.`,
+    });
+  } else {
+    checks.push({
+      code: "kimi_api_key_missing",
+      level: "warn",
+      message: "No KIMI_API_KEY or MOONSHOT_API_KEY detected. Kimi runs may fail until authentication is configured.",
+      hint: "Set KIMI_API_KEY or MOONSHOT_API_KEY in adapter env/shell, or run `kimi login` to log in.",
+    });
+  }
+
   const canRunProbe =
     checks.every((check) => check.code !== "kimi_cwd_invalid" && check.code !== "kimi_command_unresolvable");
   if (canRunProbe) {

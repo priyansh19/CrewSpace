@@ -14,9 +14,34 @@
  * 7. Restore original workspace package.json files.
  */
 import { execSync } from "node:child_process";
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function cpSyncWithRetry(src, dest, options, maxRetries = 5, delayMs = 200) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      cpSync(src, dest, options);
+      return;
+    } catch (err) {
+      const isWindowsLock =
+        process.platform === "win32" &&
+        (err.code === "EPIPE" || err.code === "EBUSY" || err.code === "EPERM");
+      if (isWindowsLock && attempt < maxRetries) {
+        console.log(
+          `[prepare-desktop-server] Copy retry ${attempt}/${maxRetries} for ${dest} (code: ${err.code})`,
+        );
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
@@ -74,11 +99,11 @@ function copyDistIntoDeployed(deployBase, repoBase, name) {
   const targetDist = join(junctionPath, "dist");
   if (existsSync(targetDist)) {
     // Already has dist, ensure it's up to date
-    cpSync(srcDist, targetDist, { recursive: true, force: true });
+    cpSyncWithRetry(srcDist, targetDist, { recursive: true, force: true });
     return true;
   }
 
-  cpSync(srcDist, targetDist, { recursive: true, force: true });
+  cpSyncWithRetry(srcDist, targetDist, { recursive: true, force: true });
   return true;
 }
 
@@ -195,7 +220,7 @@ function main() {
     const uiDistSrc = join(repoRoot, "server", "ui-dist");
     const uiDistDst = join(serverProdDir, "ui-dist");
     if (existsSync(uiDistSrc)) {
-      cpSync(uiDistSrc, uiDistDst, { recursive: true, force: true });
+      cpSyncWithRetry(uiDistSrc, uiDistDst, { recursive: true, force: true });
       console.log("[prepare-desktop-server] Copied ui-dist");
     }
 
