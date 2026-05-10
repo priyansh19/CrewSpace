@@ -48,6 +48,19 @@ tmp/
 # Playwright
 tests/e2e/test-results/
 tests/e2e/playwright-report/
+
+# Desktop build artifacts
+desktop-electron/server-exe/
+desktop-electron/server-prod/
+desktop-electron/dev-out.log
+server/ui-dist/
+target/
+
+# Experimental Tauri desktop app (superseded by desktop-electron)
+desktop/
+
+# Design reference images
+temporary-img/
 tests/release-smoke/test-results/
 tests/release-smoke/playwright-report/
 .superset/
