@@ -20,6 +20,7 @@ import {
   TerminalSquare,
   FolderOpen,
   Archive,
+  ListOrdered,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -140,6 +141,7 @@ export function Sidebar() {
         {/* Work */}
         <SidebarSection label="Work">
           <SidebarNavItem to="/issues" label="Issues" icon={CircleDot} />
+          <SidebarNavItem to="/queues" label="Queues" icon={ListOrdered} />
           <SidebarNavItem to="/taskboard" label="Board" icon={KanbanSquare} />
           <SidebarNavItem to="/blockers" label="Alerts" icon={ShieldAlert} />
           <SidebarNavItem to="/routines" label="Routines" icon={Repeat} textBadge="Beta" textBadgeTone="amber" />

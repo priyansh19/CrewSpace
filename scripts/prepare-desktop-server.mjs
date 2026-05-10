@@ -22,7 +22,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function cpSyncWithRetry(src, dest, options, maxRetries = 5, delayMs = 200) {
+function cpSyncWithRetry(src, dest, options, maxRetries = 10, delayMs = 300) {
+  // On Windows, force-overwriting a directory tree while files are locked
+  // (e.g. by pnpm hardlinks or antivirus) often fails. Remove the target
+  // first, then copy fresh.
+  if (process.platform === "win32" && existsSync(dest)) {
+    try {
+      rmSync(dest, { recursive: true, force: true });
+    } catch {
+      // Ignore removal errors; cpSync will retry if files are still locked.
+    }
+  }
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       cpSync(src, dest, options);
@@ -32,10 +43,11 @@ function cpSyncWithRetry(src, dest, options, maxRetries = 5, delayMs = 200) {
         process.platform === "win32" &&
         (err.code === "EPIPE" || err.code === "EBUSY" || err.code === "EPERM");
       if (isWindowsLock && attempt < maxRetries) {
+        const backoff = delayMs * attempt;
         console.log(
-          `[prepare-desktop-server] Copy retry ${attempt}/${maxRetries} for ${dest} (code: ${err.code})`,
+          `[prepare-desktop-server] Copy retry ${attempt}/${maxRetries} for ${dest} (code: ${err.code}, backoff ${backoff}ms)`,
         );
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, backoff);
         continue;
       }
       throw err;
@@ -222,6 +234,20 @@ function main() {
     if (existsSync(uiDistSrc)) {
       cpSyncWithRetry(uiDistSrc, uiDistDst, { recursive: true, force: true });
       console.log("[prepare-desktop-server] Copied ui-dist");
+    }
+
+    // 7. Remove duplicate/conflicting migrations from deployed db package
+    const deployedMigrationsDir = join(deployBase, "db", "dist", "migrations");
+    const conflictingMigrations = [
+      "0050_dear_thunderbolt.sql",
+      "0051_petite_switch.sql",
+    ];
+    for (const migration of conflictingMigrations) {
+      const migrationPath = join(deployedMigrationsDir, migration);
+      if (existsSync(migrationPath)) {
+        rmSync(migrationPath);
+        console.log(`[prepare-desktop-server] Removed conflicting migration: ${migration}`);
+      }
     }
 
     console.log(`[prepare-desktop-server] Success: ${serverProdDir}`);

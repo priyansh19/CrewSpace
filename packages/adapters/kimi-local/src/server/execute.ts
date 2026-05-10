@@ -141,6 +141,51 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     env.CREWSPACE_API_KEY = authToken;
   }
 
+  // Force Python UTF-8 mode on Windows so Kimi CLI doesn't crash when
+  // outputting Unicode characters (emojis, CJK text, etc.).
+  env.PYTHONIOENCODING = "utf-8";
+  env.PYTHONUTF8 = "1";
+
+  // Isolate Kimi share dir per agent to avoid concurrent write conflicts on
+  // ~/.kimi/kimi.json when multiple agents run simultaneously.
+  const kimiShareDir = path.join(os.tmpdir(), "crewspace-kimi", agent.companyId, agent.id);
+  env.KIMI_SHARE_DIR = kimiShareDir;
+  try {
+    const defaultKimiDir = path.join(os.homedir(), ".kimi");
+    const defaultConfigPath = path.join(defaultKimiDir, "config.toml");
+    const agentConfigPath = path.join(kimiShareDir, "config.toml");
+    const defaultConfigExists = await fs.stat(defaultConfigPath).then(() => true).catch(() => false);
+    const agentConfigExists = await fs.stat(agentConfigPath).then(() => true).catch(() => false);
+    if (defaultConfigExists) {
+      await fs.mkdir(kimiShareDir, { recursive: true });
+      if (!agentConfigExists) {
+        await fs.copyFile(defaultConfigPath, agentConfigPath);
+      }
+      // Always sync auth credentials so isolated share dir can authenticate.
+      const defaultCredentialsDir = path.join(defaultKimiDir, "credentials");
+      const agentCredentialsDir = path.join(kimiShareDir, "credentials");
+      const defaultCredentialsExists = await fs.stat(defaultCredentialsDir).then(() => true).catch(() => false);
+      if (defaultCredentialsExists) {
+        await fs.mkdir(agentCredentialsDir, { recursive: true });
+        for (const entry of await fs.readdir(defaultCredentialsDir, { withFileTypes: true })) {
+          const src = path.join(defaultCredentialsDir, entry.name);
+          const dst = path.join(agentCredentialsDir, entry.name);
+          if (entry.isFile()) {
+            await fs.copyFile(src, dst);
+          }
+        }
+      }
+      const defaultKimiJson = path.join(defaultKimiDir, "kimi.json");
+      const agentKimiJson = path.join(kimiShareDir, "kimi.json");
+      const defaultKimiJsonExists = await fs.stat(defaultKimiJson).then(() => true).catch(() => false);
+      if (defaultKimiJsonExists) {
+        await fs.copyFile(defaultKimiJson, agentKimiJson);
+      }
+    }
+  } catch {
+    // Best-effort config copy; Kimi will create defaults if missing.
+  }
+
   const runtimeEnv = Object.fromEntries(
     Object.entries(ensurePathInEnv({ ...process.env, ...env })).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",

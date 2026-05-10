@@ -7,6 +7,7 @@ export type RunDatabaseBackupOptions = {
   connectionString: string;
   backupDir: string;
   retentionDays: number;
+  retentionCount?: number;
   filenamePrefix?: string;
   connectTimeoutSeconds?: number;
   includeMigrationJournal?: boolean;
@@ -69,8 +70,31 @@ function timestamp(date: Date = new Date()): string {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
-function pruneOldBackups(backupDir: string, retentionDays: number, filenamePrefix: string): number {
+function pruneOldBackups(
+  backupDir: string,
+  retentionDays: number,
+  filenamePrefix: string,
+  retentionCount?: number,
+): number {
   if (!existsSync(backupDir)) return 0;
+
+  // If retentionCount is specified, keep only the N most recent backups
+  if (retentionCount !== undefined && retentionCount >= 0) {
+    const safeCount = Math.max(0, Math.trunc(retentionCount));
+    const entries: { name: string; path: string; mtimeMs: number }[] = [];
+    for (const name of readdirSync(backupDir)) {
+      if (!name.startsWith(`${filenamePrefix}-`) || !name.endsWith(".sql")) continue;
+      const fullPath = resolve(backupDir, name);
+      entries.push({ name, path: fullPath, mtimeMs: statSync(fullPath).mtimeMs });
+    }
+    entries.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    const toDelete = entries.slice(safeCount);
+    for (const entry of toDelete) {
+      unlinkSync(entry.path);
+    }
+    return toDelete.length;
+  }
+
   const safeRetention = Math.max(1, Math.trunc(retentionDays));
   const cutoff = Date.now() - safeRetention * 24 * 60 * 60 * 1000;
   let pruned = 0;
@@ -509,7 +533,7 @@ export async function runDatabaseBackup(opts: RunDatabaseBackupOptions): Promise
     await writeFile(backupFile, lines.join("\n"), "utf8");
 
     const sizeBytes = statSync(backupFile).size;
-    const prunedCount = pruneOldBackups(opts.backupDir, retentionDays, filenamePrefix);
+    const prunedCount = pruneOldBackups(opts.backupDir, retentionDays, filenamePrefix, opts.retentionCount);
 
     return {
       backupFile,

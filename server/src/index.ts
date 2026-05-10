@@ -667,6 +667,7 @@ export async function startServer(): Promise<StartedServer> {
           connectionString: activeDatabaseConnectionString,
           backupDir: config.databaseBackupDir,
           retentionDays: config.databaseBackupRetentionDays,
+          retentionCount: config.databaseBackupRetentionCount,
           filenamePrefix: "crewspace",
         });
         logger.info(
@@ -690,6 +691,7 @@ export async function startServer(): Promise<StartedServer> {
       {
         intervalMinutes: config.databaseBackupIntervalMinutes,
         retentionDays: config.databaseBackupRetentionDays,
+        retentionCount: config.databaseBackupRetentionCount,
         backupDir: config.databaseBackupDir,
       },
       "Automatic database backups enabled",
