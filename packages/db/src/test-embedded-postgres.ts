@@ -64,6 +64,21 @@ function formatEmbeddedPostgresError(error: unknown): string {
   return "embedded Postgres startup failed";
 }
 
+async function rmWithRetry(target: string, maxRetries = 5, delayMs = 200): Promise<void> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      fs.rmSync(target, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (i === maxRetries - 1 || (code !== "EPERM" && code !== "EBUSY")) {
+        throw error;
+      }
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
 async function probeEmbeddedPostgresSupport(): Promise<EmbeddedPostgresTestSupport> {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "crewspace-embedded-postgres-probe-"));
   const port = await getAvailablePort();
@@ -90,7 +105,7 @@ async function probeEmbeddedPostgresSupport(): Promise<EmbeddedPostgresTestSuppo
     };
   } finally {
     await instance.stop().catch(() => {});
-    fs.rmSync(dataDir, { recursive: true, force: true });
+    await rmWithRetry(dataDir);
   }
 }
 
@@ -131,12 +146,12 @@ export async function startEmbeddedPostgresTestDatabase(
       connectionString,
       cleanup: async () => {
         await instance.stop().catch(() => {});
-        fs.rmSync(dataDir, { recursive: true, force: true });
+        await rmWithRetry(dataDir);
       },
     };
   } catch (error) {
     await instance.stop().catch(() => {});
-    fs.rmSync(dataDir, { recursive: true, force: true });
+    await rmWithRetry(dataDir);
     throw new Error(
       `Failed to start embedded PostgreSQL test database: ${formatEmbeddedPostgresError(error)}`,
     );
