@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -72,13 +72,6 @@ export function Queues() {
     },
   });
 
-  const allIssues = useMemo(() => {
-    const map = new Map<string, Issue>();
-    (priorityIssues ?? []).forEach((i) => map.set(i.id, i));
-    (normalIssues ?? []).forEach((i) => map.set(i.id, i));
-    return map;
-  }, [priorityIssues, normalIssues]);
-
   function handlePromote(issue: Issue) {
     updateMutation.mutate({
       id: issue.id,
@@ -96,18 +89,17 @@ export function Queues() {
   function computeNewRank(items: Issue[], index: number, direction: "up" | "down"): number {
     const current = items[index];
     if (!current) return 0;
-    const currentRank = current.queueRank ?? 0;
 
     if (direction === "up") {
       const prev = items[index - 1];
-      if (!prev) return currentRank;
+      if (!prev) return current.queueRank ?? 0;
       const prevRank = prev.queueRank ?? 0;
-      return prevRank - 1;
+      return prevRank - 1000;
     } else {
       const next = items[index + 1];
-      if (!next) return currentRank;
+      if (!next) return current.queueRank ?? 0;
       const nextRank = next.queueRank ?? 0;
-      return nextRank + 1;
+      return nextRank + 1000;
     }
   }
 
@@ -173,6 +165,7 @@ export function Queues() {
                     total={priorityList.length}
                     queueType="priority"
                     agents={agents}
+                    isUpdating={updateMutation.isPending}
                     onDemote={handleDemote}
                     onMoveUp={(i) => handleMoveUp(i, priorityList)}
                     onMoveDown={(i) => handleMoveDown(i, priorityList)}
@@ -210,6 +203,7 @@ export function Queues() {
                     total={normalList.length}
                     queueType="normal"
                     agents={agents}
+                    isUpdating={updateMutation.isPending}
                     onPromote={handlePromote}
                     onMoveUp={(i) => handleMoveUp(i, normalList)}
                     onMoveDown={(i) => handleMoveDown(i, normalList)}

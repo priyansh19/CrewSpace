@@ -318,14 +318,6 @@ function createWindow() {
     `).catch(() => {});
   });
 
-  // Close to tray on Windows (don't quit)
-  mainWindow.on("close", (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
-
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -554,7 +546,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  // Keep running in background via tray on Windows
+  app.quit();
 });
 
 app.on("before-quit", () => {

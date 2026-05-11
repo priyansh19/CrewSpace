@@ -13,6 +13,7 @@ interface QueueItemProps {
   total: number;
   queueType: "priority" | "normal";
   agents?: Agent[];
+  isUpdating?: boolean;
   onPromote?: (issue: Issue) => void;
   onDemote?: (issue: Issue) => void;
   onMoveUp?: (issue: Issue) => void;
@@ -25,6 +26,7 @@ export function QueueItem({
   total,
   queueType,
   agents,
+  isUpdating,
   onPromote,
   onDemote,
   onMoveUp,
@@ -62,7 +64,7 @@ export function QueueItem({
                   e.stopPropagation();
                   onMoveUp?.(issue);
                 }}
-                disabled={index === 0}
+                disabled={index === 0 || isUpdating}
               >
                 <ArrowUp className="h-3 w-3" />
               </Button>
@@ -79,7 +81,7 @@ export function QueueItem({
                   e.stopPropagation();
                   onMoveDown?.(issue);
                 }}
-                disabled={index === total - 1}
+                disabled={index === total - 1 || isUpdating}
               >
                 <ArrowDown className="h-3 w-3" />
               </Button>
@@ -93,6 +95,7 @@ export function QueueItem({
                   variant="ghost"
                   size="icon-sm"
                   className="h-6 w-6 text-orange-600"
+                  disabled={isUpdating}
                   onClick={(e) => {
                     e.stopPropagation();
                     onPromote?.(issue);
@@ -110,6 +113,7 @@ export function QueueItem({
                   variant="ghost"
                   size="icon-sm"
                   className="h-6 w-6 text-blue-600"
+                  disabled={isUpdating}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDemote?.(issue);

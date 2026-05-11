@@ -745,7 +745,7 @@ export function issueService(db: Db) {
         orderByClauses.push(asc(searchOrder));
       }
       if (sortBy === "queueRank") {
-        orderByClauses.push(asc(issues.queueRank), asc(priorityOrder), desc(issues.createdAt));
+        orderByClauses.push(sql`${issues.queueRank} ASC NULLS LAST`, asc(priorityOrder), desc(issues.createdAt));
       } else if (sortBy === "updatedAt") {
         orderByClauses.push(desc(issues.updatedAt));
       } else {
