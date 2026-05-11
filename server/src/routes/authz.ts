@@ -1,5 +1,43 @@
 import type { Request } from "express";
+import type { CompanyMembershipRole, PermissionKey } from "@crewspaceai/shared";
+import { COMPANY_MEMBERSHIP_ROLES, PERMISSION_KEYS } from "@crewspaceai/shared";
 import { forbidden, unauthorized } from "../errors.js";
+
+export const ROLE_PERMISSIONS: Record<CompanyMembershipRole, Set<PermissionKey>> = {
+  owner: new Set(PERMISSION_KEYS),
+  admin: new Set(PERMISSION_KEYS),
+  member: new Set<PermissionKey>(["tasks:assign"]),
+  viewer: new Set<PermissionKey>(),
+};
+
+export function getActorCompanyRole(req: Request, companyId: string): CompanyMembershipRole | null {
+  if (req.actor.type === "board" && req.actor.source === "local_implicit") return "owner";
+  if (req.actor.type === "board" && req.actor.isInstanceAdmin) return "owner";
+  if (req.actor.type === "board" && req.actor.companyRoles) {
+    const role = req.actor.companyRoles[companyId];
+    if (role && COMPANY_MEMBERSHIP_ROLES.includes(role as CompanyMembershipRole)) {
+      return role as CompanyMembershipRole;
+    }
+  }
+  return null;
+}
+
+export function assertCompanyRole(req: Request, companyId: string, ...allowedRoles: CompanyMembershipRole[]) {
+  assertCompanyAccess(req, companyId);
+  if (req.actor.type !== "board") return;
+  const role = getActorCompanyRole(req, companyId);
+  if (!role || !allowedRoles.includes(role)) {
+    throw forbidden(`Requires one of roles: ${allowedRoles.join(", ")}`);
+  }
+}
+
+export function assertCompanyPermission(req: Request, companyId: string, permissionKey: PermissionKey) {
+  assertCompanyAccess(req, companyId);
+  if (req.actor.type !== "board") return;
+  const role = getActorCompanyRole(req, companyId);
+  if (role && ROLE_PERMISSIONS[role].has(permissionKey)) return;
+  throw forbidden(`Permission denied: ${permissionKey}`);
+}
 
 export function assertBoard(req: Request) {
   if (req.actor.type === "none") {

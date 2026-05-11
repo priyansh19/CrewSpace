@@ -67,13 +67,13 @@ const OfficeScene = () => {
 
   const handleSceneReady = () => setTimeout(() => setInitialLoadComplete(), 2_000);
 
-  const canvasBg = isDark ? "#141413" : "#e8e0d4";
-  const ambientColor = isDark ? "#5a5a55" : "#ffd9a8";
-  const dirColor = isDark ? "#6a6a60" : "#ffd4a8";
-  const hemiSky = isDark ? "#3a3a35" : "#ffe8cc";
-  const hemiGround = isDark ? "#2a2a25" : "#d8cfc0";
-  const ambientIntensity = isDark ? 0.45 : 0.85;
-  const dirIntensity = isDark ? 0.7 : 1.2;
+  const canvasBg = isDark ? "#1e1d1a" : "#e8e0d4";
+  const ambientColor = isDark ? "#8a7d6a" : "#ffd9a8";
+  const dirColor = isDark ? "#a09078" : "#ffd4a8";
+  const hemiSky = isDark ? "#5a5040" : "#ffe8cc";
+  const hemiGround = isDark ? "#3a3530" : "#d8cfc0";
+  const ambientIntensity = isDark ? 1.0 : 0.85;
+  const dirIntensity = isDark ? 1.5 : 1.2;
 
   return (
     <>
@@ -94,7 +94,7 @@ const OfficeScene = () => {
         antialias: true,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: isDark ? 0.85 : 1.05,
+        toneMappingExposure: isDark ? 1.2 : 1.05,
       }}
       performance={{ min: 0.5 }}
       style={{ background: canvasBg, width: "100%", height: "100%" }}
@@ -117,7 +117,7 @@ const OfficeScene = () => {
         shadow-bias={-0.0005}
       />
       <hemisphereLight
-        args={[hemiSky, hemiGround, isDark ? 0.3 : 0.5]}
+        args={[hemiSky, hemiGround, isDark ? 0.6 : 0.5]}
       />
 
       <OfficeFloor />

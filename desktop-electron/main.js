@@ -11,6 +11,7 @@ const { spawn } = require("child_process");
 const net = require("net");
 const fs = require("fs");
 const os = require("os");
+const { readConfig, writeConfig, hasConfig, isFirstRunComplete, markFirstRunComplete, saveThemePreference, getThemePreference, saveAuthConfig, getAuthConfig, authConfigToEnv } = require("./desktop-config");
 
 // ── Config ──────────────────────────────────────────────────────────
 const SERVER_PORT = 3150;
@@ -19,6 +20,7 @@ const SERVER_LOCAL_HOST = "127.0.0.1"; // Electron window connects locally
 const HEALTH_MAX_RETRIES = 120;
 const HEALTH_INTERVAL_MS = 500;
 
+// ── External Navigation Allowlist ───────────────────────────────────
 // ── Paths ───────────────────────────────────────────────────────────
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
@@ -59,6 +61,12 @@ function getLanIp() {
   }
   return null;
 }
+
+function isCrewSpaceUrl(url) {
+  return serverUrl && url.startsWith(serverUrl);
+}
+
+// (GitHub login-check helpers removed — external links now open in system browser)
 
 // ── State ───────────────────────────────────────────────────────────
 let mainWindow = null;
@@ -115,6 +123,7 @@ function spawnServer(port) {
     CREWSPACE_DB_BACKUP_INTERVAL_MINUTES: "10",
     CREWSPACE_DB_BACKUP_RETENTION_COUNT: "1",
     ...(lanIp ? { CREWSPACE_ALLOWED_HOSTNAMES: lanIp } : {}),
+    ...authConfigToEnv(getAuthConfig()),
   };
 
   let execPath;
@@ -249,7 +258,9 @@ function createWindow() {
   // Remove default menu
   mainWindow.setMenuBarVisibility(false);
 
-  mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
+  const isFirstRun = !isFirstRunComplete();
+  const startPage = isFirstRun ? "onboarding.html" : "index.html";
+  mainWindow.loadFile(path.join(__dirname, "src", startPage));
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
@@ -322,24 +333,40 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Open external links in the system browser
+  // Navigation guard: open all external links in the system default browser
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (isCrewSpaceUrl(url)) return;
+    if (url.startsWith("file://")) return;
+
+    // Any non-CrewSpace URL opens in the user's default browser
+    event.preventDefault();
+    shell.openExternal(url);
+  });
+
+  // Control new-window requests
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isCrewSpaceUrl(url)) {
+      mainWindow.loadURL(url);
+      return { action: "deny" };
+    }
+    // Open everything else in the system default browser
     shell.openExternal(url);
     return { action: "deny" };
   });
 
-  // Inject custom title bar CSS when navigating to the CrewSpace UI
-  mainWindow.webContents.on("did-navigate", (_event, url) => {
-    if (url.startsWith(serverUrl)) {
-      injectTitleBarCss(mainWindow);
+  // Inject CrewSpace title bar only on CrewSpace UI pages
+  function handleNavigation(url) {
+    if (isCrewSpaceUrl(url)) {
+      injectCrewSpaceTitleBar(mainWindow);
     }
+  }
+
+  mainWindow.webContents.on("did-navigate", (_event, url) => {
+    handleNavigation(url);
   });
 
-  // Also inject on DOM ready as a fallback for client-side navigation
   mainWindow.webContents.on("dom-ready", () => {
-    if (mainWindow.webContents.getURL().startsWith(serverUrl)) {
-      injectTitleBarCss(mainWindow);
-    }
+    handleNavigation(mainWindow.webContents.getURL());
   });
 
   return mainWindow;
@@ -348,7 +375,7 @@ function createWindow() {
 // ── Title bar CSS injection ─────────────────────────────────────────
 let injectedTitleBarKey = null;
 
-function injectTitleBarCss(win) {
+function injectCrewSpaceTitleBar(win) {
   if (injectedTitleBarKey) {
     try { win.webContents.removeInsertedCSS(injectedTitleBarKey); } catch {}
   }
@@ -403,6 +430,8 @@ function injectTitleBarCss(win) {
   `;
   win.webContents.executeJavaScript(js).catch(() => {});
 }
+
+// (injectExternalTitleBar removed — external links now open in system browser)
 
 // ── System tray ─────────────────────────────────────────────────────
 function createTray() {
@@ -491,6 +520,44 @@ ipcMain.handle("check-server-health", async () => {
 
 ipcMain.handle("open-data-dir", () => {
   shell.openPath(getAppDataDir());
+});
+
+ipcMain.handle("has-auth-config", () => {
+  return hasConfig();
+});
+
+ipcMain.handle("save-auth-config", (_event, auth) => {
+  try {
+    saveAuthConfig(auth);
+    return { success: true };
+  } catch (err) {
+    console.error("[CrewSpace Desktop] Failed to save auth config:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("save-theme-preference", (_event, theme) => {
+  try {
+    saveThemePreference(theme);
+    return { success: true };
+  } catch (err) {
+    console.error("[CrewSpace Desktop] Failed to save theme:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("mark-first-run-complete", () => {
+  try {
+    markFirstRunComplete();
+    return { success: true };
+  } catch (err) {
+    console.error("[CrewSpace Desktop] Failed to mark first run:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.on("open-external", (_event, url) => {
+  shell.openExternal(url);
 });
 
 ipcMain.on("quit-app", () => {

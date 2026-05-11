@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to CrewSpace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./onboarding.css" />
+  </head>
+  <body>
+    <!-- Animated mesh gradient background -->
+    <div class="bg-mesh">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Progress dots at top -->
+    <div class="top-progress" id="top-progress">
+      <div class="progress-dot active" data-step="0"></div>
+      <div class="progress-line"></div>
+      <div class="progress-dot" data-step="1"></div>
+      <div class="progress-line"></div>
+      <div class="progress-dot" data-step="2"></div>
+      <div class="progress-line"></div>
+      <div class="progress-dot" data-step="3"></div>
+      <div class="progress-line"></div>
+      <div class="progress-dot" data-step="4"></div>
+    </div>
+
+    <!-- Main content area -->
+    <main class="onboarding-container" id="onboarding-container">
+      <!-- Step 0: Welcome -->
+      <section class="step step-welcome active" data-step="0">
+        <div class="welcome-content">
+          <div class="logo-ring">
+            <svg class="logo-svg" viewBox="0 0 120 120" fill="none">
+              <circle cx="60" cy="60" r="50" stroke="url(#logoGrad)" stroke-width="2" opacity="0.3">
+                <animate attributeName="r" values="50;54;50" dur="3s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.3;0.1;0.3" dur="3s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="60" cy="60" r="40" stroke="url(#logoGrad)" stroke-width="1.5" opacity="0.5">
+                <animate attributeName="r" values="40;44;40" dur="3s" begin="0.5s" repeatCount="indefinite" />
+              </circle>
+              <defs>
+                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#cc785c" />
+                  <stop offset="100%" stop-color="#e8a840" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="logo-icon">
+              <svg viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="20" fill="#cc785c" />
+                <path d="M24 10 L24 38 M10 24 L38 24" stroke="#fff" stroke-width="3" stroke-linecap="round" />
+                <path d="M15 15 L33 33 M33 15 L15 33" stroke="#fff" stroke-width="3" stroke-linecap="round" />
+              </svg>
+            </div>
+          </div>
+
+          <h1 class="welcome-title">Welcome to CrewSpace</h1>
+          <p class="welcome-subtitle">Your AI agent company control plane</p>
+
+          <button class="btn-primary btn-large" id="btn-welcome-start">
+            <span>Get Started</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+
+          <p class="welcome-hint">Press Enter to continue</p>
+        </div>
+      </section>
+
+      <!-- Step 1: Feature Carousel -->
+      <section class="step step-features" data-step="1">
+        <div class="features-content">
+          <h2 class="step-title">What you get</h2>
+
+          <div class="carousel" id="feature-carousel">
+            <div class="carousel-slide active" data-slide="0">
+              <div class="feature-icon">
+                <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="8" y="12" width="48" height="40" rx="6" />
+                  <path d="M8 24h48" />
+                  <circle cx="20" cy="18" r="2" fill="currentColor" stroke="none" />
+                  <circle cx="28" cy="18" r="2" fill="currentColor" stroke="none" />
+                  <circle cx="36" cy="18" r="2" fill="currentColor" stroke="none" />
+                  <path d="M18 36l8 8 12-12" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </div>
+              <h3 class="feature-title">Run Multiple AI Agent Companies</h3>
+              <p class="feature-desc">Create and manage multiple AI-powered companies from a single dashboard. Each with its own agents, tasks, and budgets.</p>
+            </div>
+
+            <div class="carousel-slide" data-slide="1">
+              <div class="feature-icon">
+                <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 52V20l20-12 20 12v32" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M22 28h20v24H22z" />
+                  <path d="M32 28v24" />
+                  <circle cx="32" cy="18" r="4" />
+                </svg>
+              </div>
+              <h3 class="feature-title">Interactive 3D Office</h3>
+              <p class="feature-desc">Visualize your AI workforce in a real-time 3D office. See agents working, collaborating, and moving between rooms.</p>
+            </div>
+
+            <div class="carousel-slide" data-slide="2">
+              <div class="feature-icon">
+                <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M32 8C18.7 8 8 16.5 8 27c0 5.5 2.8 10.5 7.3 14.2L12 56l10.8-5.4c2.8.9 5.8 1.4 9.2 1.4 13.3 0 24-8.5 24-19S45.3 8 32 8z" />
+                  <path d="M22 28h20M22 34h12" stroke-linecap="round" />
+                </svg>
+              </div>
+              <h3 class="feature-title">GitHub Integration & Tasks</h3>
+              <p class="feature-desc">Connect your repositories, delegate issues to AI agents, and track progress with full audit trails.</p>
+            </div>
+
+            <div class="carousel-slide" data-slide="3">
+              <div class="feature-icon">
+                <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="32" cy="32" r="22" />
+                  <path d="M32 18v14l10 6" stroke-linecap="round" />
+                  <path d="M16 32h6M42 32h6M32 16v6M32 42v6" stroke-linecap="round" />
+                </svg>
+              </div>
+              <h3 class="feature-title">Budget Controls & Approvals</h3>
+              <p class="feature-desc">Set spending limits, require approvals for governed actions, and get automatic hard-stop protection.</p>
+            </div>
+          </div>
+
+          <div class="carousel-dots" id="carousel-dots">
+            <button class="dot active" data-slide="0"></button>
+            <button class="dot" data-slide="1"></button>
+            <button class="dot" data-slide="2"></button>
+            <button class="dot" data-slide="3"></button>
+          </div>
+
+          <button class="btn-primary" id="btn-features-continue">Continue</button>
+        </div>
+      </section>
+
+      <!-- Step 2: Theme Picker -->
+      <section class="step step-theme" data-step="2">
+        <div class="theme-content">
+          <h2 class="step-title">Choose your look</h2>
+          <p class="step-subtitle">You can change this anytime in settings</p>
+
+          <div class="theme-options">
+            <button class="theme-card" id="theme-light" data-theme="light">
+              <div class="theme-preview light-preview">
+                <div class="preview-header"></div>
+                <div class="preview-sidebar"></div>
+                <div class="preview-content">
+                  <div class="preview-line"></div>
+                  <div class="preview-line short"></div>
+                </div>
+              </div>
+              <span class="theme-label">Light</span>
+            </button>
+
+            <button class="theme-card active" id="theme-dark" data-theme="dark">
+              <div class="theme-preview dark-preview">
+                <div class="preview-header"></div>
+                <div class="preview-sidebar"></div>
+                <div class="preview-content">
+                  <div class="preview-line"></div>
+                  <div class="preview-line short"></div>
+                </div>
+              </div>
+              <span class="theme-label">Dark</span>
+            </button>
+          </div>
+
+          <button class="btn-primary" id="btn-theme-continue">Continue</button>
+        </div>
+      </section>
+
+      <!-- Step 3: Connect Services -->
+      <section class="step step-connect" data-step="3">
+        <div class="connect-content">
+          <h2 class="step-title">Connect services</h2>
+          <p class="step-subtitle">Optional — configure now or skip and set up later</p>
+
+          <div class="connect-cards">
+            <div class="connect-card">
+              <div class="connect-header">
+                <svg class="connect-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                <span class="connect-name">GitHub</span>
+                <span class="connect-badge optional">Optional</span>
+              </div>
+              <p class="connect-desc">Link a GitHub App for repository integration and issue delegation.</p>
+              <div class="connect-fields">
+                <input type="text" id="gh-app-id" placeholder="App ID" />
+                <textarea id="gh-private-key" rows="2" placeholder="Private Key (PEM)"></textarea>
+                <div class="connect-field-row">
+                  <input type="text" id="gh-client-id" placeholder="Client ID (opt)" />
+                  <input type="password" id="gh-client-secret" placeholder="Secret (opt)" />
+                </div>
+              </div>
+            </div>
+
+            <div class="connect-card">
+              <div class="connect-header">
+                <svg class="connect-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                <span class="connect-name">Kimi Code</span>
+                <span class="connect-badge optional">Optional</span>
+              </div>
+              <p class="connect-desc">Add your Kimi API key to power agent runs with the Kimi adapter.</p>
+              <div class="connect-fields">
+                <input type="password" id="kimi-api-key" placeholder="API Key (sk-...)" />
+              </div>
+            </div>
+          </div>
+
+          <div class="connect-actions">
+            <button class="btn-primary" id="btn-connect-save">Save &amp; Continue</button>
+            <button class="btn-text" id="btn-connect-skip">Skip for now</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4: Ready to Launch -->
+      <section class="step step-launch" data-step="4">
+        <div class="launch-content">
+          <div class="checkmark-ring">
+            <svg class="checkmark-svg" viewBox="0 0 100 100">
+              <circle class="checkmark-circle" cx="50" cy="50" r="44" fill="none" stroke="#5db872" stroke-width="3" />
+              <path class="checkmark-check" d="M28 52l14 14 30-36" fill="none" stroke="#5db872" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+
+          <h2 class="launch-title">You're all set</h2>
+          <p class="launch-subtitle">Launching CrewSpace...</p>
+
+          <div class="launch-progress-track">
+            <div class="launch-progress-fill" id="launch-progress-fill"></div>
+          </div>
+
+          <p class="launch-detail" id="launch-detail">Starting server</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="./onboarding.js"></script>
+  </body>
+</html>

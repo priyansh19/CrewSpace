@@ -1,4 +1,4 @@
-export {};
+import type { CompanyMembershipRole } from "@crewspaceai/shared";
 
 declare global {
   namespace Express {
@@ -9,6 +9,7 @@ declare global {
         agentId?: string;
         companyId?: string;
         companyIds?: string[];
+        companyRoles?: Record<string, CompanyMembershipRole>;
         isInstanceAdmin?: boolean;
         keyId?: string;
         runId?: string;

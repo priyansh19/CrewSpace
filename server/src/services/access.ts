@@ -5,7 +5,7 @@ import {
   instanceUserRoles,
   principalPermissionGrants,
 } from "@crewspaceai/db";
-import type { PermissionKey, PrincipalType } from "@crewspaceai/shared";
+import type { CompanyMembershipRole, PermissionKey, PrincipalType } from "@crewspaceai/shared";
 
 type MembershipRow = typeof companyMemberships.$inferSelect;
 type GrantInput = {
@@ -139,6 +139,27 @@ export function accessService(db: Db) {
     return member;
   }
 
+  async function updateMemberRole(
+    companyId: string,
+    memberId: string,
+    membershipRole: CompanyMembershipRole,
+  ) {
+    const member = await db
+      .select()
+      .from(companyMemberships)
+      .where(and(eq(companyMemberships.companyId, companyId), eq(companyMemberships.id, memberId)))
+      .then((rows) => rows[0] ?? null);
+    if (!member) return null;
+
+    const updated = await db
+      .update(companyMemberships)
+      .set({ membershipRole, updatedAt: new Date() })
+      .where(eq(companyMemberships.id, memberId))
+      .returning()
+      .then((rows) => rows[0] ?? null);
+    return updated;
+  }
+
   async function promoteInstanceAdmin(userId: string) {
     const existing = await db
       .select()
@@ -202,7 +223,7 @@ export function accessService(db: Db) {
     companyId: string,
     principalType: PrincipalType,
     principalId: string,
-    membershipRole: string | null = "member",
+    membershipRole: CompanyMembershipRole = "member",
     status: "pending" | "active" | "suspended" = "active",
   ) {
     const existing = await getMembership(companyId, principalType, principalId);
@@ -272,7 +293,7 @@ export function accessService(db: Db) {
         targetCompanyId,
         "user",
         membership.principalId,
-        membership.membershipRole,
+        membership.membershipRole as CompanyMembershipRole,
         "active",
       );
     }
@@ -369,6 +390,7 @@ export function accessService(db: Db) {
     listActiveUserMemberships,
     copyActiveUserMemberships,
     setMemberPermissions,
+    updateMemberRole,
     promoteInstanceAdmin,
     demoteInstanceAdmin,
     listUserCompanyAccess,

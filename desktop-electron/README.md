@@ -1,6 +1,6 @@
 # CrewSpace Desktop (Electron)
 
-A standalone Windows desktop application for CrewSpace, packaging the Express server and React UI into a single installable `.exe`.
+A standalone Windows desktop application for CrewSpace, packaging the Express server and React UI into installable `.exe` (NSIS) and `.msi` packages.
 
 ## Architecture
 
@@ -76,6 +76,19 @@ The packaged app:
 |---|---|
 | Unpacked app | `desktop-electron/dist/win-unpacked/CrewSpace.exe` |
 | NSIS installer | `desktop-electron/dist/CrewSpace Setup.exe` |
+| MSI installer | `desktop-electron/dist/CrewSpace.msi` |
+
+## First-Run Onboarding
+
+On first launch, the app presents a **modern 5-step onboarding wizard**:
+
+1. **Welcome** — Animated logo with "Get Started"
+2. **Feature Carousel** — Auto-advancing highlights of CrewSpace capabilities
+3. **Theme Picker** — Light / Dark preview cards
+4. **Connect Services** — Optional GitHub App and Kimi Code API key setup
+5. **Launch** — Animated checkmark with progress bar
+
+Credentials are encrypted at rest (`%LOCALAPPDATA%\CrewSpace\desktop-config.enc`) and injected as environment variables into the server process. You can skip any step and configure later via the board UI.
 
 ## Known Issues
 

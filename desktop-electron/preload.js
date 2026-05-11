@@ -5,6 +5,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getLanServerUrl: () => ipcRenderer.invoke("get-lan-server-url"),
   checkServerHealth: () => ipcRenderer.invoke("check-server-health"),
   openDataDir: () => ipcRenderer.invoke("open-data-dir"),
+  hasAuthConfig: () => ipcRenderer.invoke("has-auth-config"),
+  saveAuthConfig: (auth) => ipcRenderer.invoke("save-auth-config", auth),
+  saveThemePreference: (theme) => ipcRenderer.invoke("save-theme-preference", theme),
+  markFirstRunComplete: () => ipcRenderer.invoke("mark-first-run-complete"),
   onServerCrashed: (callback) => ipcRenderer.on("server-crashed", (_event, code) => callback(code)),
   onServerError: (callback) => ipcRenderer.on("server-error", (_event, message) => callback(message)),
   quitApp: () => ipcRenderer.send("quit-app"),
@@ -13,4 +17,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   closeWindow: () => ipcRenderer.send("window-close"),
   isWindowMaximized: () => ipcRenderer.invoke("window-is-maximized"),
   onWindowMaximizedChanged: (callback) => ipcRenderer.on("window-maximized-changed", (_event, value) => callback(value)),
+  openExternal: (url) => ipcRenderer.send("open-external", url),
 });

@@ -229,7 +229,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
       )}
       <primitive object={clone} scale={0.25} />
       {/* Name tag — floats above the head with a small gap */}
-      <Html position={[0, 1.75, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
+      <Html position={[0, 1.75, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
         <div style={{ position: "relative", display: "inline-block" }}>
           <div style={{
             whiteSpace: "nowrap", fontSize: "10px", padding: "2px 8px", borderRadius: "4px",
@@ -251,7 +251,7 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
       </Html>
       {/* Detail card — shown above name tag when selected */}
       {isSelected && (
-        <Html position={[0, 2.55, 0]} center distanceFactor={12} style={{ pointerEvents: "none" }}>
+        <Html position={[0, 2.55, 0]} center distanceFactor={12} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
           <div style={{ position: "relative", display: "inline-block" }}>
             <div style={{
               whiteSpace: "nowrap", padding: "8px 12px", borderRadius: "10px",

@@ -23,6 +23,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "desktop-config.js",
       "src/**/*",
       "assets/**/*"
     ],
@@ -33,7 +34,7 @@
       }
     ],
     "win": {
-      "target": "nsis",
+      "target": ["nsis", "msi"],
       "icon": "assets/icon.ico"
     },
     "nsis": {

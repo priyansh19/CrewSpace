@@ -1,0 +1,781 @@
+/* ───────────────────────────────────────────────────────────────
+   CrewSpace Desktop — Onboarding Wizard
+   Theme: Dark immersive with glassmorphism
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg-deep: #0a0a0c;
+  --bg-surface: rgba(255, 255, 255, 0.04);
+  --bg-surface-hover: rgba(255, 255, 255, 0.07);
+  --bg-surface-active: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(204, 120, 92, 0.5);
+  --text-primary: #f0f0f0;
+  --text-secondary: #a0a0a0;
+  --text-muted: #6a6a6a;
+  --accent-coral: #cc785c;
+  --accent-coral-hover: #e08a6e;
+  --accent-gold: #e8a840;
+  --accent-green: #5db872;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-body);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Animated Mesh Background ────────────────────────────────── */
+.bg-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.35;
+}
+
+.orb-1 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #cc785c 0%, transparent 70%);
+  top: -200px;
+  left: -100px;
+  animation: orbFloat1 12s ease-in-out infinite;
+}
+
+.orb-2 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #4a6ad4 0%, transparent 70%);
+  bottom: -150px;
+  right: -100px;
+  animation: orbFloat2 14s ease-in-out infinite;
+}
+
+.orb-3 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #e8a840 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: orbFloat3 10s ease-in-out infinite;
+}
+
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 40px) scale(1.1); }
+}
+
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-40px, -60px) scale(1.15); }
+}
+
+@keyframes orbFloat3 {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.2; }
+  50% { transform: translate(-40%, -60%) scale(1.2); opacity: 0.35; }
+}
+
+/* ── Top Progress ────────────────────────────────────────────── */
+.top-progress {
+  position: fixed;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.top-progress.visible {
+  opacity: 1;
+}
+
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-subtle);
+  border: 2px solid transparent;
+  transition: all 0.4s ease;
+  flex-shrink: 0;
+}
+
+.progress-dot.active {
+  background: var(--accent-coral);
+  box-shadow: 0 0 12px rgba(204, 120, 92, 0.4);
+}
+
+.progress-dot.completed {
+  background: var(--accent-green);
+  box-shadow: 0 0 8px rgba(93, 184, 114, 0.3);
+}
+
+.progress-line {
+  width: 40px;
+  height: 2px;
+  background: var(--border-subtle);
+  transition: background 0.4s ease;
+}
+
+.progress-line.completed {
+  background: var(--accent-green);
+}
+
+/* ── Container & Steps ───────────────────────────────────────── */
+.onboarding-container {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.step {
+  display: none;
+  width: 100%;
+  max-width: 520px;
+  animation: stepEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.step.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step.exit {
+  animation: stepExit 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes stepEnter {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes stepExit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-16px) scale(0.98); }
+}
+
+.step-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.step-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-coral) 0%, var(--accent-coral-hover) 100%);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  box-shadow: 0 4px 20px rgba(204, 120, 92, 0.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 28px rgba(204, 120, 92, 0.35);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-large {
+  padding: 14px 36px;
+  font-size: 15px;
+  border-radius: var(--radius-lg);
+}
+
+.btn-text {
+  padding: 10px 20px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.btn-text:hover {
+  color: var(--text-primary);
+}
+
+/* ── Step 0: Welcome ─────────────────────────────────────────── */
+.step-welcome {
+  text-align: center;
+}
+
+.welcome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo-ring {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 36px;
+}
+
+.logo-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.logo-icon {
+  position: absolute;
+  inset: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-icon svg {
+  width: 64px;
+  height: 64px;
+  filter: drop-shadow(0 4px 20px rgba(204, 120, 92, 0.3));
+}
+
+.welcome-title {
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #fff 0%, #cc785c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.welcome-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 40px;
+  font-weight: 300;
+}
+
+.welcome-hint {
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* ── Step 1: Feature Carousel ────────────────────────────────── */
+.features-content {
+  width: 100%;
+}
+
+.carousel {
+  position: relative;
+  height: 280px;
+  margin-bottom: 24px;
+}
+
+.carousel-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px);
+  opacity: 0;
+  transform: translateX(30px) scale(0.96);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.carousel-slide.active {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  pointer-events: auto;
+}
+
+.carousel-slide.prev {
+  opacity: 0;
+  transform: translateX(-30px) scale(0.96);
+}
+
+.feature-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+  color: var(--accent-coral);
+}
+
+.feature-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.feature-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.feature-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 380px;
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-subtle);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.dot.active {
+  width: 24px;
+  border-radius: 4px;
+  background: var(--accent-coral);
+}
+
+/* ── Step 2: Theme Picker ────────────────────────────────────── */
+.theme-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.theme-options {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 36px;
+  width: 100%;
+  justify-content: center;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  width: 160px;
+  background: var(--bg-surface);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(20px);
+}
+
+.theme-card:hover {
+  background: var(--bg-surface-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.theme-card.active {
+  border-color: var(--accent-coral);
+  background: var(--bg-surface-active);
+  box-shadow: 0 0 0 4px rgba(204, 120, 92, 0.1);
+}
+
+.theme-preview {
+  width: 100%;
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+  opacity: 0.8;
+  transition: opacity 0.25s;
+}
+
+.theme-card.active .theme-preview {
+  opacity: 1;
+}
+
+.light-preview {
+  background: #f5f2ed;
+}
+
+.light-preview .preview-header {
+  height: 16px;
+  background: #efe9de;
+}
+
+.light-preview .preview-sidebar {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 0;
+  width: 30%;
+  background: #faf9f5;
+  border-right: 1px solid #e6dfd8;
+}
+
+.light-preview .preview-content {
+  position: absolute;
+  right: 8px;
+  top: 24px;
+  width: 60%;
+}
+
+.dark-preview {
+  background: #1a1a1c;
+}
+
+.dark-preview .preview-header {
+  height: 16px;
+  background: #242428;
+}
+
+.dark-preview .preview-sidebar {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 0;
+  width: 30%;
+  background: #141416;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+.dark-preview .preview-content {
+  position: absolute;
+  right: 8px;
+  top: 24px;
+  width: 60%;
+}
+
+.preview-line {
+  height: 4px;
+  border-radius: 2px;
+  margin-bottom: 4px;
+  background: currentColor;
+  opacity: 0.15;
+}
+
+.preview-line.short {
+  width: 60%;
+}
+
+.light-preview .preview-line {
+  color: #141413;
+}
+
+.dark-preview .preview-line {
+  color: #fff;
+}
+
+.theme-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.theme-card.active .theme-label {
+  color: var(--text-primary);
+}
+
+/* ── Step 3: Connect Services ────────────────────────────────── */
+.connect-content {
+  width: 100%;
+}
+
+.connect-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.connect-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  backdrop-filter: blur(20px);
+  transition: border-color 0.2s;
+}
+
+.connect-card:focus-within {
+  border-color: var(--border-focus);
+}
+
+.connect-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.connect-logo {
+  width: 22px;
+  height: 22px;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.connect-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.connect-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: auto;
+}
+
+.connect-badge.optional {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+}
+
+.connect-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.connect-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connect-fields input,
+.connect-fields textarea {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  resize: vertical;
+}
+
+.connect-fields input:focus,
+.connect-fields textarea:focus {
+  border-color: var(--accent-coral);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.12);
+}
+
+.connect-fields input::placeholder,
+.connect-fields textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.connect-field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.connect-field-row input {
+  flex: 1;
+}
+
+.connect-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Step 4: Launch ──────────────────────────────────────────── */
+.step-launch {
+  text-align: center;
+}
+
+.launch-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.checkmark-ring {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.checkmark-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.checkmark-circle {
+  stroke-dasharray: 276;
+  stroke-dashoffset: 276;
+  animation: drawCircle 0.6s ease forwards 0.2s;
+}
+
+.checkmark-check {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: drawCheck 0.4s ease forwards 0.7s;
+}
+
+@keyframes drawCircle {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes drawCheck {
+  to { stroke-dashoffset: 0; }
+}
+
+.launch-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.launch-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.launch-progress-track {
+  width: 240px;
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.launch-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-coral), var(--accent-gold));
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.launch-detail {
+  font-size: 13px;
+  color: var(--text-muted);
+  min-height: 20px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .welcome-title {
+    font-size: 32px;
+  }
+
+  .step-title {
+    font-size: 26px;
+  }
+
+  .carousel {
+    height: 320px;
+  }
+
+  .theme-options {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .theme-card {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .connect-field-row {
+    flex-direction: column;
+  }
+}

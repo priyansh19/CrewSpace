@@ -342,6 +342,16 @@ export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 export const INSTANCE_USER_ROLES = ["instance_admin"] as const;
 export type InstanceUserRole = (typeof INSTANCE_USER_ROLES)[number];
 
+export const COMPANY_MEMBERSHIP_ROLES = ["owner", "admin", "member", "viewer"] as const;
+export type CompanyMembershipRole = (typeof COMPANY_MEMBERSHIP_ROLES)[number];
+
+export const COMPANY_MEMBERSHIP_ROLE_LABELS: Record<CompanyMembershipRole, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  member: "Member",
+  viewer: "Viewer",
+};
+
 export const INVITE_TYPES = ["company_join", "bootstrap_ceo"] as const;
 export type InviteType = (typeof INVITE_TYPES)[number];
 

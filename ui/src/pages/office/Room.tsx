@@ -208,7 +208,7 @@ const Room = ({
       </mesh>
 
       {/* Room label */}
-      <Html position={[0, wallHeight + 0.7, 0]} center distanceFactor={20} style={{ pointerEvents: "none" }}>
+      <Html position={[0, wallHeight + 0.7, 0]} center distanceFactor={20} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
         <div
           style={{
             fontSize: "11px",
