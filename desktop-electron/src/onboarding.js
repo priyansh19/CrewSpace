@@ -317,8 +317,9 @@ async function runLaunchSequence() {
       detail.textContent = "Backup restored. Launching...";
       await sleep(400);
     }
-    if (result.serverUrl) {
-      window.location.replace(result.serverUrl);
+    if (result.success) {
+      const rendererUrl = await window.electronAPI.getRendererUrl();
+      window.location.replace(rendererUrl);
     } else {
       window.location.reload();
     }

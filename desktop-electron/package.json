@@ -7,13 +7,32 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:dir": "electron-builder --dir",
+    "dev": "vite",
+    "dev:electron": "electron .",
+    "build:renderer": "tsc -b && vite build",
+    "build": "npm run build:renderer && electron-builder",
+    "build:dir": "npm run build:renderer && electron-builder --dir",
+    "build:win": "npm run build:renderer && electron-builder --win",
+    "build:mac": "npm run build:renderer && electron-builder --mac",
+    "build:linux": "npm run build:renderer && electron-builder --linux",
     "postinstall": ""
   },
   "devDependencies": {
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.0"
+    "electron-builder": "^25.1.0",
+    "tailwindcss": "^4.0.7",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  },
+  "dependencies": {
+    "@crewspaceai/shared": "workspace:*",
+    "electron-updater": "^6.8.3",
+    "lucide-react": "^0.574.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "build": {
     "appId": "com.crewspaceai.desktop",
@@ -26,6 +45,7 @@
       "preload.js",
       "desktop-config.js",
       "src/**/*",
+      "renderer-dist/**/*",
       "assets/**/*"
     ],
     "extraResources": [
@@ -34,8 +54,28 @@
         "to": "server"
       }
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "crewspaceai",
+      "repo": "crewspace",
+      "releaseType": "release"
+    },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "msi",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/icon.ico"
     },
     "nsis": {
@@ -53,13 +93,89 @@
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": false,
       "license": "../LICENSE",
-      "artifactName": "CrewSpace-Setup-${version}.exe"
+      "artifactName": "CrewSpace-Setup-${version}-${arch}.exe"
     },
     "msi": {
       "oneClick": false,
       "warningsAsErrors": false,
       "upgradeCode": "{C1EE4A7B-8F23-4B5A-9D8E-1A2B3C4D5E6F}",
-      "artifactName": "CrewSpace-Setup-${version}.msi"
+      "artifactName": "CrewSpace-Setup-${version}-${arch}.msi"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "scripts/entitlements.mac.plist",
+      "entitlementsInherit": "scripts/entitlements.mac.plist"
+    },
+    "dmg": {
+      "artifactName": "CrewSpace-${version}-${arch}.dmg",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icons",
+      "category": "Office",
+      "maintainer": "CrewSpace AI <hello@crewspace.ai>",
+      "vendor": "CrewSpace AI <hello@crewspace.ai>",
+      "synopsis": "AI agent company control plane",
+      "description": "CrewSpace is a control plane for autonomous AI-agent companies."
+    },
+    "appImage": {
+      "artifactName": "CrewSpace-${version}-${arch}.AppImage"
+    },
+    "deb": {
+      "artifactName": "CrewSpace-${version}-${arch}.deb"
+    },
+    "rpm": {
+      "artifactName": "CrewSpace-${version}-${arch}.rpm"
     }
   }
 }

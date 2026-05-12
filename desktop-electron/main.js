@@ -5,13 +5,14 @@
  * and manages the application lifecycle.
  */
 
-const { app, BrowserWindow, Tray, Menu, shell, ipcMain, nativeImage, screen } = require("electron");
+const { app, BrowserWindow, Tray, Menu, shell, ipcMain, nativeImage, screen, dialog } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const { spawn } = require("child_process");
 const net = require("net");
 const fs = require("fs");
 const os = require("os");
-const { readConfig, writeConfig, hasConfig, isFirstRunComplete, markFirstRunComplete, saveThemePreference, getThemePreference, saveAuthConfig, getAuthConfig, authConfigToEnv } = require("./desktop-config");
+const { readConfig, writeConfig, hasConfig, isFirstRunComplete, markFirstRunComplete, saveThemePreference, getThemePreference, saveAuthConfig, getAuthConfig, authConfigToEnv, saveAgentToken, getAgentToken, clearAgentToken, saveBoardSessionToken, getBoardSessionToken, clearBoardSessionToken } = require("./desktop-config");
 
 // ── Config ──────────────────────────────────────────────────────────
 const SERVER_PORT = 3150;
@@ -76,6 +77,103 @@ let serverUrl = null; // URL for Electron window (localhost)
 let lanServerUrl = null; // URL for other devices on the network
 let isQuitting = false;
 let normalBounds = null; // Pre-maximize bounds for frameless window restore
+let updateAvailable = false;
+let updateDownloaded = false;
+
+// ── Auto Updater ────────────────────────────────────────────────────
+function setupAutoUpdater() {
+  if (isDev) {
+    console.log("[CrewSpace Desktop] Auto-updater disabled in dev mode.");
+    return;
+  }
+
+  autoUpdater.logger = console;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("checking-for-update", () => {
+    console.log("[CrewSpace Desktop] Checking for updates...");
+  });
+
+  autoUpdater.on("update-available", (info) => {
+    console.log("[CrewSpace Desktop] Update available:", info.version);
+    updateAvailable = true;
+    if (mainWindow) {
+      mainWindow.webContents.send("update-available", info);
+    }
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    console.log("[CrewSpace Desktop] No updates available.");
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    console.log(`[CrewSpace Desktop] Download progress: ${Math.round(progress.percent)}%`);
+    if (mainWindow) {
+      mainWindow.webContents.send("update-progress", progress);
+    }
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    console.log("[CrewSpace Desktop] Update downloaded:", info.version);
+    updateDownloaded = true;
+    if (mainWindow) {
+      mainWindow.webContents.send("update-downloaded", info);
+    }
+    // Show a native notification dialog when the update is ready
+    dialog
+      .showMessageBox(mainWindow, {
+        type: "info",
+        title: "Update Ready",
+        message: `CrewSpace ${info.version} is downloaded and will be installed on quit.`,
+        buttons: ["Install Now", "Later"],
+        defaultId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          isQuitting = true;
+          autoUpdater.quitAndInstall(false, true);
+        }
+      });
+  });
+
+  autoUpdater.on("error", (err) => {
+    console.error("[CrewSpace Desktop] Auto-updater error:", err.message);
+  });
+
+  // Check on startup, then every 4 hours
+  autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+  setInterval(() => {
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+  }, 4 * 60 * 60 * 1000);
+}
+
+// IPC handlers for manual update checks
+ipcMain.handle("check-for-updates", async () => {
+  if (isDev) return { available: false, dev: true };
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { available: result?.updateInfo?.version !== app.getVersion(), version: result?.updateInfo?.version };
+  } catch (err) {
+    return { available: false, error: err.message };
+  }
+});
+
+ipcMain.handle("install-update", () => {
+  if (updateDownloaded) {
+    isQuitting = true;
+    autoUpdater.quitAndInstall(false, true);
+  }
+});
+
+// Dev mode / renderer URL helpers
+ipcMain.handle("is-dev", () => isDev);
+ipcMain.handle("get-renderer-url", () => {
+  if (isDev) {
+    return "http://localhost:5173/";
+  }
+  return "../renderer-dist/index.html";
+});
 
 // ── Find free port ──────────────────────────────────────────────────
 async function findFreePort(startPort) {
@@ -538,6 +636,12 @@ function createTray() {
   tray = new Tray(trayIcon);
   tray.setToolTip("CrewSpace");
 
+  const updateLabel = updateDownloaded
+    ? "Install Update..."
+    : updateAvailable
+      ? "Downloading Update..."
+      : "Check for Updates";
+
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "Show CrewSpace",
@@ -557,6 +661,18 @@ function createTray() {
         if (lanServerUrl) {
           const { clipboard } = require("electron");
           clipboard.writeText(lanServerUrl);
+        }
+      },
+    },
+    {
+      label: updateLabel,
+      enabled: !updateAvailable || updateDownloaded,
+      click: () => {
+        if (updateDownloaded) {
+          isQuitting = true;
+          autoUpdater.quitAndInstall(false, true);
+        } else {
+          autoUpdater.checkForUpdatesAndNotify().catch(() => {});
         }
       },
     },
@@ -618,6 +734,15 @@ ipcMain.handle("save-theme-preference", (_event, theme) => {
   } catch (err) {
     console.error("[CrewSpace Desktop] Failed to save theme:", err);
     return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("get-theme-preference", () => {
+  try {
+    return getThemePreference();
+  } catch (err) {
+    console.error("[CrewSpace Desktop] Failed to get theme:", err);
+    return "system";
   }
 });
 
@@ -703,6 +828,76 @@ ipcMain.handle("restart-server-with-auth", async () => {
   }
 });
 
+// ── Secure API request IPC handler ──────────────────────────────────
+// The main process acts as a trusted proxy: it injects stored auth tokens
+// and makes the actual HTTP request so sensitive tokens never live in the
+// renderer process.
+ipcMain.handle("api-request", async (_event, request) => {
+  if (!serverUrl) {
+    return { ok: false, status: 0, error: { message: "Server not available" } };
+  }
+
+  const { method = "GET", path, body, headers: extraHeaders } = request || {};
+  const url = `${serverUrl}/api${path}`;
+
+  const headers = new Headers(extraHeaders);
+  if (body && !(body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  // Inject auth tokens from secure storage
+  const agentToken = getAgentToken();
+  const boardToken = getBoardSessionToken();
+  if (agentToken) {
+    headers.set("Authorization", `Bearer ${agentToken}`);
+  } else if (boardToken) {
+    headers.set("X-Board-Session", boardToken);
+  }
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined,
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => null);
+      return {
+        ok: false,
+        status: res.status,
+        error: {
+          message: errorBody?.error || `Request failed: ${res.status}`,
+          status: res.status,
+          body: errorBody,
+        },
+      };
+    }
+
+    if (res.status === 204) {
+      return { ok: true, status: 204 };
+    }
+
+    const data = await res.json().catch(() => null);
+    return { ok: true, status: res.status, data };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      error: { message: err instanceof Error ? err.message : String(err) },
+    };
+  }
+});
+
+// ── Auth token IPC handlers ─────────────────────────────────────────
+ipcMain.handle("get-agent-token", () => getAgentToken());
+ipcMain.handle("set-agent-token", (_event, token) => saveAgentToken(token));
+ipcMain.handle("clear-agent-token", () => clearAgentToken());
+ipcMain.handle("get-board-session-token", () => getBoardSessionToken());
+ipcMain.handle("set-board-session-token", (_event, token) => saveBoardSessionToken(token));
+ipcMain.handle("clear-board-session-token", () => clearBoardSessionToken());
+
 // Window control IPC handlers
 ipcMain.on("window-minimize", () => {
   if (mainWindow) mainWindow.minimize();
@@ -744,6 +939,7 @@ app.whenReady().then(async () => {
 
   createWindow();
   createTray();
+  setupAutoUpdater();
 
   app.on("activate", () => {
     createWindow();
