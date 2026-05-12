@@ -11,6 +11,7 @@ import {
   listAccessibleRepos,
   isPatMode,
   generateStateToken,
+  resolveGithubConfig,
 } from "../services/github-integration.js";
 import {
   exchangeManifestCode,
@@ -287,9 +288,10 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
     // Try to fetch repos to include in the callback message
     let repos: Array<{ fullName: string; defaultBranch: string }> = [];
-    if (config) {
+    const resolvedConfig = resolveGithubConfig(config);
+    if (resolvedConfig) {
       try {
-        repos = await listInstallationRepos(config, parseInt(installationId, 10));
+        repos = await listInstallationRepos(resolvedConfig, parseInt(installationId, 10));
       } catch {
         // Repos will be fetched later
       }
@@ -346,19 +348,18 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // ═══════════════════════════════════════════════════════════════════
   //  Routes that REQUIRE pre-existing GitHub App config
+  //  Config is resolved dynamically from env vars or manifest temp file
   // ═══════════════════════════════════════════════════════════════════
-
-  if (!config) {
-    router.use("/companies/:companyId/projects/:projectId/github", (_req, res) => {
-      res.status(503).json({ error: "GitHub integration is not configured" });
-    });
-    return router;
-  }
 
   // ── Project-scoped API ──
 
   // Get connected repo
   router.get("/companies/:companyId/projects/:projectId/github/repo", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     const repo = await db.query.projectGithubRepos.findFirst({
       where: eq(projectGithubRepos.projectId, req.params.projectId),
@@ -372,6 +373,11 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Connect a repo (now accepts repoFullName instead of separate owner/name)
   router.post("/companies/:companyId/projects/:projectId/github/repo", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     const { installationId, repoFullName, defaultBranch = "main" } = req.body;
 
@@ -387,7 +393,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     }
 
     // Verify access
-    const hasAccess = await verifyRepoAccess(config, installationId, owner, repoName);
+    const hasAccess = await verifyRepoAccess(cfg, installationId, owner, repoName);
     if (!hasAccess) {
       res.status(403).json({ error: "Cannot access repository" });
       return;
@@ -413,6 +419,11 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Disconnect repo
   router.delete("/companies/:companyId/projects/:projectId/github/repo", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     await db.delete(projectGithubRepos).where(eq(projectGithubRepos.projectId, req.params.projectId));
     await db.delete(projectRepoPermissions).where(eq(projectRepoPermissions.projectId, req.params.projectId));
@@ -421,6 +432,11 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // List accessible repos
   router.get("/companies/:companyId/projects/:projectId/github/repos", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     const repo = await db.query.projectGithubRepos.findFirst({
       where: eq(projectGithubRepos.projectId, req.params.projectId),
@@ -432,7 +448,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     }
 
     try {
-      const repos = await listAccessibleRepos(config, repo.installationId || undefined);
+      const repos = await listAccessibleRepos(cfg, repo.installationId || undefined);
       res.json(repos);
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : "Failed to list repos" });
@@ -441,6 +457,11 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Get branches
   router.get("/companies/:companyId/projects/:projectId/github/branches", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     const repo = await db.query.projectGithubRepos.findFirst({
       where: eq(projectGithubRepos.projectId, req.params.projectId),
@@ -449,12 +470,17 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
       res.status(404).json({ error: "No GitHub repo connected" });
       return;
     }
-    const branches = await getRepoBranches(config, repo.installationId, repo.repoOwner, repo.repoName);
+    const branches = await getRepoBranches(cfg, repo.installationId, repo.repoOwner, repo.repoName);
     res.json(branches);
   });
 
   // List agent permissions
   router.get("/companies/:companyId/projects/:projectId/github/agents", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     const perms = await db.query.projectRepoPermissions.findMany({
       where: eq(projectRepoPermissions.projectId, req.params.projectId),
@@ -464,6 +490,11 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Update agent permission
   router.post("/companies/:companyId/projects/:projectId/github/agents", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     const { agentId, canRead, canPush, canCreateBranch } = req.body;
 
@@ -496,6 +527,11 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Revoke agent permission
   router.delete("/companies/:companyId/projects/:projectId/github/agents/:agentId", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
     assertCompanyAccess(req, req.params.companyId);
     await db
       .delete(projectRepoPermissions)

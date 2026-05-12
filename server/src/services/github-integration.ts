@@ -1,4 +1,5 @@
 import { createSign, randomBytes } from "node:crypto";
+import { readManifestResult } from "./github-manifest.js";
 
 export interface GithubAppConfig {
   /** GitHub App mode */
@@ -188,4 +189,20 @@ export async function getRepoBranches(
 
 export function generateStateToken(): string {
   return randomBytes(32).toString("hex");
+}
+
+/** Resolve a usable GitHub config from explicit config or manifest temp file. */
+export function resolveGithubConfig(config?: GithubAppConfig): GithubAppConfig | undefined {
+  if (config?.pat || config?.appId) return config;
+  const manifest = readManifestResult();
+  if (manifest) {
+    return {
+      appId: String(manifest.id),
+      privateKey: manifest.pem,
+      clientId: manifest.clientId,
+      clientSecret: manifest.clientSecret,
+      slug: manifest.slug,
+    };
+  }
+  return config;
 }
