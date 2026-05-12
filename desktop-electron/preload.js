@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   saveAuthConfig: (auth) => ipcRenderer.invoke("save-auth-config", auth),
   saveThemePreference: (theme) => ipcRenderer.invoke("save-theme-preference", theme),
   markFirstRunComplete: () => ipcRenderer.invoke("mark-first-run-complete"),
+  completeOnboarding: (payload) => ipcRenderer.invoke("complete-onboarding", payload),
   onServerCrashed: (callback) => ipcRenderer.on("server-crashed", (_event, code) => callback(code)),
   onServerError: (callback) => ipcRenderer.on("server-error", (_event, message) => callback(message)),
   quitApp: () => ipcRenderer.send("quit-app"),
@@ -18,4 +19,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   isWindowMaximized: () => ipcRenderer.invoke("window-is-maximized"),
   onWindowMaximizedChanged: (callback) => ipcRenderer.on("window-maximized-changed", (_event, value) => callback(value)),
   openExternal: (url) => ipcRenderer.send("open-external", url),
+
+  // GitHub Auth
+  getGitHubAuthConfig: () => ipcRenderer.invoke("get-github-auth-config"),
+  restartServerWithAuth: () => ipcRenderer.invoke("restart-server-with-auth"),
 });

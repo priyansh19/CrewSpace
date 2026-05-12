@@ -857,10 +857,14 @@ export async function runChildProcess(
           runningProcesses.delete(runId);
           const errno = (err as NodeJS.ErrnoException).code;
           const pathValue = mergedEnv.PATH ?? mergedEnv.Path ?? "";
-          const msg =
-            errno === "ENOENT"
-              ? `Failed to start command "${command}" in "${opts.cwd}". Verify adapter command, working directory, and PATH (${pathValue}).`
-              : `Failed to start command "${command}" in "${opts.cwd}": ${err.message}`;
+          let msg: string;
+          if (errno === "ENOENT") {
+            msg = `Failed to start command "${command}" in "${opts.cwd}". Verify adapter command, working directory, and PATH (${pathValue}).`;
+          } else if (errno === "UNKNOWN" && process.platform === "win32") {
+            msg = `Failed to start command "${command}" in "${opts.cwd}": Windows blocked the executable. This is usually caused by Windows Defender, AppLocker, or an Application Control policy. Try whitelisting the executable or using an API key instead of the local CLI.`;
+          } else {
+            msg = `Failed to start command "${command}" in "${opts.cwd}": ${err.message}`;
+          }
           reject(new Error(msg));
         });
 

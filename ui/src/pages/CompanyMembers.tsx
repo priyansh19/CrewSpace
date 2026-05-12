@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -6,6 +6,8 @@ import { useToast } from "../context/ToastContext";
 import { membersApi, type Member, type PendingInvite } from "../api/members";
 import { accessApi } from "../api/access";
 import { queryKeys } from "../lib/queryKeys";
+import { useCompanyRole } from "../hooks/useCompanyRole";
+import { canManageMembers } from "../lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -191,13 +193,8 @@ export function CompanyMembers() {
     },
   });
 
-  const currentUserRole: CompanyMembershipRole = useMemo(() => {
-    // In mock mode we assume current user is owner; real implementation should
-    // derive from session + membership lookup.
-    return "owner";
-  }, []);
-
-  const canManage = currentUserRole === "owner" || currentUserRole === "admin";
+  const { role: currentUserRole } = useCompanyRole();
+  const canManage = canManageMembers(currentUserRole);
 
   const activeMembers = members?.filter((m) => m.status === "active") ?? [];
   const pendingMembers = members?.filter((m) => m.status === "pending") ?? [];

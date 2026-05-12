@@ -5,9 +5,17 @@ import { forbidden, unauthorized } from "../errors.js";
 
 export const ROLE_PERMISSIONS: Record<CompanyMembershipRole, Set<PermissionKey>> = {
   owner: new Set(PERMISSION_KEYS),
-  admin: new Set(PERMISSION_KEYS),
-  member: new Set<PermissionKey>(["tasks:assign"]),
-  viewer: new Set<PermissionKey>(),
+  admin: new Set(PERMISSION_KEYS.filter((k) => k !== "company:delete")),
+  member: new Set<PermissionKey>([
+    "tasks:assign",
+    "tasks:assign_scope",
+    "issues:manage",
+    "goals:manage",
+    "projects:manage",
+    "comments:manage",
+    "read:all",
+  ]),
+  viewer: new Set<PermissionKey>(["read:all"]),
 };
 
 export function getActorCompanyRole(req: Request, companyId: string): CompanyMembershipRole | null {

@@ -1,7 +1,8 @@
 {
   "name": "crewspace-desktop",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "CrewSpace — AI agent company control plane",
+  "author": "CrewSpace AI <hello@crewspace.ai>",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -34,14 +35,31 @@
       }
     ],
     "win": {
-      "target": ["nsis", "msi"],
+      "target": ["nsis"],
       "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "installerSidebar": "assets/installer/installerSidebar.bmp",
+      "installerHeader": "assets/installer/installerHeader.bmp",
+      "include": "scripts/installer.nsh",
+      "unicode": true,
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": false,
+      "license": "../LICENSE",
+      "artifactName": "CrewSpace-Setup-${version}.exe"
+    },
+    "msi": {
+      "oneClick": false,
+      "warningsAsErrors": false,
+      "upgradeCode": "{C1EE4A7B-8F23-4B5A-9D8E-1A2B3C4D5E6F}",
+      "artifactName": "CrewSpace-Setup-${version}.msi"
     }
   }
 }

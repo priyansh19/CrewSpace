@@ -12,6 +12,7 @@ interface InlineEditorProps {
   multiline?: boolean;
   imageUploadHandler?: (file: File) => Promise<string>;
   mentions?: MentionOption[];
+  readOnly?: boolean;
 }
 
 /** Shared padding so display and edit modes occupy the exact same box. */
@@ -28,6 +29,7 @@ export function InlineEditor({
   multiline = false,
   imageUploadHandler,
   mentions,
+  readOnly = false,
 }: InlineEditorProps) {
   const [editing, setEditing] = useState(false);
   const [multilineFocused, setMultilineFocused] = useState(false);
@@ -139,6 +141,21 @@ export function InlineEditor({
   }, [autosaveState, commit, draft, markDirty, multiline, multilineFocused, reset, runSave, value]);
 
   if (multiline) {
+    if (readOnly) {
+      const DisplayTag = value ? "div" : Tag;
+      return (
+        <DisplayTag
+          className={cn(
+            markdownPad,
+            "rounded overflow-hidden",
+            !value && "text-muted-foreground italic",
+            className,
+          )}
+        >
+          {value || placeholder}
+        </DisplayTag>
+      );
+    }
     return (
       <div
         className={cn(
@@ -225,6 +242,22 @@ export function InlineEditor({
           className
         )}
       />
+    );
+  }
+
+  if (readOnly) {
+    const DisplayTag = value && multiline ? "div" : Tag;
+    return (
+      <DisplayTag
+        className={cn(
+          "rounded overflow-hidden",
+          pad,
+          !value && "text-muted-foreground italic",
+          className,
+        )}
+      >
+        {value || placeholder}
+      </DisplayTag>
     );
   }
 

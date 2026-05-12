@@ -118,11 +118,17 @@ function authConfigToEnv(config) {
   if (!config) return {};
   const env = {};
   const github = config.github || {};
-  if (github.appId) env.GITHUB_APP_ID = github.appId;
-  if (github.privateKey) env.GITHUB_APP_PRIVATE_KEY = github.privateKey;
-  if (github.clientId) env.GITHUB_APP_CLIENT_ID = github.clientId;
-  if (github.clientSecret) env.GITHUB_APP_CLIENT_SECRET = github.clientSecret;
-  if (github.slug) env.GITHUB_APP_SLUG = github.slug;
+
+  // PAT mode takes precedence
+  if (github.pat) {
+    env.GITHUB_PAT = github.pat;
+  } else {
+    if (github.appId) env.GITHUB_APP_ID = github.appId;
+    if (github.privateKey) env.GITHUB_APP_PRIVATE_KEY = github.privateKey;
+    if (github.clientId) env.GITHUB_APP_CLIENT_ID = github.clientId;
+    if (github.clientSecret) env.GITHUB_APP_CLIENT_SECRET = github.clientSecret;
+    if (github.appSlug) env.GITHUB_APP_SLUG = github.appSlug;
+  }
 
   const kimi = config.kimi || {};
   if (kimi.apiKey) env.KIMI_API_KEY = kimi.apiKey;

@@ -34,6 +34,8 @@ import { useChat } from "../context/ChatContext";
 import { heartbeatsApi } from "../api/heartbeats";
 import { queryKeys } from "../lib/queryKeys";
 import { useInboxBadge } from "../hooks/useInboxBadge";
+import { useCompanyRole } from "../hooks/useCompanyRole";
+import { canEditSettings } from "../lib/permissions";
 import { Button } from "@/components/ui/button";
 import { PluginSlotOutlet } from "@/plugins/slots";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,7 @@ import { CompanyAvatar } from "./CompanyAvatar";
 export function Sidebar() {
   const { openNewIssue } = useDialog();
   const { selectedCompanyId, selectedCompany } = useCompany();
+  const { role } = useCompanyRole();
   const { sessions } = useChat();
   const inboxBadge = useInboxBadge(selectedCompanyId);
   const { data: liveRuns } = useQuery({
@@ -175,7 +178,9 @@ export function Sidebar() {
           <SidebarNavItem to="/activity" label="Activity" icon={History} />
           <SidebarNavItem to="/archived-companies" label="Archive" icon={Archive} />
           <SidebarNavItem to="/company/members" label="Members" icon={Users} />
-          <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
+          {canEditSettings(role) && (
+            <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
+          )}
         </SidebarSection>
 
         <PluginSlotOutlet

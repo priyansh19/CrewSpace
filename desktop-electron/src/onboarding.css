@@ -262,6 +262,53 @@ html, body {
   color: var(--text-primary);
 }
 
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.btn-back:hover {
+  color: var(--text-primary);
+}
+
+.btn-back svg {
+  opacity: 0.7;
+}
+
+.step-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.connect-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 28px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.connect-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* ── Step 0: Welcome ─────────────────────────────────────────── */
 .step-welcome {
   text-align: center;
@@ -555,120 +602,261 @@ html, body {
   color: var(--text-primary);
 }
 
-/* ── Step 3: Connect Services ────────────────────────────────── */
-.connect-content {
-  width: 100%;
+/* ── Back Button (DESIGN.md: button-text-link on dark) ───────── */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  color: #a09d96;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
 }
 
-.connect-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 28px;
+.btn-back:hover {
+  color: #faf9f5;
 }
 
-.connect-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  backdrop-filter: blur(20px);
-  transition: border-color 0.2s;
+.btn-back svg {
+  opacity: 0.7;
+  transition: transform 0.15s;
 }
 
-.connect-card:focus-within {
-  border-color: var(--border-focus);
+.btn-back:hover svg {
+  transform: translateX(-2px);
 }
 
-.connect-header {
+.step-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.connect-logo {
-  width: 22px;
-  height: 22px;
-  color: var(--text-primary);
-  flex-shrink: 0;
-}
-
-.connect-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.connect-badge {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-left: auto;
-}
-
-.connect-badge.optional {
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border-subtle);
-}
-
-.connect-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-  line-height: 1.4;
-}
-
-.connect-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.connect-fields input,
-.connect-fields textarea {
-  width: 100%;
-  padding: 9px 12px;
-  font-size: 13px;
-  font-family: var(--font-body);
-  color: var(--text-primary);
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  resize: vertical;
-}
-
-.connect-fields input:focus,
-.connect-fields textarea:focus {
-  border-color: var(--accent-coral);
-  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.12);
-}
-
-.connect-fields input::placeholder,
-.connect-fields textarea::placeholder {
-  color: var(--text-muted);
-}
-
-.connect-field-row {
-  display: flex;
-  gap: 8px;
-}
-
-.connect-field-row input {
-  flex: 1;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 32px;
 }
 
 .connect-actions {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 28px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.connect-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Step 3: Connect Services (DESIGN.md refactored) ─────────── */
+.connect-content {
+  width: 100%;
+}
+
+.integration-card {
+  background: #181715;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.integration-card:hover {
+  border-color: rgba(255,255,255,0.12);
+}
+
+.integration-card:focus-within {
+  border-color: rgba(204, 120, 92, 0.5);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.08);
+}
+
+.integration-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.integration-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.github-logo {
+  width: 28px;
+  height: 28px;
+  color: #faf9f5;
+  flex-shrink: 0;
+}
+
+.kimi-logo {
+  width: 24px;
+  height: 24px;
+  color: #faf9f5;
+  flex-shrink: 0;
+}
+
+.integration-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.integration-name {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  color: #faf9f5;
+  line-height: 1.3;
+}
+
+.integration-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #a09d96;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c64545;
+  display: inline-block;
+}
+
+.integration-status.connected .status-dot {
+  background: #5db872;
+}
+
+.integration-desc {
+  font-size: 13px;
+  color: #a09d96;
+  line-height: 1.55;
+  margin-bottom: 16px;
+  max-width: 480px;
+}
+
+/* PAT Form */
+.pat-form {
+  margin-top: 4px;
+}
+
+.pat-form.hidden {
+  display: none;
+}
+
+.pat-form input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: #faf9f5;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.pat-form input:focus {
+  border-color: #cc785c;
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.12);
+}
+
+.pat-form input::placeholder {
+  color: #4a4843;
+}
+
+.pat-hint {
+  font-size: 12px;
+  color: #6c6a64;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.pat-hint a {
+  color: #cc785c;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.pat-hint a:hover {
+  color: #e08a6e;
+  text-decoration: underline;
+}
+
+.pat-hint code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  padding: 1px 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #a09d96;
+}
+
+/* Connected state */
+.pat-connected {
+  margin-top: 4px;
+}
+
+.pat-connected.hidden {
+  display: none;
+}
+
+.connected-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(93, 184, 114, 0.1);
+  border: 1px solid rgba(93, 184, 114, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5db872;
+  margin-bottom: 12px;
+}
+
+.btn-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: #cc785c;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.btn-text-link:hover {
+  color: #e08a6e;
+}
+
+.btn-text-link.danger {
+  color: #c64545;
+  font-size: 12px;
+}
+
+.btn-text-link.danger:hover {
+  color: #e05555;
 }
 
 /* ── Step 4: Launch ──────────────────────────────────────────── */
@@ -778,4 +966,137 @@ html, body {
   .connect-field-row {
     flex-direction: column;
   }
+}
+
+
+/* ── GitHub App Manifest Flow States ─────────────────────────── */
+
+.gh-flow {
+  margin-top: 8px;
+}
+
+.gh-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+.gh-state.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pat-form {
+  margin-top: 4px;
+}
+
+.pat-form.hidden {
+  display: none;
+}
+
+.pat-form input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: #faf9f5;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.pat-form input:focus {
+  border-color: #cc785c;
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.12);
+}
+
+.pat-form input::placeholder {
+  color: #4a4843;
+}
+
+.pat-hint {
+  font-size: 12px;
+  color: #6c6a64;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.pat-hint a {
+  color: #cc785c;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.pat-hint a:hover {
+  color: #e08a6e;
+  text-decoration: underline;
+}
+
+.pat-hint code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  padding: 1px 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #a09d96;
+}
+
+/* Connected state */
+.pat-connected {
+  margin-top: 4px;
+}
+
+.pat-connected.hidden {
+  display: none;
+}
+
+.connected-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(93, 184, 114, 0.1);
+  border: 1px solid rgba(93, 184, 114, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5db872;
+  margin-bottom: 12px;
+}
+
+.btn-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: #cc785c;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.btn-text-link:hover {
+  color: #e08a6e;
+}
+
+.btn-text-link.danger {
+  color: #c64545;
+  font-size: 12px;
+}
+
+.btn-text-link.danger:hover {
+  color: #e05555;
 }

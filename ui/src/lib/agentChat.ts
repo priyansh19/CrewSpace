@@ -19,11 +19,15 @@ export function formatChatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+export function isEmptyAgentMessage(m: { role: string; content: string }): boolean {
+  return m.role === "agent" && !m.content;
+}
+
 export async function streamAgentChat(
   agent: Agent,
   history: ChatMessage[],
   companyId: string | undefined,
-  signal: AbortSignal,
+  signal: AbortSignal | undefined,
   onChunk: (partial: string) => void,
 ): Promise<string> {
   const messages = history.map((m) => ({

@@ -38,6 +38,12 @@ tmp/
 *.tmp
 .vscode/
 .claude/settings.local.json
+
+# Desktop app dev logs
+desktop-app-dev-err.log
+desktop-app-dev-out.log
+desktop-app-restart-err.log
+desktop-app-restart-out.log
 .crewspace-local/
 /.idea/
 /.agents/

@@ -5,10 +5,10 @@
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Plus, Send, X, Search, MessageCircle, AlertCircle,
-  Users, CircleDot, Brain, Check, Trash2, Pencil,
+  Users, CircleDot, Check, Trash2, Pencil,
   Copy, CheckCheck, Paperclip, Mic, ImageIcon, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,8 @@ import { useChat, type ChatSession, type ChatMessage, type ChatParticipant, type
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { agentsApi } from "../api/agents";
-import { agentMemoriesApi } from "../api/agentMemories";
 import { assetsApi } from "../api/assets";
-import { agentDotColor, formatChatTime, streamAgentChat } from "../lib/agentChat";
+import { agentDotColor, formatChatTime, isEmptyAgentMessage } from "../lib/agentChat";
 import { queryKeys } from "../lib/queryKeys";
 import { ChatMessageContent } from "../components/ChatMessageContent";
 import type { Agent } from "@crewspaceai/shared";
@@ -541,50 +540,43 @@ function ChatComposer({
 
 // ── Chat Area ─────────────────────────────────────────────────────────────────
 
-function ChatArea({ session, allAgents, companyId, onUpdate }: {
+function ChatArea({ session, allAgents, companyId }: {
   session: ChatSession;
   allAgents: Agent[];
   companyId: string | undefined;
-  onUpdate: (messages: ChatMessage[], participants: ChatParticipant[]) => void;
 }) {
   const { openNewIssue } = useDialog();
-  const { persistMessage } = useChat();
-  const queryClient = useQueryClient();
-  const isMountedRef = useRef(true);
-  const abortRef = useRef<AbortController | null>(null);
+  const { sendMessage, streams, updateSession } = useChat();
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      abortRef.current?.abort();
-    };
-  }, []);
-
-  const [participants, setParticipants] = useState<ChatParticipant[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [participants, setParticipants] = useState<ChatParticipant[]>(session.participants);
 
   useEffect(() => {
     setParticipants(session.participants);
-    setMessages(session.messages);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.id, session.messages.length]);
+  }, [session.id]);
+
+  const activeStreams = streams.filter(
+    (s) => s.sessionId === session.id && s.status === "streaming"
+  );
+  const typingAgentId = activeStreams[0]?.agentId ?? null;
+
+  const streamMessages: ChatMessage[] = activeStreams.map((s) => ({
+    id: s.streamId,
+    role: "agent",
+    agentId: s.agentId,
+    content: s.content,
+    ts: new Date(),
+  }));
+
+  const displayMessages = [...session.messages, ...streamMessages];
 
   const [input, setInput] = useState("");
-  const [typingAgentId, setTypingAgentId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [savingMemory, setSavingMemory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const isFirstRender = useRef(true);
-  useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
-    onUpdate(messages, participants);
-  }, [messages, participants]);
-
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages, typingAgentId]);
+  }, [displayMessages, typingAgentId]);
 
   useEffect(() => { inputRef.current?.focus(); }, [session.id]);
 
@@ -592,75 +584,9 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
     const text = input.trim();
     if ((!text && !attachs?.length) || typingAgentId) return;
     setSendError(null);
-
-    const userMsg: ChatMessage = { id: `user-${Date.now()}`, role: "user", content: text, attachments: attachs, ts: new Date() };
-    const fullHistory: ChatMessage[] = [...messages, userMsg];
-    setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    persistMessage(session.id, "user", text, undefined, attachs);
-
-    abortRef.current = new AbortController();
-    for (const agent of participants) {
-      if (!isMountedRef.current) break;
-      setTypingAgentId(agent.id);
-
-      const streamingId = `agent-${agent.id}-${Date.now()}`;
-      setMessages((prev) => [...prev, { id: streamingId, role: "agent", agentId: agent.id, content: "", ts: new Date() }]);
-
-      let finalContent = "";
-      try {
-        const streamResult = await streamAgentChat(agent as unknown as Agent, fullHistory, companyId, abortRef.current.signal, (partial) => {
-          if (!isMountedRef.current) return;
-          finalContent = partial;
-          setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, content: partial } : m));
-        });
-
-        if (!finalContent && streamResult) {
-          finalContent = streamResult;
-          setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, content: streamResult } : m));
-        }
-      } catch (e) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        setSendError(errMsg);
-        setMessages((prev) => prev.filter((m) => m.id !== streamingId));
-      }
-
-      setTypingAgentId(null);
-      if (finalContent.trim()) persistMessage(session.id, "agent", finalContent, agent.id);
-
-      if (finalContent.trim() && companyId && isMountedRef.current) {
-        setSavingMemory(true);
-        (async () => {
-          try {
-            const sentences = finalContent.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 10 && s.length < 200);
-            const title = sentences.length > 0 ? sentences[0].slice(0, 120) : finalContent.slice(0, 100);
-
-            await fetch(`/api/companies/${companyId}/memories`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ title, content: finalContent, memoryType: "fact", agentIds: [agent.id] }),
-            });
-
-            if (finalContent.length > 200) {
-              const lastUserMsg = messages.filter((m) => m.role === "user").pop();
-              await agentMemoriesApi.saveTaskSolution(companyId, {
-                agentId: agent.id,
-                taskTitle: lastUserMsg?.content.slice(0, 80) ?? title,
-                approach: finalContent,
-                outcome: "Completed",
-              });
-            }
-
-            queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(companyId) });
-          } catch {
-            /* silenced */
-          } finally {
-            setSavingMemory(false);
-          }
-        })();
-      }
-    }
-  }, [input, messages, participants, companyId, typingAgentId]);
+    await sendMessage(session.id, text, attachs);
+  }, [input, typingAgentId, session.id, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -669,31 +595,28 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
   const [draftAttachments, setDraftAttachments] = useState<ChatAttachment[]>([]);
 
   const addParticipant = (agent: Agent) => {
-    setParticipants((prev) => [...prev, agent]);
-    setMessages((prev) => [...prev, {
-      id: `join-${agent.id}-${Date.now()}`,
-      role: "agent",
-      agentId: agent.id,
-      content: `Hey everyone! ${agent.name} here. Joining the conversation.`,
-      ts: new Date(),
-    }]);
+    const next = [...participants, agent as unknown as ChatParticipant];
+    setParticipants(next);
+    updateSession(session.id, session.messages, next);
   };
 
   const removeParticipant = (agentId: string) => {
     if (participants.length <= 1) return;
-    setParticipants((prev) => prev.filter((p) => p.id !== agentId));
+    const next = participants.filter((p) => p.id !== agentId);
+    setParticipants(next);
+    updateSession(session.id, session.messages, next);
   };
 
   const agentById = (id: string) => participants.find((p) => p.id === id);
 
   const handleCreateIssue = useCallback(() => {
-    const recent = messages.filter((m) => m.content.trim()).slice(-8).map((m) => {
+    const recent = displayMessages.filter((m) => m.content.trim()).slice(-8).map((m) => {
       if (m.role === "user") return `**You:** ${m.content}`;
       const sender = m.agentId ? agentById(m.agentId) : null;
       return `**${sender?.name ?? "Agent"}:** ${m.content}`;
     }).join("\n\n");
     openNewIssue({ description: recent ? `*From chat discussion:*\n\n${recent}` : undefined });
-  }, [messages, participants, openNewIssue]);
+  }, [displayMessages, participants, openNewIssue]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
@@ -737,8 +660,8 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-5 min-h-0">
-        {messages.map((msg) => {
-          if (msg.role === "agent" && !msg.content && typingAgentId) return null;
+        {displayMessages.map((msg) => {
+          if (isEmptyAgentMessage(msg)) return null;
 
           if (msg.role === "user") {
             return (
@@ -780,12 +703,6 @@ function ChatArea({ session, allAgents, companyId, onUpdate }: {
           <div className="flex items-start gap-2 px-1">
             <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
             <span className="text-sm text-destructive">{sendError}</span>
-          </div>
-        )}
-        {savingMemory && (
-          <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground/60">
-            <Brain className="h-3.5 w-3.5 animate-pulse shrink-0" />
-            <span>Saving to memory graph…</span>
           </div>
         )}
       </div>
@@ -840,7 +757,7 @@ function EmptyChat({ onNewChat }: { onNewChat: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AgentChat() {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, updateSession, deleteSession, renameSession } = useChat(); // persistMessage used inside ChatArea
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgents, deleteSession, renameSession } = useChat();
   const { selectedCompanyId } = useCompany();
 
   const { data: agents } = useQuery({
@@ -865,10 +782,6 @@ export function AgentChat() {
       return s.messages.some((m) => m.content.toLowerCase().includes(q));
     });
   }, [sessions, sessionSearch]);
-
-  const handleUpdate = useCallback((messages: ChatMessage[], participants: ChatParticipant[]) => {
-    if (activeSessionId) updateSession(activeSessionId, messages, participants);
-  }, [activeSessionId, updateSession]);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
 
@@ -947,7 +860,6 @@ export function AgentChat() {
           session={activeSession}
           allAgents={allAgents}
           companyId={selectedCompanyId ?? undefined}
-          onUpdate={handleUpdate}
         />
       ) : (
         <EmptyChat onNewChat={() => setNewChatOpen(true)} />

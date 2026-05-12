@@ -480,7 +480,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     (initial.proc.exitCode ?? 0) !== 0 ||
     Boolean(initial.parsed.errorMessage);
 
-  // Unknown session → retry once with a fresh session.
+  // Unknown session → retry once immediately with a fresh session.
   if (
     sessionId &&
     initialHasError &&
@@ -494,15 +494,74 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     return toResult(retry, true);
   }
 
-  // Interrupted run (signal kill or timeout) → retry once with the SAME session.
-  const looksLikeInterrupt = initial.proc.signal !== null || initial.proc.timedOut;
-  if (sessionId && initialHasError && looksLikeInterrupt) {
-    await onLog(
-      "stdout",
-      `[crewspace] Kimi session "${sessionId}" was interrupted (signal=${initial.proc.signal ?? "none"}, timedOut=${initial.proc.timedOut}); retrying with same session.\n`,
-    );
-    const retry = await runAttempt(sessionId);
-    return toResult(retry);
+  // ── Generic session-resume retry loop ──────────────────────────────
+  // If a session fails with any error (disconnect, transient failure, etc.)
+  // retry resuming the same session up to 3 times with 60-second delays.
+  const MAX_SESSION_RETRIES = 3;
+  const SESSION_RETRY_INTERVAL_MS = 60_000;
+
+  if (sessionId && initialHasError) {
+    const initialLoginMeta = detectKimiLoginRequired({
+      stdout: initial.proc.stdout,
+      stderr: initial.proc.stderr,
+    });
+    const isPermanentFailure =
+      initialLoginMeta.requiresLogin || isKimiMaxTurnsResult(initial.parsed.errorMessage);
+
+    if (!isPermanentFailure) {
+      let lastAttempt = initial;
+      for (let attempt = 1; attempt <= MAX_SESSION_RETRIES; attempt++) {
+        await onLog(
+          "stdout",
+          `[crewspace] Kimi session "${sessionId}" failed (exit=${initial.proc.exitCode ?? "null"}, err=${initial.parsed.errorMessage ?? "none"}); waiting ${SESSION_RETRY_INTERVAL_MS / 1000}s before retry ${attempt}/${MAX_SESSION_RETRIES}...\n`,
+        );
+        await new Promise((r) => setTimeout(r, SESSION_RETRY_INTERVAL_MS));
+
+        const retry = await runAttempt(sessionId);
+        const retryHasError =
+          retry.proc.timedOut ||
+          (retry.proc.exitCode ?? 0) !== 0 ||
+          Boolean(retry.parsed.errorMessage);
+
+        if (!retryHasError) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi session "${sessionId}" resumed successfully on retry ${attempt}/${MAX_SESSION_RETRIES}.\n`,
+          );
+          return toResult(retry);
+        }
+
+        lastAttempt = retry;
+
+        // Stop retrying if the session became unknown or auth is required
+        if (isKimiUnknownSessionError(retry.proc.stdout, retry.rawStderr)) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi session "${sessionId}" became unavailable during retry; giving up.\n`,
+          );
+          break;
+        }
+        const retryLoginMeta = detectKimiLoginRequired({
+          stdout: retry.proc.stdout,
+          stderr: retry.proc.stderr,
+        });
+        if (retryLoginMeta.requiresLogin) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi auth required during retry; giving up.\n`,
+          );
+          break;
+        }
+        if (isKimiMaxTurnsResult(retry.parsed.errorMessage)) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi max turns reached during retry; giving up.\n`,
+          );
+          break;
+        }
+      }
+      return toResult(lastAttempt);
+    }
   }
 
   return toResult(initial);

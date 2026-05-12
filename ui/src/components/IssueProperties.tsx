@@ -44,6 +44,7 @@ interface IssuePropertiesProps {
   issue: Issue;
   onUpdate: (data: Record<string, unknown>) => void;
   inline?: boolean;
+  readOnly?: boolean;
 }
 
 function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -67,6 +68,7 @@ function PropertyPicker({
   popoverAlign = "end",
   extra,
   children,
+  readOnly,
 }: {
   inline?: boolean;
   label: string;
@@ -78,11 +80,23 @@ function PropertyPicker({
   popoverAlign?: "start" | "center" | "end";
   extra?: React.ReactNode;
   children: React.ReactNode;
+  readOnly?: boolean;
 }) {
   const btnCn = cn(
     "inline-flex items-center gap-1.5 cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 py-0.5 transition-colors",
     triggerClassName,
   );
+
+  if (readOnly) {
+    return (
+      <PropertyRow label={label}>
+        <span className={cn("inline-flex items-center gap-1.5", triggerClassName)}>
+          {triggerContent}
+        </span>
+        {extra}
+      </PropertyRow>
+    );
+  }
 
   if (inline) {
     return (
@@ -117,7 +131,7 @@ function PropertyPicker({
   );
 }
 
-export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProps) {
+export function IssueProperties({ issue, onUpdate, inline, readOnly }: IssuePropertiesProps) {
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
   const companyId = issue.companyId ?? selectedCompanyId;
@@ -494,7 +508,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
         <PropertyRow label="Status">
           <StatusIcon
             status={issue.status}
-            onChange={(status) => onUpdate({ status })}
+            onChange={readOnly ? undefined : (status) => onUpdate({ status })}
             showLabel
           />
         </PropertyRow>
@@ -502,7 +516,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
         <PropertyRow label="Priority">
           <PriorityIcon
             priority={issue.priority}
-            onChange={(priority) => onUpdate({ priority })}
+            onChange={readOnly ? undefined : (priority) => onUpdate({ priority })}
             showLabel
           />
         </PropertyRow>
@@ -515,6 +529,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
           triggerContent={labelsTrigger}
           triggerClassName="min-w-0 max-w-full"
           popoverClassName="w-64"
+          readOnly={readOnly}
         >
           {labelsContent}
         </PropertyPicker>
@@ -526,6 +541,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
           onOpenChange={(open) => { setAssigneeOpen(open); if (!open) setAssigneeSearch(""); }}
           triggerContent={assigneeTrigger}
           popoverClassName="w-52"
+          readOnly={readOnly}
           extra={issue.assigneeAgentId ? (
             <Link
               to={`/agents/${issue.assigneeAgentId}`}
@@ -547,6 +563,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
           triggerContent={projectTrigger}
           triggerClassName="min-w-0 max-w-full"
           popoverClassName="w-fit min-w-[11rem]"
+          readOnly={readOnly}
           extra={issue.projectId ? (
             <Link
               to={projectLink(issue.projectId)!}

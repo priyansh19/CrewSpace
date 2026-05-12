@@ -17,6 +17,8 @@ import {
   ToggleField,
   HintIcon
 } from "../components/agent-config-primitives";
+import { useCompanyRole } from "../hooks/useCompanyRole";
+import { canEditSettings } from "../lib/permissions";
 
 type AgentSnippetInput = {
   onboardingTextUrl: string;
@@ -33,6 +35,7 @@ export function CompanySettings() {
   } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const { pushToast } = useToast();
+  const { role } = useCompanyRole();
   const queryClient = useQueryClient();
   // General settings local state
   const [companyName, setCompanyName] = useState("");
@@ -218,6 +221,20 @@ export function CompanySettings() {
     return (
       <div className="text-sm text-muted-foreground">
         No company selected. Select a company from the switcher above.
+      </div>
+    );
+  }
+
+  if (!canEditSettings(role)) {
+    return (
+      <div className="max-w-2xl space-y-6">
+        <div className="flex items-center gap-2">
+          <Settings className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-lg font-semibold">Company Settings</h1>
+        </div>
+        <div className="rounded-lg border border-border px-4 py-6 text-sm text-muted-foreground">
+          You don't have permission to view company settings. Contact an owner or admin for access.
+        </div>
       </div>
     );
   }

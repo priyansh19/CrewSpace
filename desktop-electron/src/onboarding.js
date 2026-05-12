@@ -122,6 +122,11 @@ function initFeatures() {
     stopCarousel();
     goToStep(2);
   });
+
+  $("btn-features-back").addEventListener("click", () => {
+    stopCarousel();
+    goToStep(0);
+  });
 }
 
 // ── Step 2: Theme Picker ────────────────────────────────────────────
@@ -140,16 +145,21 @@ function initTheme() {
     await window.electronAPI.saveThemePreference(selectedTheme);
     goToStep(3);
   });
+
+  $("btn-theme-back").addEventListener("click", () => {
+    goToStep(1);
+    startCarousel();
+  });
 }
 
 // ── Step 3: Connect Services ────────────────────────────────────────
+let githubConnected = false;
+let kimiConnected = false;
+
 function collectAuthConfig() {
   return {
     github: {
-      appId: $("gh-app-id")?.value?.trim() || "",
-      privateKey: $("gh-private-key")?.value?.trim() || "",
-      clientId: $("gh-client-id")?.value?.trim() || "",
-      clientSecret: $("gh-client-secret")?.value?.trim() || "",
+      pat: $("gh-pat")?.value?.trim() || "",
     },
     kimi: {
       apiKey: $("kimi-api-key")?.value?.trim() || "",
@@ -157,7 +167,97 @@ function collectAuthConfig() {
   };
 }
 
+function updateGitHubStatus(connected) {
+  const statusEl = $("github-status");
+  if (!statusEl) return;
+  if (connected) {
+    statusEl.classList.add("connected");
+    statusEl.innerHTML = '<span class="status-dot"></span> Connected';
+  } else {
+    statusEl.classList.remove("connected");
+    statusEl.innerHTML = '<span class="status-dot"></span> Not connected';
+  }
+}
+
+function showGitHubConnected() {
+  githubConnected = true;
+  updateGitHubStatus(true);
+  $("pat-form").classList.add("hidden");
+  $("pat-connected").classList.remove("hidden");
+}
+
+function showGitHubDisconnected() {
+  githubConnected = false;
+  updateGitHubStatus(false);
+  $("gh-pat").value = "";
+  $("pat-form").classList.remove("hidden");
+  $("pat-connected").classList.add("hidden");
+}
+
+function updateKimiStatus(connected) {
+  const statusEl = $("kimi-status");
+  if (!statusEl) return;
+  if (connected) {
+    statusEl.classList.add("connected");
+    statusEl.innerHTML = '<span class="status-dot"></span> Connected';
+  } else {
+    statusEl.classList.remove("connected");
+    statusEl.innerHTML = '<span class="status-dot"></span> Not connected';
+  }
+}
+
+function showKimiConnected() {
+  kimiConnected = true;
+  updateKimiStatus(true);
+  $("kimi-form").classList.add("hidden");
+  $("kimi-connected").classList.remove("hidden");
+}
+
+function showKimiDisconnected() {
+  kimiConnected = false;
+  updateKimiStatus(false);
+  $("kimi-api-key").value = "";
+  $("kimi-form").classList.remove("hidden");
+  $("kimi-connected").classList.add("hidden");
+}
+
+async function loadExistingAuth() {
+  try {
+    const auth = await window.electronAPI.getGitHubAuthConfig();
+    if (auth?.pat) {
+      $("gh-pat").value = auth.pat;
+      showGitHubConnected();
+    }
+    if (auth?.apiKey) {
+      $("kimi-api-key").value = auth.apiKey;
+      showKimiConnected();
+    }
+  } catch (err) {
+    console.error("[onboarding] Failed to load existing auth:", err);
+  }
+}
+
 function initConnect() {
+  loadExistingAuth();
+
+  $("link-gh-tokens")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.electronAPI.openExternal("https://github.com/settings/tokens");
+  });
+
+  $("btn-gh-disconnect")?.addEventListener("click", () => {
+    showGitHubDisconnected();
+  });
+
+  $("link-kimi-keys")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.electronAPI.openExternal("https://platform.moonshot.cn");
+  });
+
+  $("btn-kimi-disconnect")?.addEventListener("click", () => {
+    showKimiDisconnected();
+  });
+
   $("btn-connect-save").addEventListener("click", async () => {
     const btn = $("btn-connect-save");
     btn.disabled = true;
@@ -165,7 +265,10 @@ function initConnect() {
 
     try {
       const auth = collectAuthConfig();
-      await window.electronAPI.saveAuthConfig(auth);
+      if (auth.github.pat) {
+        await window.electronAPI.saveAuthConfig(auth);
+        await window.electronAPI.restartServerWithAuth();
+      }
       goToStep(4);
       runLaunchSequence();
     } catch (err) {
@@ -178,6 +281,10 @@ function initConnect() {
   $("btn-connect-skip").addEventListener("click", () => {
     goToStep(4);
     runLaunchSequence();
+  });
+
+  $("btn-connect-back").addEventListener("click", () => {
+    goToStep(2);
   });
 }
 
@@ -200,19 +307,25 @@ async function runLaunchSequence() {
     detail.textContent = step.text;
   }
 
-  // Mark first run complete
-  await window.electronAPI.markFirstRunComplete();
-
-  // Wait a moment then navigate
-  await sleep(600);
-
+  detail.textContent = "Finalizing setup...";
   try {
-    const serverUrl = await window.electronAPI.getServerUrl();
-    window.location.replace(serverUrl);
+    const result = await window.electronAPI.completeOnboarding({
+      theme: selectedTheme,
+      auth: collectAuthConfig(),
+    });
+    if (result.restored) {
+      detail.textContent = "Backup restored. Launching...";
+      await sleep(400);
+    }
+    if (result.serverUrl) {
+      window.location.replace(result.serverUrl);
+    } else {
+      window.location.reload();
+    }
   } catch (err) {
-    detail.textContent = "Redirecting...";
+    console.error("[onboarding] Launch failed:", err);
+    detail.textContent = "Launching...";
     await sleep(500);
-    // Fallback: reload to let the normal loading screen take over
     window.location.reload();
   }
 }
@@ -224,14 +337,13 @@ async function run() {
   initTheme();
   initConnect();
 
-  // Start background server health polling early so it's ready by step 4
   pollServerHealthInBackground();
 }
 
 async function pollServerHealthInBackground() {
   const serverUrl = await window.electronAPI.getServerUrl();
   let attempts = 0;
-  const maxAttempts = 240; // 2 minutes
+  const maxAttempts = 240;
 
   while (attempts < maxAttempts) {
     try {

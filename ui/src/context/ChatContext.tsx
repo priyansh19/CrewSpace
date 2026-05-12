@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useCompany } from "./CompanyContext";
 import { chatSessionsApi } from "../api/chatSessions";
+import { streamAgentChat } from "../lib/agentChat";
+import type { Agent } from "@crewspaceai/shared";
 
 const MAX_SESSIONS = 50;
 
@@ -38,9 +40,19 @@ export interface ChatSession {
   name?: string;
 }
 
+export interface ChatStream {
+  streamId: string;
+  sessionId: string;
+  agentId: string;
+  content: string;
+  status: "streaming" | "error";
+  error?: string;
+}
+
 interface ChatContextValue {
   sessions: ChatSession[];
   activeSessionId: string | null;
+  streams: ChatStream[];
   setActiveSessionId: (id: string | null) => void;
   openChatWithAgent: (agent: ChatParticipant) => void;
   openChatWithAgents: (agents: ChatParticipant[]) => void;
@@ -48,13 +60,15 @@ interface ChatContextValue {
   deleteSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
   persistMessage: (sessionId: string, role: string, content: string, agentId?: string | null, attachments?: ChatAttachment[]) => void;
+  sendMessage: (sessionId: string, text: string, attachments?: ChatAttachment[]) => Promise<void>;
+  abortStream: (sessionId: string) => void;
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-function isServerSession(id: string) {
+export function isServerSession(id: string) {
   return !id.startsWith("session-");
 }
 
@@ -79,6 +93,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [streams, setStreams] = useState<ChatStream[]>([]);
+
+  const sessionsRef = useRef(sessions);
+  useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
+
+  const streamsRef = useRef(streams);
+  useEffect(() => { streamsRef.current = streams; }, [streams]);
 
   // Load sessions from server when company changes
   useEffect(() => {
@@ -255,11 +276,112 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const sendMessage = useCallback(
+    async (sessionId: string, text: string, attachments?: ChatAttachment[]) => {
+      const session = sessionsRef.current.find((s) => s.id === sessionId);
+      if (!session) return;
+
+      // Gate: don't start a new message while this session is already streaming
+      const isStreaming = streamsRef.current.some(
+        (s) => s.sessionId === sessionId && s.status === "streaming",
+      );
+      if (isStreaming) return;
+
+      // 1. Add user message to session
+      const userMsg: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: text,
+        attachments,
+        ts: new Date(),
+      };
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, messages: [...s.messages, userMsg], updatedAt: new Date() }
+            : s,
+        ),
+      );
+      if (isServerSession(sessionId)) {
+        persistMessage(sessionId, "user", text, undefined, attachments);
+      }
+
+      const history = [...session.messages, userMsg];
+
+      // 2. Stream for each participant sequentially
+      for (const agent of session.participants) {
+        const streamId = `stream-${agent.id}-${Date.now()}`;
+        setStreams((prev) => [
+          ...prev,
+          { streamId, sessionId, agentId: agent.id, content: "", status: "streaming" },
+        ]);
+
+        let finalContent = "";
+        try {
+          const result = await streamAgentChat(
+            agent as unknown as Agent,
+            history,
+            selectedCompanyId ?? undefined,
+            undefined,
+            (partial) => {
+              setStreams((prev) =>
+                prev.map((s) =>
+                  s.streamId === streamId ? { ...s, content: partial } : s,
+                ),
+              );
+            },
+          );
+          finalContent = result;
+        } catch (e) {
+          const errMsg = e instanceof Error ? e.message : String(e);
+          setStreams((prev) =>
+            prev.map((s) =>
+              s.streamId === streamId ? { ...s, status: "error", error: errMsg } : s,
+            ),
+          );
+          // Remove error stream after a short delay
+          setTimeout(() => {
+            setStreams((prev) => prev.filter((s) => s.streamId !== streamId));
+          }, 3000);
+          continue;
+        }
+
+        // 3. Add final agent message to session
+        const agentMsg: ChatMessage = {
+          id: `agent-${agent.id}-${Date.now()}`,
+          role: "agent",
+          agentId: agent.id,
+          content: finalContent,
+          ts: new Date(),
+        };
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === sessionId
+              ? { ...s, messages: [...s.messages, agentMsg], updatedAt: new Date() }
+              : s,
+          ),
+        );
+        if (isServerSession(sessionId) && finalContent.trim()) {
+          persistMessage(sessionId, "agent", finalContent, agent.id);
+        }
+
+        // 4. Remove completed stream
+        setStreams((prev) => prev.filter((s) => s.streamId !== streamId));
+      }
+    },
+    [selectedCompanyId, persistMessage],
+  );
+
+  const abortStream = useCallback((sessionId: string) => {
+    setStreams((prev) => prev.filter((s) => s.sessionId !== sessionId));
+  }, []);
+
   return (
     <ChatContext.Provider
       value={{
         sessions,
         activeSessionId,
+        streams,
         setActiveSessionId,
         openChatWithAgent,
         openChatWithAgents,
@@ -267,6 +389,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         deleteSession,
         renameSession,
         persistMessage,
+        sendMessage,
+        abortStream,
         isChatOpen,
         setIsChatOpen,
       }}

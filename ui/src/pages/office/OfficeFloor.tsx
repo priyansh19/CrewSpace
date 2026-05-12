@@ -3,6 +3,7 @@ import { Clone, Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMemo, useEffect, useRef } from "react";
 import { useOfficeStore } from "@/stores/officeStore";
+import { useTheme } from "@/context/ThemeContext";
 import Room from "./Room";
 import Furniture from "./Furniture";
 import Plants from "./Plants";
@@ -285,6 +286,8 @@ const ParkedCar = ({
   rot?: number;
   car: (typeof CAR_MODELS)[number];
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const { scene } = useGLTF(car.path);
 
   const { carScene, fitted } = useMemo(() => {
@@ -346,9 +349,11 @@ const ParkedCar = ({
         <primitive object={carScene} />
       </group>
       <Html position={[0, car.labelY, 0]} center distanceFactor={28} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
-        <div style={{ fontSize: "6px", color: "#ffffff", background: "rgba(0,0,0,0.55)",
+        <div style={{
+          fontSize: "6px", color: "#ffffff", background: isDark ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.55)",
           padding: "1px 5px", borderRadius: "2px", fontFamily: "monospace",
-          letterSpacing: "0.06em", whiteSpace: "nowrap", fontWeight: 700 }}>
+          letterSpacing: "0.06em", whiteSpace: "nowrap", fontWeight: 700,
+        }}>
           {car.name}
         </div>
       </Html>
@@ -506,6 +511,8 @@ const HALLWAY_PATHS: [number,number,number,number][] = [
 // Building spans x: -25→45, z: -19→19. Courtyard z: 19→45.
 
 const OfficeFloor = () => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const bw = 70, bd = 38, wh = 3, wt = 0.12, cx = 10, cz = 0;
   const plazaD = 26, plazaCZ = (19 + 45) / 2;
 
@@ -553,8 +560,10 @@ const OfficeFloor = () => {
                   <meshStandardMaterial color="#e8dcc8" roughness={0.85} />
                 </mesh>
                 <Html position={[pos.x,3.2,pos.z]} center distanceFactor={20} style={{ pointerEvents:"none" }} zIndexRange={[0, 0]}>
-                  <div style={{ fontSize:"11px",letterSpacing:"0.08em",padding:"2px 10px",borderRadius:"5px",
-                    color:"#5a4a3a",background:"#faf5ee",border:`2px solid ${room.accentColor}`,
+                  <div style={{
+                    fontSize:"11px",letterSpacing:"0.08em",padding:"2px 10px",borderRadius:"5px",
+                    color: isDark ? "#faf9f5" : "#5a4a3a", background: isDark ? "#252320" : "#faf5ee",
+                    border:`2px solid ${room.accentColor}`,
                     fontWeight:600,fontFamily:"system-ui" }}>
                     {room.label}
                   </div>

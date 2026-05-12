@@ -138,6 +138,8 @@ function spawnServer(port) {
     // Production: use bundled Node.js to run the prepared server
     execPath = process.execPath;
     args = [serverEntry];
+    // Electron executable acts as Node.js when this env var is set
+    env.ELECTRON_RUN_AS_NODE = "1";
     console.log("[CrewSpace Desktop] Using bundled server (node + prepared server)");
   }
 
@@ -183,7 +185,7 @@ function spawnServer(port) {
 
   proc.on("close", (code) => {
     console.log(`[CrewSpace Desktop] Server exited with code ${code}`);
-    if (!isQuitting && mainWindow) {
+    if (!isQuitting && !isRestarting && mainWindow) {
       mainWindow.webContents.send("server-crashed", code);
     }
   });
@@ -199,6 +201,8 @@ function spawnServer(port) {
 }
 
 // ── Kill server ─────────────────────────────────────────────────────
+let isRestarting = false;
+
 function killServer() {
   if (!serverProcess) return;
   console.log("[CrewSpace Desktop] Killing server...");
@@ -214,6 +218,77 @@ function killServer() {
       // Already dead
     }
   }, 5000);
+}
+
+async function waitForServerDeath(timeoutMs = 10000) {
+  if (!serverProcess) return true;
+  const start = Date.now();
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!serverProcess || serverProcess.killed || (Date.now() - start > timeoutMs)) {
+        resolve(true);
+        return;
+      }
+      try {
+        process.kill(serverProcess.pid, 0);
+        setTimeout(check, 200);
+      } catch {
+        resolve(true);
+      }
+    };
+    check();
+  });
+}
+
+// ── Backup restore ──────────────────────────────────────────────────
+function getBackupDir() {
+  return path.join(getAppDataDir(), "instances", "default", "data", "backups");
+}
+
+function findLatestBackup() {
+  const backupDir = getBackupDir();
+  if (!fs.existsSync(backupDir)) return null;
+  const files = fs.readdirSync(backupDir)
+    .filter((f) => f.endsWith(".sql") && f.startsWith("crewspace-"))
+    .map((f) => ({ name: f, path: path.join(backupDir, f), mtime: fs.statSync(path.join(backupDir, f)).mtime }))
+    .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+  return files.length > 0 ? files[0] : null;
+}
+
+function writeRestoreSentinel(backupFilename) {
+  const backupDir = getBackupDir();
+  fs.mkdirSync(backupDir, { recursive: true });
+  fs.writeFileSync(path.join(backupDir, "RESTORE_ON_NEXT_BOOT"), backupFilename, "utf-8");
+  console.log(`[CrewSpace Desktop] Restore sentinel written for: ${backupFilename}`);
+}
+
+function extractPortFromUrl(url) {
+  if (!url) return SERVER_PORT;
+  try {
+    return Number(new URL(url).port) || SERVER_PORT;
+  } catch {
+    const parts = url.split(":");
+    const last = parts.pop();
+    const port = Number(last);
+    return Number.isNaN(port) ? SERVER_PORT : port;
+  }
+}
+
+async function respawnServerWithRestore() {
+  isRestarting = true;
+  try {
+    killServer();
+    await waitForServerDeath();
+    serverProcess = null;
+
+    const port = extractPortFromUrl(serverUrl);
+    // Spawn fresh server — it will read the sentinel and restore on boot
+    serverProcess = spawnServer(port);
+
+    return await waitForServer(port);
+  } finally {
+    isRestarting = false;
+  }
 }
 
 // ── Health check ────────────────────────────────────────────────────
@@ -556,6 +631,43 @@ ipcMain.handle("mark-first-run-complete", () => {
   }
 });
 
+ipcMain.handle("complete-onboarding", async (_event, payload) => {
+  try {
+    const { theme, auth } = payload || {};
+
+    // Save preferences
+    if (theme) saveThemePreference(theme);
+    if (auth) saveAuthConfig(auth);
+    markFirstRunComplete();
+
+    // Inject updated auth env into the running server
+    const newEnv = authConfigToEnv(getAuthConfig());
+    if (Object.keys(newEnv).length > 0) {
+      console.log("[CrewSpace Desktop] Auth config saved. New credentials will be active on next server start.");
+    }
+
+    // Check for latest backup
+    const latestBackup = findLatestBackup();
+    let restored = false;
+
+    if (latestBackup) {
+      console.log(`[CrewSpace Desktop] Found backup: ${latestBackup.name}`);
+      writeRestoreSentinel(latestBackup.name);
+      const ok = await respawnServerWithRestore();
+      if (!ok) {
+        console.error("[CrewSpace Desktop] Server failed to come back up after restore.");
+        return { success: false, error: "Server restart failed after restore", serverUrl: null, restored: false };
+      }
+      restored = true;
+    }
+
+    return { success: true, serverUrl, restored };
+  } catch (err) {
+    console.error("[CrewSpace Desktop] complete-onboarding failed:", err);
+    return { success: false, error: err.message, serverUrl: null, restored: false };
+  }
+});
+
 ipcMain.on("open-external", (_event, url) => {
   shell.openExternal(url);
 });
@@ -563,6 +675,32 @@ ipcMain.on("open-external", (_event, url) => {
 ipcMain.on("quit-app", () => {
   isQuitting = true;
   app.quit();
+});
+
+// ── GitHub Auth IPC handlers ────────────────────────────────────────
+
+/** Read current GitHub auth from desktop-config. */
+ipcMain.handle("get-github-auth-config", () => {
+  const auth = getAuthConfig();
+  return auth?.github || null;
+});
+
+/** Restart the server with the latest auth env vars. */
+ipcMain.handle("restart-server-with-auth", async () => {
+  isRestarting = true;
+  try {
+    killServer();
+    await waitForServerDeath();
+    serverProcess = null;
+    const port = extractPortFromUrl(serverUrl);
+    serverProcess = spawnServer(port);
+    const ok = await waitForServer(port);
+    return { success: ok, serverUrl };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    isRestarting = false;
+  }
 });
 
 // Window control IPC handlers
