@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useOfficeStore } from "@/stores/officeStore";
+import { useCompany } from "@/context/CompanyContext";
 import OfficeScene from "./office/OfficeScene";
 import LiveDataBridge from "./office/LiveDataBridge";
 import { AgentListPanel } from "./office/AgentListPanel";
-import { Users, Wifi, WifiOff } from "lucide-react";
+import { Users, Wifi, WifiOff, Loader2 } from "lucide-react";
 
 export function Office() {
   const liveMode        = useOfficeStore((s) => s.liveMode);
@@ -11,11 +12,19 @@ export function Office() {
   const officeAgents    = useOfficeStore((s) => s.officeAgents);
   const selectedAgentId = useOfficeStore((s) => s.selectedAgentId);
   const selectAgent     = useOfficeStore((s) => s.selectAgent);
+  const { selectedCompanyId } = useCompany();
 
   const workingCount = useMemo(
     () => officeAgents.filter((a) => a.status === "working" || a.status === "collaborating" || a.status === "meeting").length,
     [officeAgents],
   );
+
+  const agentCountLabel = useMemo(() => {
+    if (!selectedCompanyId) return "No company";
+    if (!liveMode) return "Loading…";
+    const count = agents.length > 0 ? agents.length : officeAgents.length;
+    return count === 0 ? "No agents" : `${count} agents`;
+  }, [agents.length, officeAgents.length, liveMode, selectedCompanyId]);
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-background">
@@ -31,11 +40,11 @@ export function Office() {
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-background/90 text-muted-foreground backdrop-blur border border-border/40">
           {liveMode
             ? <Wifi    className="h-3.5 w-3.5 text-green-500" />
-            : <WifiOff className="h-3.5 w-3.5 text-yellow-500" />}
-          <span>{liveMode ? "Live" : "Demo"}</span>
+            : <Loader2 className="h-3.5 w-3.5 text-yellow-500 animate-spin" />}
+          <span>{liveMode ? "Live" : "Loading"}</span>
           <span className="opacity-50">·</span>
           <Users className="h-3.5 w-3.5" />
-          <span>{agents.length > 0 ? agents.length : officeAgents.length} agents</span>
+          <span>{agentCountLabel}</span>
         </div>
       </div>
 

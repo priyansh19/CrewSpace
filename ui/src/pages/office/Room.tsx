@@ -1,6 +1,7 @@
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { memo, useMemo } from "react";
+import { useTheme } from "@/context/ThemeContext";
 
 interface RoomProps {
   position: [number, number, number];
@@ -157,6 +158,8 @@ const Room = ({
   doorOffsets = [0],
   backDoorOffsets = [],
 }: RoomProps) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const halfW = width / 2;
   const halfD = depth / 2;
 
@@ -208,15 +211,15 @@ const Room = ({
       </mesh>
 
       {/* Room label */}
-      <Html position={[0, wallHeight + 0.7, 0]} center distanceFactor={20} style={{ pointerEvents: "none" }}>
+      <Html position={[0, wallHeight + 0.7, 0]} center distanceFactor={20} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
         <div
           style={{
             fontSize: "11px",
             letterSpacing: "0.08em",
             padding: "2px 10px",
             borderRadius: "5px",
-            color: "#5a4a3a",
-            background: "#faf5ee",
+            color: isDark ? "#faf9f5" : "#5a4a3a",
+            background: isDark ? "#252320" : "#faf5ee",
             border: `2px solid ${accentColor}`,
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
             fontWeight: 600,

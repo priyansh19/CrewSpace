@@ -454,7 +454,9 @@ export async function startServer(): Promise<StartedServer> {
     startupDbInfo = { mode: "embedded-postgres", dataDir, port };
   }
   
-  if (config.deploymentMode === "local_trusted" && !isLoopbackHost(config.host)) {
+  const isWildcardBind = config.host === "0.0.0.0" || config.host === "::";
+  const isDesktopMode = process.env.CREWSPACE_DESKTOP_MODE === "1";
+  if (config.deploymentMode === "local_trusted" && !isLoopbackHost(config.host) && !(isDesktopMode && isWildcardBind)) {
     throw new Error(
       `local_trusted mode requires loopback host binding (received: ${config.host}). ` +
         "Use authenticated mode for non-loopback deployments.",
@@ -665,6 +667,7 @@ export async function startServer(): Promise<StartedServer> {
           connectionString: activeDatabaseConnectionString,
           backupDir: config.databaseBackupDir,
           retentionDays: config.databaseBackupRetentionDays,
+          retentionCount: config.databaseBackupRetentionCount,
           filenamePrefix: "crewspace",
         });
         logger.info(
@@ -688,6 +691,7 @@ export async function startServer(): Promise<StartedServer> {
       {
         intervalMinutes: config.databaseBackupIntervalMinutes,
         retentionDays: config.databaseBackupRetentionDays,
+        retentionCount: config.databaseBackupRetentionCount,
         backupDir: config.databaseBackupDir,
       },
       "Automatic database backups enabled",
@@ -707,7 +711,7 @@ export async function startServer(): Promise<StartedServer> {
     server.listen(listenPort, config.host, () => {
       server.off("error", onError);
       logger.info(`Server listening on ${config.host}:${listenPort}`);
-      if (process.env.CREWSPACE_OPEN_ON_LISTEN === "true") {
+      if (process.env.CREWSPACE_OPEN_ON_LISTEN === "true" && process.env.CREWSPACE_DESKTOP_MODE !== "1") {
         const openHost = config.host === "0.0.0.0" || config.host === "::" ? "127.0.0.1" : config.host;
         const url = `http://${openHost}:${listenPort}`;
         void import("open")
@@ -719,38 +723,40 @@ export async function startServer(): Promise<StartedServer> {
             logger.warn({ err, url }, "Failed to open browser on startup");
           });
       }
-      printStartupBanner({
-        host: config.host,
-        deploymentMode: config.deploymentMode,
-        deploymentExposure: config.deploymentExposure,
-        authReady,
-        requestedPort: config.port,
-        listenPort,
-        uiMode,
-        db: startupDbInfo,
-        migrationSummary,
-        heartbeatSchedulerEnabled: config.heartbeatSchedulerEnabled,
-        heartbeatSchedulerIntervalMs: config.heartbeatSchedulerIntervalMs,
-        databaseBackupEnabled: config.databaseBackupEnabled,
-        databaseBackupIntervalMinutes: config.databaseBackupIntervalMinutes,
-        databaseBackupRetentionDays: config.databaseBackupRetentionDays,
-        databaseBackupDir: config.databaseBackupDir,
-      });
+      if (process.env.CREWSPACE_DESKTOP_MODE !== "1") {
+        printStartupBanner({
+          host: config.host,
+          deploymentMode: config.deploymentMode,
+          deploymentExposure: config.deploymentExposure,
+          authReady,
+          requestedPort: config.port,
+          listenPort,
+          uiMode,
+          db: startupDbInfo,
+          migrationSummary,
+          heartbeatSchedulerEnabled: config.heartbeatSchedulerEnabled,
+          heartbeatSchedulerIntervalMs: config.heartbeatSchedulerIntervalMs,
+          databaseBackupEnabled: config.databaseBackupEnabled,
+          databaseBackupIntervalMinutes: config.databaseBackupIntervalMinutes,
+          databaseBackupRetentionDays: config.databaseBackupRetentionDays,
+          databaseBackupDir: config.databaseBackupDir,
+        });
 
-      const boardClaimUrl = getBoardClaimWarningUrl(config.host, listenPort);
-      if (boardClaimUrl) {
-        const red = "\x1b[41m\x1b[30m";
-        const yellow = "\x1b[33m";
-        const reset = "\x1b[0m";
-        console.log(
-          [
-            `${red}  BOARD CLAIM REQUIRED  ${reset}`,
-            `${yellow}This instance was previously local_trusted and still has local-board as the only admin.${reset}`,
-            `${yellow}Sign in with a real user and open this one-time URL to claim ownership:${reset}`,
-            `${yellow}${boardClaimUrl}${reset}`,
-            `${yellow}If you are connecting over Tailscale, replace the host in this URL with your Tailscale IP/MagicDNS name.${reset}`,
-          ].join("\n"),
-        );
+        const boardClaimUrl = getBoardClaimWarningUrl(config.host, listenPort);
+        if (boardClaimUrl) {
+          const red = "\x1b[41m\x1b[30m";
+          const yellow = "\x1b[33m";
+          const reset = "\x1b[0m";
+          console.log(
+            [
+              `${red}  BOARD CLAIM REQUIRED  ${reset}`,
+              `${yellow}This instance was previously local_trusted and still has local-board as the only admin.${reset}`,
+              `${yellow}Sign in with a real user and open this one-time URL to claim ownership:${reset}`,
+              `${yellow}${boardClaimUrl}${reset}`,
+              `${yellow}If you are connecting over Tailscale, replace the host in this URL with your Tailscale IP/MagicDNS name.${reset}`,
+            ].join("\n"),
+          );
+        }
       }
 
       resolveListen();

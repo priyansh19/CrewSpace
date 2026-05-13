@@ -26,6 +26,7 @@ import { Costs } from "./pages/Costs";
 import { Activity } from "./pages/Activity";
 import { Inbox } from "./pages/Inbox";
 import { CompanySettings } from "./pages/CompanySettings";
+import { CompanyMembers } from "./pages/CompanyMembers";
 import { CompanySkills } from "./pages/CompanySkills";
 import { CompanyExport } from "./pages/CompanyExport";
 import { CompanyImport } from "./pages/CompanyImport";
@@ -46,6 +47,7 @@ import { Blockers } from "./pages/Blockers";
 import { CeoTerminal } from "./pages/CeoTerminal";
 import { SharedWorkspace } from "./pages/SharedWorkspace";
 import { TaskboardV2 } from "./pages/TaskboardV2";
+import { Queues } from "./pages/Queues";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
@@ -138,6 +140,7 @@ function boardRoutes() {
       <Route path="companies" element={<Companies />} />
       <Route path="archived-companies" element={<ArchivedCompanies />} />
       <Route path="company/settings" element={<CompanySettings />} />
+      <Route path="company/members" element={<CompanyMembers />} />
       <Route path="company/export/*" element={<CompanyExport />} />
       <Route path="company/import" element={<CompanyImport />} />
       <Route path="skills/*" element={<CompanySkills />} />
@@ -152,6 +155,7 @@ function boardRoutes() {
       <Route path="workspace" element={<SharedWorkspace />} />
       <Route path="blockers" element={<Blockers />} />
       <Route path="taskboard" element={<TaskboardV2 />} />
+      <Route path="queues" element={<Queues />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />
       <Route path="agents/all" element={<Agents />} />
       <Route path="agents/active" element={<Agents />} />

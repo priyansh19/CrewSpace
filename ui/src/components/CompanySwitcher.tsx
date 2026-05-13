@@ -1,6 +1,8 @@
 import { ChevronsUpDown, Plus, Settings } from "lucide-react";
 import { Link } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
+import { useCompanyRole } from "../hooks/useCompanyRole";
+import { canEditSettings } from "../lib/permissions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +28,7 @@ function statusDotColor(status?: string): string {
 
 export function CompanySwitcher() {
   const { companies, selectedCompany, setSelectedCompanyId } = useCompany();
+  const { role } = useCompanyRole();
   const sidebarCompanies = companies.filter((company) => company.status !== "archived");
 
   return (
@@ -63,12 +66,14 @@ export function CompanySwitcher() {
           <DropdownMenuItem disabled>No companies</DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/company/settings" className="no-underline text-inherit">
-            <Settings className="h-4 w-4 mr-2" />
-            Company Settings
-          </Link>
-        </DropdownMenuItem>
+        {canEditSettings(role) && (
+          <DropdownMenuItem asChild>
+            <Link to="/company/settings" className="no-underline text-inherit">
+              <Settings className="h-4 w-4 mr-2" />
+              Company Settings
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link to="/companies" className="no-underline text-inherit">
             <Plus className="h-4 w-4 mr-2" />

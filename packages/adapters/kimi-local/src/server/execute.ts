@@ -23,7 +23,7 @@ import {
   runChildProcess,
   sanitizeCwd,
 } from "@crewspaceai/adapter-utils/server-utils";
-import { cleanKimiStderr, isKimiUnknownSessionError, parseKimiJsonl } from "./parse.js";
+import { cleanKimiStderr, detectKimiLoginRequired, isKimiUnknownSessionError, isKimiMaxTurnsResult, parseKimiJsonl } from "./parse.js";
 import { ensureKimiSkillsInjected } from "./skills.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -37,9 +37,15 @@ function firstNonEmptyLine(text: string): string {
   );
 }
 
-function resolveKimiBillingType(_env: Record<string, string>): "subscription" {
-  // Kimi local adapter always uses interactive/session auth.
-  return "subscription";
+function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean {
+  const raw = env[key];
+  return typeof raw === "string" && raw.trim().length > 0;
+}
+
+function resolveKimiBillingType(env: Record<string, string>): "api" | "subscription" {
+  return hasNonEmptyEnvValue(env, "KIMI_API_KEY") || hasNonEmptyEnvValue(env, "MOONSHOT_API_KEY")
+    ? "api"
+    : "subscription";
 }
 
 function parseModelProvider(model: string | null): string | null {
@@ -135,6 +141,51 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     env.CREWSPACE_API_KEY = authToken;
   }
 
+  // Force Python UTF-8 mode on Windows so Kimi CLI doesn't crash when
+  // outputting Unicode characters (emojis, CJK text, etc.).
+  env.PYTHONIOENCODING = "utf-8";
+  env.PYTHONUTF8 = "1";
+
+  // Isolate Kimi share dir per agent to avoid concurrent write conflicts on
+  // ~/.kimi/kimi.json when multiple agents run simultaneously.
+  const kimiShareDir = path.join(os.tmpdir(), "crewspace-kimi", agent.companyId, agent.id);
+  env.KIMI_SHARE_DIR = kimiShareDir;
+  try {
+    const defaultKimiDir = path.join(os.homedir(), ".kimi");
+    const defaultConfigPath = path.join(defaultKimiDir, "config.toml");
+    const agentConfigPath = path.join(kimiShareDir, "config.toml");
+    const defaultConfigExists = await fs.stat(defaultConfigPath).then(() => true).catch(() => false);
+    const agentConfigExists = await fs.stat(agentConfigPath).then(() => true).catch(() => false);
+    if (defaultConfigExists) {
+      await fs.mkdir(kimiShareDir, { recursive: true });
+      if (!agentConfigExists) {
+        await fs.copyFile(defaultConfigPath, agentConfigPath);
+      }
+      // Always sync auth credentials so isolated share dir can authenticate.
+      const defaultCredentialsDir = path.join(defaultKimiDir, "credentials");
+      const agentCredentialsDir = path.join(kimiShareDir, "credentials");
+      const defaultCredentialsExists = await fs.stat(defaultCredentialsDir).then(() => true).catch(() => false);
+      if (defaultCredentialsExists) {
+        await fs.mkdir(agentCredentialsDir, { recursive: true });
+        for (const entry of await fs.readdir(defaultCredentialsDir, { withFileTypes: true })) {
+          const src = path.join(defaultCredentialsDir, entry.name);
+          const dst = path.join(agentCredentialsDir, entry.name);
+          if (entry.isFile()) {
+            await fs.copyFile(src, dst);
+          }
+        }
+      }
+      const defaultKimiJson = path.join(defaultKimiDir, "kimi.json");
+      const agentKimiJson = path.join(kimiShareDir, "kimi.json");
+      const defaultKimiJsonExists = await fs.stat(defaultKimiJson).then(() => true).catch(() => false);
+      if (defaultKimiJsonExists) {
+        await fs.copyFile(defaultKimiJson, agentKimiJson);
+      }
+    }
+  } catch {
+    // Best-effort config copy; Kimi will create defaults if missing.
+  }
+
   const runtimeEnv = Object.fromEntries(
     Object.entries(ensurePathInEnv({ ...process.env, ...env })).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
@@ -142,6 +193,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   );
 
   const billingType = resolveKimiBillingType(runtimeEnv);
+  if (billingType === "subscription") {
+    // Subscription mode requires `kimi login` interactive auth.
+    // In non-interactive --print mode this will hang on OAuth/device flow.
+    // We still allow it (the user may have run login already), but we log a warning.
+    await onLog(
+      "stdout",
+      "[crewspace] Warning: No KIMI_API_KEY or MOONSHOT_API_KEY detected. " +
+        "Kimi CLI will use interactive/session auth. If the run hangs, run `kimi login` or set an API key.\n",
+    );
+  }
 
   await ensureCommandResolvable(command, cwd, runtimeEnv);
   const resolvedCommand = await resolveCommandForLogs(command, cwd, runtimeEnv);
@@ -336,6 +397,17 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     },
     clearSessionOnMissingSession = false,
   ): AdapterExecutionResult => {
+    const loginMeta = detectKimiLoginRequired({
+      stdout: attempt.proc.stdout,
+      stderr: attempt.proc.stderr,
+    });
+    const errorMeta =
+      loginMeta.loginUrl != null
+        ? {
+            loginUrl: loginMeta.loginUrl,
+          }
+        : undefined;
+
     if (attempt.proc.timedOut) {
       return {
         exitCode: attempt.proc.exitCode,
@@ -343,6 +415,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         timedOut: true,
         errorMessage: `Timed out after ${timeoutSec}s`,
         clearSession: clearSessionOnMissingSession,
+        errorCode: loginMeta.requiresLogin ? "kimi_auth_required" : null,
+        errorMeta,
       };
     }
 
@@ -369,11 +443,15 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       `Kimi exited with code ${synthesizedExitCode ?? -1}`;
     const modelId = model || null;
 
+    const clearSessionForMaxTurns = isKimiMaxTurnsResult(attempt.parsed.errorMessage);
+
     return {
       exitCode: synthesizedExitCode,
       signal: attempt.proc.signal,
       timedOut: false,
       errorMessage: (synthesizedExitCode ?? 0) === 0 ? null : fallbackErrorMessage,
+      errorCode: loginMeta.requiresLogin ? "kimi_auth_required" : null,
+      errorMeta,
       usage: {
         inputTokens: attempt.parsed.usage.inputTokens,
         outputTokens: attempt.parsed.usage.outputTokens,
@@ -392,7 +470,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         stderr: attempt.proc.stderr,
       },
       summary: attempt.parsed.summary,
-      clearSession: Boolean(clearSessionOnMissingSession && !attempt.parsed.sessionId),
+      clearSession: clearSessionForMaxTurns || Boolean(clearSessionOnMissingSession && !attempt.parsed.sessionId),
     };
   };
 
@@ -402,7 +480,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     (initial.proc.exitCode ?? 0) !== 0 ||
     Boolean(initial.parsed.errorMessage);
 
-  // Unknown session → retry once with a fresh session.
+  // Unknown session → retry once immediately with a fresh session.
   if (
     sessionId &&
     initialHasError &&
@@ -416,15 +494,74 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     return toResult(retry, true);
   }
 
-  // Interrupted run (signal kill or timeout) → retry once with the SAME session.
-  const looksLikeInterrupt = initial.proc.signal !== null || initial.proc.timedOut;
-  if (sessionId && initialHasError && looksLikeInterrupt) {
-    await onLog(
-      "stdout",
-      `[crewspace] Kimi session "${sessionId}" was interrupted (signal=${initial.proc.signal ?? "none"}, timedOut=${initial.proc.timedOut}); retrying with same session.\n`,
-    );
-    const retry = await runAttempt(sessionId);
-    return toResult(retry);
+  // ── Generic session-resume retry loop ──────────────────────────────
+  // If a session fails with any error (disconnect, transient failure, etc.)
+  // retry resuming the same session up to 3 times with 60-second delays.
+  const MAX_SESSION_RETRIES = 3;
+  const SESSION_RETRY_INTERVAL_MS = 60_000;
+
+  if (sessionId && initialHasError) {
+    const initialLoginMeta = detectKimiLoginRequired({
+      stdout: initial.proc.stdout,
+      stderr: initial.proc.stderr,
+    });
+    const isPermanentFailure =
+      initialLoginMeta.requiresLogin || isKimiMaxTurnsResult(initial.parsed.errorMessage);
+
+    if (!isPermanentFailure) {
+      let lastAttempt = initial;
+      for (let attempt = 1; attempt <= MAX_SESSION_RETRIES; attempt++) {
+        await onLog(
+          "stdout",
+          `[crewspace] Kimi session "${sessionId}" failed (exit=${initial.proc.exitCode ?? "null"}, err=${initial.parsed.errorMessage ?? "none"}); waiting ${SESSION_RETRY_INTERVAL_MS / 1000}s before retry ${attempt}/${MAX_SESSION_RETRIES}...\n`,
+        );
+        await new Promise((r) => setTimeout(r, SESSION_RETRY_INTERVAL_MS));
+
+        const retry = await runAttempt(sessionId);
+        const retryHasError =
+          retry.proc.timedOut ||
+          (retry.proc.exitCode ?? 0) !== 0 ||
+          Boolean(retry.parsed.errorMessage);
+
+        if (!retryHasError) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi session "${sessionId}" resumed successfully on retry ${attempt}/${MAX_SESSION_RETRIES}.\n`,
+          );
+          return toResult(retry);
+        }
+
+        lastAttempt = retry;
+
+        // Stop retrying if the session became unknown or auth is required
+        if (isKimiUnknownSessionError(retry.proc.stdout, retry.rawStderr)) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi session "${sessionId}" became unavailable during retry; giving up.\n`,
+          );
+          break;
+        }
+        const retryLoginMeta = detectKimiLoginRequired({
+          stdout: retry.proc.stdout,
+          stderr: retry.proc.stderr,
+        });
+        if (retryLoginMeta.requiresLogin) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi auth required during retry; giving up.\n`,
+          );
+          break;
+        }
+        if (isKimiMaxTurnsResult(retry.parsed.errorMessage)) {
+          await onLog(
+            "stdout",
+            `[crewspace] Kimi max turns reached during retry; giving up.\n`,
+          );
+          break;
+        }
+      }
+      return toResult(lastAttempt);
+    }
   }
 
   return toResult(initial);

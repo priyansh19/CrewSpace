@@ -6,6 +6,7 @@ import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { AgentRole, RoomId } from "@/stores/officeStore";
 import { ROOM_SEATS, useOfficeStore } from "@/stores/officeStore";
+import { useTheme } from "@/context/ThemeContext";
 
 useGLTF.preload("/models/agent-figure.glb");
 
@@ -106,6 +107,8 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
     }),
   );
 
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const outfit   = ROLE_OUTFIT[role];
   const seatRot  = useSeatRot(currentRoom, targetRoom, seatIndex);
 
@@ -229,11 +232,11 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
       )}
       <primitive object={clone} scale={0.25} />
       {/* Name tag — floats above the head with a small gap */}
-      <Html position={[0, 1.75, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }}>
+      <Html position={[0, 1.75, 0]} center distanceFactor={15} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
         <div style={{ position: "relative", display: "inline-block" }}>
           <div style={{
             whiteSpace: "nowrap", fontSize: "10px", padding: "2px 8px", borderRadius: "4px",
-            color: outfit.shirt, background: isSelected ? "#fff" : "#faf5ee",
+            color: outfit.shirt, background: isSelected ? (isDark ? "#252320" : "#fff") : (isDark ? "#1f1e1b" : "#faf5ee"),
             border: `1.5px solid ${isSelected ? outfit.shirt : outfit.shirt + "60"}`,
             fontWeight: 600, fontFamily: "monospace",
             boxShadow: isSelected ? `0 0 8px ${outfit.shirt}40` : "0 1px 4px rgba(0,0,0,0.08)",
@@ -251,22 +254,31 @@ const StandardAgent = ({ agentId, isSelected }: { agentId: string; isSelected: b
       </Html>
       {/* Detail card — shown above name tag when selected */}
       {isSelected && (
-        <Html position={[0, 2.55, 0]} center distanceFactor={12} style={{ pointerEvents: "none" }}>
+        <Html position={[0, 2.55, 0]} center distanceFactor={12} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
           <div style={{ position: "relative", display: "inline-block" }}>
             <div style={{
               whiteSpace: "nowrap", padding: "8px 12px", borderRadius: "10px",
-              background: "rgba(255,255,255,0.95)", border: `2px solid ${outfit.shirt}`,
+              background: isDark ? "rgba(24,23,21,0.95)" : "rgba(255,255,255,0.95)",
+              border: `2px solid ${outfit.shirt}`,
               boxShadow: `0 4px 20px rgba(0,0,0,0.12), 0 0 12px ${outfit.shirt}20`,
-              fontSize: "11px", color: "#5a5a6a", lineHeight: 1.6,
+              fontSize: "11px", color: isDark ? "#a09d96" : "#5a5a6a", lineHeight: 1.6,
             }}>
-              <div style={{ fontWeight: 800, fontSize: "13px", color: "#2a2a3a", marginBottom: 4 }}>{name}</div>
+              <div style={{ fontWeight: 800, fontSize: "13px", color: isDark ? "#faf9f5" : "#2a2a3a", marginBottom: 4 }}>{name}</div>
               <div>📍 {currentRoom.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</div>
               <div>⚡ {task}</div>
               <div style={{
                 marginTop: 4, padding: "1px 5px", borderRadius: 3,
                 fontSize: "9px", fontWeight: 600, textTransform: "uppercase", display: "inline-block",
-                background: status === "working" ? "#dcfce7" : status === "sleeping" ? "#ede9fe" : "#dbeafe",
-                color:      status === "working" ? "#166534" : status === "sleeping" ? "#5b21b6" : "#1e40af",
+                background: status === "working"
+                  ? (isDark ? "#14532d" : "#dcfce7")
+                  : status === "sleeping"
+                    ? (isDark ? "#3b0764" : "#ede9fe")
+                    : (isDark ? "#172554" : "#dbeafe"),
+                color: status === "working"
+                  ? (isDark ? "#86efac" : "#166534")
+                  : status === "sleeping"
+                    ? (isDark ? "#d8b4fe" : "#5b21b6")
+                    : (isDark ? "#93c5fd" : "#1e40af"),
               }}>
                 {status}
               </div>

@@ -344,6 +344,8 @@ export function issueRoutes(db: Db, storage: StorageService) {
       includeRoutineExecutions:
         req.query.includeRoutineExecutions === "true" || req.query.includeRoutineExecutions === "1",
       q: req.query.q as string | undefined,
+      priorityTier: req.query.priorityTier as "priority" | "normal" | undefined,
+      sort: req.query.sort as "queueRank" | "priority" | "updatedAt" | undefined,
     });
     res.json(result);
   });

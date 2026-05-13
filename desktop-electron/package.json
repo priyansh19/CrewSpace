@@ -1,0 +1,65 @@
+{
+  "name": "crewspace-desktop",
+  "version": "0.0.2",
+  "description": "CrewSpace — AI agent company control plane",
+  "author": "CrewSpace AI <hello@crewspace.ai>",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:dir": "electron-builder --dir",
+    "postinstall": ""
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0"
+  },
+  "build": {
+    "appId": "com.crewspaceai.desktop",
+    "productName": "CrewSpace",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "desktop-config.js",
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server-prod",
+        "to": "server"
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "installerSidebar": "assets/installer/installerSidebar.bmp",
+      "installerHeader": "assets/installer/installerHeader.bmp",
+      "include": "scripts/installer.nsh",
+      "unicode": true,
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": false,
+      "license": "../LICENSE",
+      "artifactName": "CrewSpace-Setup-${version}.exe"
+    },
+    "msi": {
+      "oneClick": false,
+      "warningsAsErrors": false,
+      "upgradeCode": "{C1EE4A7B-8F23-4B5A-9D8E-1A2B3C4D5E6F}",
+      "artifactName": "CrewSpace-Setup-${version}.msi"
+    }
+  }
+}

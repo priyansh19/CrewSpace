@@ -43,6 +43,8 @@ export const queryKeys = {
       ["issues", companyId, "project", projectId] as const,
     listByExecutionWorkspace: (companyId: string, executionWorkspaceId: string) =>
       ["issues", companyId, "execution-workspace", executionWorkspaceId] as const,
+    queue: (companyId: string, priorityTier: "priority" | "normal") =>
+      ["issues", companyId, "queue", priorityTier] as const,
     detail: (id: string) => ["issues", "detail", id] as const,
     comments: (issueId: string) => ["issues", "comments", issueId] as const,
     attachments: (issueId: string) => ["issues", "attachments", issueId] as const,
@@ -90,6 +92,10 @@ export const queryKeys = {
     joinRequests: (companyId: string, status: string = "pending_approval") =>
       ["access", "join-requests", companyId, status] as const,
     invite: (token: string) => ["access", "invite", token] as const,
+  },
+  members: {
+    list: (companyId: string) => ["members", companyId] as const,
+    invites: (companyId: string) => ["members", "invites", companyId] as const,
   },
   auth: {
     session: ["auth", "session"] as const,
