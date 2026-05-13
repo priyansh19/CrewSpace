@@ -88,7 +88,7 @@ export function Dashboard() {
 
   const blockedAgentIds = useMemo(() => {
     if (!agents) return new Set<string>();
-    return new Set(agents.filter((a) => a.status === "error" || a.status === "pending_approval").map((a) => a.id));
+    return new Set(agents.filter((a) => a.status === "error").map((a) => a.id));
   }, [agents]);
 
   const agentTaskMap = useMemo(() => {
