@@ -13,6 +13,7 @@ import {
   Settings,
   MessageCircle,
   Brain,
+  Sparkles,
   ShieldAlert,
   KanbanSquare,
   ChevronRight,
@@ -160,6 +161,7 @@ export function Sidebar() {
             icon={MessageCircle}
             badge={sessions.length > 0 ? sessions.length : undefined}
           />
+          <SidebarNavItem to="/proposals" label="Proposals" icon={Sparkles} />
           <SidebarNavItem to="/office" label="3D Office" icon={Building2} />
           <SidebarNavItem to="/terminal" label="Console" icon={TerminalSquare} />
           <SidebarNavItem to="/workspace" label="Workspace" icon={FolderOpen} />

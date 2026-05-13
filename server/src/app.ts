@@ -34,6 +34,7 @@ import { sprintRoutes } from "./routes/sprints.js";
 import { chatSessionRoutes } from "./routes/chat-sessions.js";
 import { sharedWorkspaceRoutes } from "./routes/shared-workspace.js";
 import { githubIntegrationRoutes } from "./routes/github-integration.js";
+import { featureProposalRoutes } from "./routes/feature-proposals.js";
 import { pluginRoutes } from "./routes/plugins.js";
 import { pluginUiStaticRoutes } from "./routes/plugin-ui-static.js";
 import { applyUiBranding } from "./ui-branding.js";
@@ -166,6 +167,7 @@ export async function createApp(
   api.use(sprintRoutes(db));
   api.use(terminalRoutes(db));
   api.use(chatSessionRoutes(db));
+  api.use(featureProposalRoutes(db));
   if (opts.sharedWorkspaceDir) {
     api.use(sharedWorkspaceRoutes(db, opts.sharedWorkspaceDir));
   }
