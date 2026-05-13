@@ -9,27 +9,21 @@ import {
   AlertCircle,
   Users,
   CircleDot,
-  Brain,
   Check,
-  CheckSquare,
-  Square,
   Copy,
   CheckCheck,
   Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { AgentIcon } from "./AgentIconPicker";
 import { AgentAvatar } from "./AgentAvatar";
 import { cn } from "@/lib/utils";
 import { useChat, type ChatSession, type ChatParticipant } from "../context/ChatContext";
 import { useCompany } from "../context/CompanyContext";
-import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../lib/queryKeys";
 import { useDialog } from "../context/DialogContext";
 import { agentsApi } from "../api/agents";
-import { agentDotColor, formatChatTime, streamAgentChat } from "../lib/agentChat";
-import { agentMemoriesApi } from "../api/agentMemories";
+import { agentDotColor, formatChatTime, isEmptyAgentMessage } from "../lib/agentChat";
 import { ChatMessageContent } from "./ChatMessageContent";
 import type { ChatMessage } from "../context/ChatContext";
 import type { Agent } from "@crewspaceai/shared";
@@ -332,64 +326,54 @@ function CopyMessageButton({ text }: { text: string }) {
 
 // ── Chat Area ─────────────────────────────────────────────────────────────────
 
-function ChatArea ({
+function ChatArea({
   session,
   allAgents,
   companyId,
-  onUpdate,
   onClose,
 }: {
   session: ChatSession;
   allAgents: Agent[];
   companyId: string | undefined;
-  onUpdate: (messages: ChatMessage[], participants: ChatParticipant[]) => void;
   onClose: () => void;
 }) {
   const { openNewIssue } = useDialog();
-  const { persistMessage } = useChat();
-  const queryClient = useQueryClient();
-  const isMountedRef = useRef(true);
-  const abortRef = useRef<AbortController | null>(null);
+  const { sendMessage, streams, updateSession } = useChat();
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      abortRef.current?.abort();
-    };
-  }, []);
+  const [participants, setParticipants] = useState<ChatParticipant[]>(session.participants);
 
-  const [participants, setParticipants] = useState<ChatParticipant[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-
-  // Sync session data when switching sessions or when async message load completes
+  // Sync participants from context when session changes
   useEffect(() => {
     setParticipants(session.participants);
-    setMessages(session.messages);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.id, session.messages.length]);
+  }, [session.id]);
+
+  // Compute display messages from session + active streams
+  const activeStreams = streams.filter(
+    (s) => s.sessionId === session.id && s.status === "streaming"
+  );
+  const typingAgentId = activeStreams[0]?.agentId ?? null;
+
+  const streamMessages: ChatMessage[] = activeStreams.map((s) => ({
+    id: s.streamId,
+    role: "agent",
+    agentId: s.agentId,
+    content: s.content,
+    ts: new Date(),
+  }));
+
+  const displayMessages = [...session.messages, ...streamMessages];
+
   const [input, setInput] = useState("");
-  const [typingAgentId, setTypingAgentId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [savingMemory, setSavingMemory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Sync back to context on change
-  const isFirstRender = useRef(true);
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    onUpdate(messages, participants);
-  }, [messages, participants]);
 
   // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, typingAgentId]);
+  }, [displayMessages, typingAgentId]);
 
   // Focus input when session opens
   useEffect(() => {
@@ -400,119 +384,9 @@ function ChatArea ({
     const text = input.trim();
     if (!text || typingAgentId) return;
     setSendError(null);
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: text,
-      ts: new Date(),
-    };
-
-    const fullHistory: ChatMessage[] = [...messages, userMsg];
-    setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    persistMessage(session.id, "user", text);
-
-    abortRef.current = new AbortController();
-    for (const agent of participants) {
-      if (!isMountedRef.current) break;
-      setTypingAgentId(agent.id);
-
-      const streamingId = `agent-${agent.id}-${Date.now()}`;
-      setMessages((prev) => [
-        ...prev,
-        { id: streamingId, role: "agent", agentId: agent.id, content: "", ts: new Date() },
-      ]);
-
-      let finalContent = "";
-      try {
-        const streamResult = await streamAgentChat(
-          agent as unknown as Agent,
-          fullHistory,
-          companyId,
-          abortRef.current.signal,
-          (partial) => {
-            if (!isMountedRef.current) return;
-            finalContent = partial;
-            setMessages((prev) =>
-              prev.map((m) => (m.id === streamingId ? { ...m, content: partial } : m)),
-            );
-          },
-        );
-
-        // If onChunk was never called (e.g. stream errored before first chunk), use the return value
-        if (!finalContent && streamResult) {
-          finalContent = streamResult;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === streamingId ? { ...m, content: streamResult } : m)),
-          );
-        }
-      } catch (e) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        setSendError(errMsg);
-        setMessages((prev) => prev.filter((m) => m.id !== streamingId));
-      }
-
-      setTypingAgentId(null);
-      if (finalContent.trim()) persistMessage(session.id, "agent", finalContent, agent.id);
-
-      // Save agent response as memory + task solution (non-blocking)
-      if (finalContent.trim() && companyId && isMountedRef.current) {
-        setSavingMemory(true);
-        // Fire and forget - don't await
-        (async () => {
-          try {
-            const sentences = finalContent
-              .split(/[.!?]+/)
-              .map((s) => s.trim())
-              .filter((s) => s.length > 10 && s.length < 200);
-            const title = sentences.length > 0 ? sentences[0].slice(0, 120) : finalContent.slice(0, 100);
-
-            // Save as general memory
-            const memoryRes = await fetch(`/api/companies/${companyId}/memories`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                title,
-                content: finalContent,
-                memoryType: "fact",
-                agentIds: [agent.id],
-              }),
-            });
-
-            // Also save as task solution if response looks like a solution/approach
-            if (
-              finalContent.toLowerCase().includes("step") ||
-              finalContent.toLowerCase().includes("approach") ||
-              finalContent.toLowerCase().includes("solution") ||
-              finalContent.toLowerCase().includes("process") ||
-              finalContent.length > 200
-            ) {
-              const lastUserMsg = messages.filter((m) => m.role === "user").pop();
-              const taskTitle = lastUserMsg
-                ? lastUserMsg.content.slice(0, 80)
-                : title;
-
-              await agentMemoriesApi.saveTaskSolution(companyId, {
-                agentId: agent.id,
-                taskTitle,
-                approach: finalContent,
-                outcome: "Completed",
-              });
-            }
-
-            if (memoryRes.ok) {
-              queryClient.invalidateQueries({ queryKey: queryKeys.memories.graph(companyId) });
-            }
-          } catch (e) {
-            console.error("Failed to save memory:", e);
-          } finally {
-            setSavingMemory(false);
-          }
-        })();
-      }
-    }
-  }, [input, messages, participants, companyId, typingAgentId]);
+    await sendMessage(session.id, text);
+  }, [input, typingAgentId, session.id, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -522,28 +396,22 @@ function ChatArea ({
   };
 
   const addParticipant = (agent: Agent) => {
-    setParticipants((prev) => [...prev, agent]);
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `join-${agent.id}-${Date.now()}`,
-        role: "agent",
-        agentId: agent.id,
-        content: `Hey everyone! ${agent.name} here. Joining the conversation.`,
-        ts: new Date(),
-      },
-    ]);
+    const next = [...participants, agent as unknown as ChatParticipant];
+    setParticipants(next);
+    updateSession(session.id, session.messages, next);
   };
 
   const removeParticipant = (agentId: string) => {
     if (participants.length <= 1) return;
-    setParticipants((prev) => prev.filter((p) => p.id !== agentId));
+    const next = participants.filter((p) => p.id !== agentId);
+    setParticipants(next);
+    updateSession(session.id, session.messages, next);
   };
 
   const agentById = (id: string) => participants.find((p) => p.id === id);
 
   const handleCreateIssue = useCallback(() => {
-    const recent = messages
+    const recent = displayMessages
       .filter((m) => m.content.trim())
       .slice(-8)
       .map((m) => {
@@ -553,7 +421,7 @@ function ChatArea ({
       })
       .join("\n\n");
     openNewIssue({ description: recent ? `*From chat discussion:*\n\n${recent}` : undefined });
-  }, [messages, participants, openNewIssue]);
+  }, [displayMessages, participants, openNewIssue]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -600,9 +468,9 @@ function ChatArea ({
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
-        {messages.map((msg) => {
-          // Hide empty agent messages while typing indicator is showing
-          if (msg.role === "agent" && !msg.content && typingAgentId) return null;
+        {displayMessages.map((msg) => {
+          // Hide empty agent messages
+          if (isEmptyAgentMessage(msg)) return null;
 
           if (msg.role === "user") {
             return (
@@ -691,12 +559,6 @@ function ChatArea ({
             <span className="text-[11px] text-destructive leading-snug">{sendError}</span>
           </div>
         )}
-        {savingMemory && (
-          <div className="flex items-center gap-2 px-1 text-[10px] text-muted-foreground/60">
-            <Brain className="h-3 w-3 animate-pulse shrink-0" />
-            <span>Saving to memory graph…</span>
-          </div>
-        )}
       </div>
 
       {/* Create Issue */}
@@ -752,8 +614,7 @@ function ChatArea ({
 // ── Main ChatSidebar ──────────────────────────────────────────────────────────
 
 export function ChatSidebar({ onClose }: { onClose?: () => void }) {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, updateSession } =
-    useChat();
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents } = useChat();
   const { selectedCompanyId } = useCompany();
 
   const { data: agents } = useQuery({
@@ -773,13 +634,6 @@ export function ChatSidebar({ onClose }: { onClose?: () => void }) {
   const sorted = useMemo(
     () => [...sessions].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
     [sessions],
-  );
-
-  const handleUpdate = useCallback(
-    (messages: ChatMessage[], participants: ChatParticipant[]) => {
-      if (activeSessionId) updateSession(activeSessionId, messages, participants);
-    },
-    [activeSessionId, updateSession],
   );
 
   const handleCloseChat = useCallback(() => setActiveSessionId(null), [setActiveSessionId]);
@@ -847,7 +701,6 @@ export function ChatSidebar({ onClose }: { onClose?: () => void }) {
           session={activeSession}
           allAgents={allAgents}
           companyId={selectedCompanyId ?? undefined}
-          onUpdate={handleUpdate}
           onClose={handleCloseChat}
         />
       ) : (

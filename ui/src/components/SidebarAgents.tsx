@@ -11,6 +11,8 @@ import { heartbeatsApi } from "../api/heartbeats";
 import { queryKeys } from "../lib/queryKeys";
 import { cn, agentRouteRef, agentUrl } from "../lib/utils";
 import { useAgentOrder } from "../hooks/useAgentOrder";
+import { useCompanyRole } from "../hooks/useCompanyRole";
+import { canCreateAgents } from "../lib/permissions";
 import { AgentAvatar } from "./AgentAvatar";
 import { BudgetSidebarMarker } from "./BudgetSidebarMarker";
 import {
@@ -25,6 +27,7 @@ export function SidebarAgents() {
   const { selectedCompanyId } = useCompany();
   const { openNewAgent } = useDialog();
   const { isMobile, setSidebarOpen } = useSidebar();
+  const { role } = useCompanyRole();
   const location = useLocation();
 
   const { data: agents } = useQuery({
@@ -85,16 +88,18 @@ export function SidebarAgents() {
               Agents
             </span>
           </CollapsibleTrigger>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openNewAgent();
-            }}
-            className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors"
-            aria-label="New agent"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
+          {canCreateAgents(role) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openNewAgent();
+              }}
+              className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors"
+              aria-label="New agent"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </div>
 

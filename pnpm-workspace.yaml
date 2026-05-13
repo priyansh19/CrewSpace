@@ -6,3 +6,5 @@ packages:
   - server
   - ui
   - cli
+  - desktop
+  - desktop-electron

@@ -9,6 +9,7 @@ import {
   companyMemberships,
   instanceUserRoles,
 } from "@crewspaceai/db";
+import type { CompanyMembershipRole } from "@crewspaceai/shared";
 import { conflict, forbidden, notFound } from "../errors.js";
 
 export const BOARD_API_KEY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -62,7 +63,7 @@ export function boardAuthService(db: Db) {
         .where(eq(authUsers.id, userId))
         .then((rows) => rows[0] ?? null),
       db
-        .select({ companyId: companyMemberships.companyId })
+        .select({ companyId: companyMemberships.companyId, membershipRole: companyMemberships.membershipRole })
         .from(companyMemberships)
         .where(
           and(
@@ -70,8 +71,7 @@ export function boardAuthService(db: Db) {
             eq(companyMemberships.principalId, userId),
             eq(companyMemberships.status, "active"),
           ),
-        )
-        .then((rows) => rows.map((row) => row.companyId)),
+        ),
       db
         .select({ id: instanceUserRoles.id })
         .from(instanceUserRoles)
@@ -79,9 +79,18 @@ export function boardAuthService(db: Db) {
         .then((rows) => rows[0] ?? null),
     ]);
 
+    const companyIds = memberships.map((row) => row.companyId);
+    const companyRoles: Record<string, CompanyMembershipRole> = {};
+    for (const row of memberships) {
+      if (row.membershipRole) {
+        companyRoles[row.companyId] = row.membershipRole as CompanyMembershipRole;
+      }
+    }
+
     return {
       user,
-      companyIds: memberships,
+      companyIds,
+      companyRoles,
       isInstanceAdmin: Boolean(adminRole),
     };
   }

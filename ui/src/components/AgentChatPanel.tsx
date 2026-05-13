@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AgentIcon } from "./AgentIconPicker";
 import { AgentAvatar } from "./AgentAvatar";
 import { cn } from "@/lib/utils";
-import { agentDotColor, formatChatTime, streamAgentChat, AGENT_STATUS_COLOR } from "../lib/agentChat";
+import { agentDotColor, formatChatTime, isEmptyAgentMessage, streamAgentChat, AGENT_STATUS_COLOR } from "../lib/agentChat";
 import type { Agent } from "@crewspaceai/shared";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -550,6 +550,7 @@ export function AgentChatPanel({
       {/* ── Messages ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
         {messages.map((msg) => {
+          if (isEmptyAgentMessage(msg)) return null;
           if (msg.role === "user") {
             return (
               <div key={msg.id} className="flex justify-end">

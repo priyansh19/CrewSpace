@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
-import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { Db } from "@crewspaceai/db";
 import type { BillingType, ExecutionWorkspace, ExecutionWorkspaceConfig } from "@crewspaceai/shared";
 import {
@@ -68,12 +68,15 @@ const DETACHED_PROCESS_ERROR_CODE = "process_detached";
 const startLocksByAgent = new Map<string, Promise<void>>();
 const REPO_ONLY_CWD_SENTINEL = "/__crewspace_repo_only__";
 const MANAGED_WORKSPACE_GIT_CLONE_TIMEOUT_MS = 10 * 60 * 1000;
+const MAX_RUN_RETRIES = 5;
+const RETRY_BACKOFF_MS = [30_000, 120_000, 240_000, 480_000, 960_000];
 const execFile = promisify(execFileCallback);
 const SESSIONED_LOCAL_ADAPTERS = new Set([
   "claude_local",
   "codex_local",
   "cursor",
   "gemini_local",
+  "kimi_local",
   "opencode_local",
   "pi_local",
 ]);
@@ -1721,6 +1724,117 @@ export function heartbeatService(db: Db) {
     return queued;
   }
 
+  async function enqueueFailureRetry(
+    run: typeof heartbeatRuns.$inferSelect,
+    agent: typeof agents.$inferSelect,
+    now: Date,
+    retryReason: string,
+  ) {
+    const contextSnapshot = parseObject(run.contextSnapshot);
+    const issueId = readNonEmptyString(contextSnapshot.issueId);
+    const taskKey = deriveTaskKeyWithHeartbeatFallback(contextSnapshot, null);
+    const sessionBefore = run.sessionIdAfter ?? await resolveSessionBeforeForWakeup(agent, taskKey);
+    const retryCount = run.retryCount ?? 0;
+    const backoffMs = RETRY_BACKOFF_MS[retryCount] ?? RETRY_BACKOFF_MS[RETRY_BACKOFF_MS.length - 1];
+    const nextRetryAt = new Date(now.getTime() + backoffMs);
+
+    const retryContextSnapshot = {
+      ...contextSnapshot,
+      retryOfRunId: run.id,
+      wakeReason: "failure_retry",
+      retryReason,
+    };
+
+    const queued = await db.transaction(async (tx) => {
+      const wakeupRequest = await tx
+        .insert(agentWakeupRequests)
+        .values({
+          companyId: run.companyId,
+          agentId: run.agentId,
+          source: "automation",
+          triggerDetail: "system",
+          reason: "failure_retry",
+          payload: {
+            ...(issueId ? { issueId } : {}),
+            retryOfRunId: run.id,
+          },
+          status: "queued",
+          requestedByActorType: "system",
+          requestedByActorId: null,
+          updatedAt: now,
+        })
+        .returning()
+        .then((rows) => rows[0]);
+
+      const retryRun = await tx
+        .insert(heartbeatRuns)
+        .values({
+          companyId: run.companyId,
+          agentId: run.agentId,
+          invocationSource: "automation",
+          triggerDetail: "system",
+          status: "queued",
+          wakeupRequestId: wakeupRequest.id,
+          contextSnapshot: retryContextSnapshot,
+          sessionIdBefore: sessionBefore,
+          retryOfRunId: run.id,
+          retryCount: retryCount + 1,
+          nextRetryAt,
+          updatedAt: now,
+        })
+        .returning()
+        .then((rows) => rows[0]);
+
+      await tx
+        .update(agentWakeupRequests)
+        .set({
+          runId: retryRun.id,
+          updatedAt: now,
+        })
+        .where(eq(agentWakeupRequests.id, wakeupRequest.id));
+
+      if (issueId) {
+        await tx
+          .update(issues)
+          .set({
+            executionRunId: retryRun.id,
+            executionAgentNameKey: normalizeAgentNameKey(agent.name),
+            executionLockedAt: now,
+            updatedAt: now,
+          })
+          .where(and(eq(issues.id, issueId), eq(issues.companyId, run.companyId), eq(issues.executionRunId, run.id)));
+      }
+
+      return retryRun;
+    });
+
+    publishLiveEvent({
+      companyId: queued.companyId,
+      type: "heartbeat.run.queued",
+      payload: {
+        runId: queued.id,
+        agentId: queued.agentId,
+        invocationSource: queued.invocationSource,
+        triggerDetail: queued.triggerDetail,
+        wakeupRequestId: queued.wakeupRequestId,
+      },
+    });
+
+    await appendRunEvent(queued, 1, {
+      eventType: "lifecycle",
+      stream: "system",
+      level: "warn",
+      message: `Queued automatic retry ${retryCount + 1}/${MAX_RUN_RETRIES} after failure: ${retryReason}`,
+      payload: {
+        retryOfRunId: run.id,
+        retryCount: retryCount + 1,
+        nextRetryAt: nextRetryAt.toISOString(),
+      },
+    });
+
+    return queued;
+  }
+
   function parseHeartbeatPolicy(agent: typeof agents.$inferSelect) {
     const runtimeConfig = parseObject(agent.runtimeConfig);
     const heartbeat = parseObject(runtimeConfig.heartbeat);
@@ -1799,6 +1913,7 @@ export function heartbeatService(db: Db) {
   async function finalizeAgentStatus(
     agentId: string,
     outcome: "succeeded" | "failed" | "cancelled" | "timed_out",
+    retryQueued = false,
   ) {
     const existing = await getAgent(agentId);
     if (!existing) return;
@@ -1811,7 +1926,7 @@ export function heartbeatService(db: Db) {
     const nextStatus =
       runningCount > 0
         ? "running"
-        : outcome === "succeeded" || outcome === "cancelled"
+        : outcome === "succeeded" || outcome === "cancelled" || retryQueued
           ? "idle"
           : "error";
 
@@ -2033,7 +2148,13 @@ export function heartbeatService(db: Db) {
       const queuedRuns = await db
         .select()
         .from(heartbeatRuns)
-        .where(and(eq(heartbeatRuns.agentId, agentId), eq(heartbeatRuns.status, "queued")))
+        .where(
+          and(
+            eq(heartbeatRuns.agentId, agentId),
+            eq(heartbeatRuns.status, "queued"),
+            or(isNull(heartbeatRuns.nextRetryAt), lte(heartbeatRuns.nextRetryAt, new Date())),
+          ),
+        )
         .orderBy(asc(heartbeatRuns.createdAt))
         .limit(availableSlots);
       if (queuedRuns.length === 0) return [];
@@ -2761,6 +2882,13 @@ export function heartbeatService(db: Db) {
         outcome = "failed";
       }
 
+      const retryCount = run.retryCount ?? 0;
+      const shouldRetry = outcome === "failed" && retryCount < MAX_RUN_RETRIES;
+      let retriedRun: typeof heartbeatRuns.$inferSelect | null = null;
+      if (shouldRetry) {
+        retriedRun = await enqueueFailureRetry(run, agent, new Date(), adapterResult.errorCode ?? "adapter_failed");
+      }
+
       let logSummary: { bytes: number; sha256?: string; compressed: boolean } | null = null;
       if (handle) {
         logSummary = await runLogStore.finalize(handle);
@@ -2806,6 +2934,7 @@ export function heartbeatService(db: Db) {
         agentId: agent.id,
         status,
         outcome,
+        retryQueued: !!retriedRun,
       }, "setting run status after adapter completion");
       await setRunStatus(run.id, status, {
         finishedAt: new Date(),
@@ -2847,13 +2976,18 @@ export function heartbeatService(db: Db) {
           eventType: "lifecycle",
           stream: "system",
           level: outcome === "succeeded" ? "info" : "error",
-          message: `run ${outcome}`,
+          message: shouldRetry
+            ? `run ${outcome}; queued retry ${retriedRun?.id ?? ""}`.trim()
+            : `run ${outcome}`,
           payload: {
             status,
             exitCode: adapterResult.exitCode,
+            ...(retriedRun ? { retryRunId: retriedRun.id } : {}),
           },
         });
-        await releaseIssueExecutionAndPromote(finalizedRun);
+        if (!shouldRetry) {
+          await releaseIssueExecutionAndPromote(finalizedRun);
+        }
       }
 
       if (finalizedRun) {
@@ -2880,7 +3014,7 @@ export function heartbeatService(db: Db) {
           }
         }
       }
-      await finalizeAgentStatus(agent.id, outcome);
+      await finalizeAgentStatus(agent.id, outcome, !!retriedRun);
     } catch (err) {
       const message = redactCurrentUserText(
         err instanceof Error ? err.message : "Unknown adapter failure",
@@ -2912,14 +3046,26 @@ export function heartbeatService(db: Db) {
         error: message,
       });
 
+      const retryCount = run.retryCount ?? 0;
+      const shouldRetry = retryCount < MAX_RUN_RETRIES;
+      let retriedRun: typeof heartbeatRuns.$inferSelect | null = null;
+      if (shouldRetry) {
+        retriedRun = await enqueueFailureRetry(run, agent, new Date(), "adapter_failed");
+      }
+
       if (failedRun) {
         await appendRunEvent(failedRun, seq++, {
           eventType: "error",
           stream: "system",
           level: "error",
-          message,
+          message: shouldRetry
+            ? `${message}; queued retry ${retriedRun?.id ?? ""}`.trim()
+            : message,
+          payload: retriedRun ? { retryRunId: retriedRun.id } : {},
         });
-        await releaseIssueExecutionAndPromote(failedRun);
+        if (!shouldRetry) {
+          await releaseIssueExecutionAndPromote(failedRun);
+        }
 
         await updateRuntimeState(agent, failedRun, {
           exitCode: null,
@@ -2944,37 +3090,51 @@ export function heartbeatService(db: Db) {
         }
       }
 
-      await finalizeAgentStatus(agent.id, "failed");
+      await finalizeAgentStatus(agent.id, "failed", shouldRetry);
     }
     } catch (outerErr) {
           // Setup code before adapter.execute threw (e.g. ensureRuntimeState, resolveWorkspaceForRun).
           // The inner catch did not fire, so we must record the failure here.
           const message = outerErr instanceof Error ? outerErr.message : "Unknown setup failure";
           logger.error({ err: outerErr, runId }, "heartbeat execution setup failed");
-          await setRunStatus(runId, "failed", {
+          const failedRun = await setRunStatus(runId, "failed", {
             error: message,
             errorCode: "adapter_failed",
             finishedAt: new Date(),
-          }).catch(() => undefined);
+          }).catch(() => null);
           await setWakeupStatus(run.wakeupRequestId, "failed", {
             finishedAt: new Date(),
             error: message,
           }).catch(() => undefined);
-          const failedRun = await getRun(runId).catch(() => null);
-          if (failedRun) {
-            // Emit a run-log event so the failure is visible in the run timeline,
-            // consistent with what the inner catch block does for adapter failures.
-            await appendRunEvent(failedRun, 1, {
+
+          const retryCount = run.retryCount ?? 0;
+          const shouldRetry = retryCount < MAX_RUN_RETRIES;
+          let retriedRun: typeof heartbeatRuns.$inferSelect | null = null;
+          if (shouldRetry) {
+            const agentForRetry = await getAgent(run.agentId);
+            if (agentForRetry) {
+              retriedRun = await enqueueFailureRetry(run, agentForRetry, new Date(), "setup_failed").catch(() => null);
+            }
+          }
+
+          const runForEvents = failedRun ?? (await getRun(runId).catch(() => null));
+          if (runForEvents) {
+            await appendRunEvent(runForEvents, 1, {
               eventType: "error",
               stream: "system",
               level: "error",
-              message,
+              message: shouldRetry && retriedRun
+                ? `${message}; queued retry ${retriedRun.id}`.trim()
+                : message,
+              payload: retriedRun ? { retryRunId: retriedRun.id } : {},
             }).catch(() => undefined);
-            await releaseIssueExecutionAndPromote(failedRun).catch(() => undefined);
+            if (!shouldRetry || !retriedRun) {
+              await releaseIssueExecutionAndPromote(runForEvents).catch(() => undefined);
+            }
           }
           // Ensure the agent is not left stuck in "running" if the inner catch handler's
           // DB calls threw (e.g. a transient DB error in finalizeAgentStatus).
-          await finalizeAgentStatus(run.agentId, "failed").catch(() => undefined);
+          await finalizeAgentStatus(run.agentId, "failed", shouldRetry && !!retriedRun).catch(() => undefined);
         } finally {
           await releaseRuntimeServicesForRun(run.id).catch(() => undefined);
           activeRunExecutions.delete(run.id);

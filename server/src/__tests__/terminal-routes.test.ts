@@ -144,7 +144,7 @@ describe("GET /terminal/history", () => {
 describe("POST /terminal/exec", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("executes a real command and returns stdout", async () => {
+  it.skipIf(process.platform === "win32")("executes a real command and returns stdout", async () => {
     const { app, db } = createApp(boardActor);
     const res = await request(app)
       .post("/api/terminal/exec")
@@ -159,7 +159,7 @@ describe("POST /terminal/exec", () => {
     expect(db.insert).toHaveBeenCalled();
   });
 
-  it("captures stderr and non-zero exit code for failing commands", async () => {
+  it.skipIf(process.platform === "win32")("captures stderr and non-zero exit code for failing commands", async () => {
     const { app } = createApp(boardActor);
     const res = await request(app)
       .post("/api/terminal/exec")
@@ -170,7 +170,7 @@ describe("POST /terminal/exec", () => {
     expect(res.body.exitCode).not.toBe(0);
   });
 
-  it("tracks cwd changes after cd commands", async () => {
+  it.skipIf(process.platform === "win32")("tracks cwd changes after cd commands", async () => {
     const { app } = createApp(boardActor);
     const res = await request(app)
       .post("/api/terminal/exec")

@@ -53,6 +53,7 @@ export const createIssueSchema = z.object({
   ]).optional().nullable(),
   executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable(),
   labelIds: z.array(z.string().uuid()).optional(),
+  queueRank: z.number().int().optional().nullable(),
 });
 
 export type CreateIssue = z.infer<typeof createIssueSchema>;
@@ -69,6 +70,7 @@ export const updateIssueSchema = createIssueSchema.partial().extend({
   reopen: z.boolean().optional(),
   interrupt: z.boolean().optional(),
   hiddenAt: z.string().datetime().nullable().optional(),
+  priorityTier: z.enum(["priority", "normal"]).optional(),
 });
 
 export type UpdateIssue = z.infer<typeof updateIssueSchema>;

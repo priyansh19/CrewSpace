@@ -21,6 +21,8 @@ import {
   TerminalSquare,
   FolderOpen,
   Archive,
+  ListOrdered,
+  Users,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -33,6 +35,8 @@ import { useChat } from "../context/ChatContext";
 import { heartbeatsApi } from "../api/heartbeats";
 import { queryKeys } from "../lib/queryKeys";
 import { useInboxBadge } from "../hooks/useInboxBadge";
+import { useCompanyRole } from "../hooks/useCompanyRole";
+import { canEditSettings } from "../lib/permissions";
 import { Button } from "@/components/ui/button";
 import { PluginSlotOutlet } from "@/plugins/slots";
 import { cn } from "@/lib/utils";
@@ -41,6 +45,7 @@ import { CompanyAvatar } from "./CompanyAvatar";
 export function Sidebar() {
   const { openNewIssue } = useDialog();
   const { selectedCompanyId, selectedCompany } = useCompany();
+  const { role } = useCompanyRole();
   const { sessions } = useChat();
   const inboxBadge = useInboxBadge(selectedCompanyId);
   const { data: liveRuns } = useQuery({
@@ -141,6 +146,7 @@ export function Sidebar() {
         {/* Work */}
         <SidebarSection label="Work">
           <SidebarNavItem to="/issues" label="Issues" icon={CircleDot} />
+          <SidebarNavItem to="/queues" label="Queues" icon={ListOrdered} />
           <SidebarNavItem to="/taskboard" label="Board" icon={KanbanSquare} />
           <SidebarNavItem to="/blockers" label="Alerts" icon={ShieldAlert} />
           <SidebarNavItem to="/routines" label="Routines" icon={Repeat} textBadge="Beta" textBadgeTone="amber" />
@@ -173,7 +179,10 @@ export function Sidebar() {
           <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
           <SidebarNavItem to="/activity" label="Activity" icon={History} />
           <SidebarNavItem to="/archived-companies" label="Archive" icon={Archive} />
-          <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
+          <SidebarNavItem to="/company/members" label="Members" icon={Users} />
+          {canEditSettings(role) && (
+            <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
+          )}
         </SidebarSection>
 
         <PluginSlotOutlet

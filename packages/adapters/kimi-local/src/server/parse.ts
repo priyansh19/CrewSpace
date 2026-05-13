@@ -116,6 +116,15 @@ export function parseKimiJsonl(stdout: string, stderr?: string) {
       continue;
     }
 
+    if (type === "cost") {
+      const costObj = parseObject(event.cost ?? event);
+      const totalCost = asNumber(costObj.total_cost_usd, asNumber(costObj.cost_usd, asNumber(costObj.cost, 0)));
+      if (totalCost > 0) {
+        (usage as unknown as { costUsd: number | null }).costUsd = totalCost;
+      }
+      continue;
+    }
+
     if (type === "turn.failed" || type === "failed") {
       const err = parseObject(event.error);
       const msg = asString(err?.message, "").trim();
@@ -133,7 +142,7 @@ export function parseKimiJsonl(stdout: string, stderr?: string) {
     summary: messages.join("\n\n").trim(),
     usage,
     errorMessage,
-    costUsd: null as number | null,
+    costUsd: (usage as unknown as { costUsd?: number | null }).costUsd ?? null,
   };
 }
 
@@ -186,4 +195,36 @@ export function isKimiUnknownSessionError(stdout: string, stderr: string): boole
     .filter(Boolean)
     .join("\n");
   return /unknown (session|thread)|session .* not found|thread .* not found/i.test(haystack);
+}
+
+export function isKimiMaxTurnsResult(errorMessage: string | null | undefined): boolean {
+  if (!errorMessage) return false;
+  return /max(?:imum)?\s+turns?|turn\s+limit\s+reached|reached\s+the\s+max/i.test(errorMessage);
+}
+
+export function detectKimiLoginRequired(input: {
+  stdout: string;
+  stderr: string;
+}): { requiresLogin: boolean; loginUrl: string | null } {
+  const haystack = `${input.stdout}\n${input.stderr}`.toLowerCase();
+  const authPhrases = [
+    "not logged in",
+    "please login",
+    "please log in",
+    "authentication required",
+    "auth required",
+    "unauthorized",
+    "login required",
+    "kimi login",
+    "sign in",
+    "not authenticated",
+  ];
+  const requiresLogin = authPhrases.some((phrase) => haystack.includes(phrase));
+  if (!requiresLogin) return { requiresLogin: false, loginUrl: null };
+
+  const urlMatch = haystack.match(/(https?:\/\/[^\s]+)/);
+  return {
+    requiresLogin: true,
+    loginUrl: urlMatch?.[1] ?? null,
+  };
 }

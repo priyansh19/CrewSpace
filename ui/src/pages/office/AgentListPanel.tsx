@@ -41,7 +41,7 @@ export function AgentListPanel({
             position: "absolute",
             top: "16px",
             right: "16px",
-            zIndex: 10,
+            zIndex: 50,
             padding: "10px 14px",
             borderRadius: "10px",
             background: "rgba(8,10,24,0.92)",
@@ -82,7 +82,7 @@ export function AgentListPanel({
             position: "absolute",
             top: "16px",
             right: "16px",
-            zIndex: 20,
+            zIndex: 60,
             width: "240px",
             maxHeight: "47vh",
             background: "rgba(8,10,24,0.92)",
@@ -270,7 +270,7 @@ export function AgentListPanel({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 15,
+            zIndex: 55,
             cursor: "pointer",
           }}
         />

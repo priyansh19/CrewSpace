@@ -128,6 +128,8 @@ export async function createApp(
         email: null,
         name: req.actor.source === "local_implicit" ? "Local Board" : null,
       },
+      companyRoles: req.actor.companyRoles ?? {},
+      isInstanceAdmin: req.actor.isInstanceAdmin ?? false,
     });
   });
   if (opts.betterAuthHandler) {
@@ -172,15 +174,17 @@ export async function createApp(
     api.use(sharedWorkspaceRoutes(db, opts.sharedWorkspaceDir));
   }
 
-  const githubConfig = process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY
-    ? {
-        appId: process.env.GITHUB_APP_ID,
-        privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
-        clientId: process.env.GITHUB_APP_CLIENT_ID ?? "",
-        clientSecret: process.env.GITHUB_APP_CLIENT_SECRET ?? "",
-        slug: process.env.GITHUB_APP_SLUG ?? "",
-      }
-    : undefined;
+  const githubConfig = process.env.GITHUB_PAT
+    ? { pat: process.env.GITHUB_PAT }
+    : process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY
+      ? {
+          appId: process.env.GITHUB_APP_ID,
+          privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+          clientId: process.env.GITHUB_APP_CLIENT_ID ?? "",
+          clientSecret: process.env.GITHUB_APP_CLIENT_SECRET ?? "",
+          slug: process.env.GITHUB_APP_SLUG ?? "",
+        }
+      : undefined;
   api.use(githubIntegrationRoutes(db, githubConfig));
   const hostServicesDisposers = new Map<string, () => void>();
   const workerManager = createPluginWorkerManager();

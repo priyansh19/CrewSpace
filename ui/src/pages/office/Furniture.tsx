@@ -455,7 +455,7 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
               <mesh geometry={sg("box",0.1,0.18,0.12)}  position={[-0.17,0.12,0]} material={sm("#ffffff",0.7)} />
             </group>
           ))}
-          <Html position={[px,1.55,pz-1]} center distanceFactor={18} style={{pointerEvents:"none"}}>
+          <Html position={[px,1.55,pz-1]} center distanceFactor={18} style={{pointerEvents:"none"}} zIndexRange={[0, 0]}>
             <div style={{fontSize:"6px",background:"#cc2222",color:"#fff",padding:"1px 8px",
               borderRadius:"2px",fontFamily:"monospace",fontWeight:800,letterSpacing:"0.12em",whiteSpace:"nowrap"}}>
               NEW ARRIVALS
@@ -479,7 +479,7 @@ const Furniture = ({ roomId, position }: FurnitureProps) => {
           <mesh position={[px+5.6,0.62,pz-0.8]} geometry={sg("box",0.9,0.08,0.35)} material={sm("#333344",0.5)} castShadow />
           <mesh position={[px+5.6,1.04,pz+0.1]} geometry={sg("box",0.18,0.12,0.28)} material={sm("#111111",0.5)} castShadow />
           <mesh position={[px+5.6,1.04,pz+0.1]} geometry={sg("box",0.14,0.02,0.22)} material={sm(SCR,0.3,SCR,0.15)} />
-          <Html position={[px+5.6,1.6,pz+0.5]} center distanceFactor={20} style={{pointerEvents:"none"}}>
+          <Html position={[px+5.6,1.6,pz+0.5]} center distanceFactor={20} style={{pointerEvents:"none"}} zIndexRange={[0, 0]}>
             <div style={{fontSize:"7px",background:"#cc2222",color:"#fff",padding:"1px 6px",
               borderRadius:"2px",fontFamily:"monospace",letterSpacing:"0.1em",fontWeight:700,whiteSpace:"nowrap"}}>
               PAY HERE

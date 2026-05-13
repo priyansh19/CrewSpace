@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, max, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@crewspaceai/db";
 import {
   activityLog,
@@ -78,6 +78,8 @@ export interface IssueFilters {
   originId?: string;
   includeRoutineExecutions?: boolean;
   q?: string;
+  priorityTier?: "priority" | "normal";
+  sort?: "queueRank" | "priority" | "updatedAt";
 }
 
 type IssueRow = typeof issues.$inferSelect;
@@ -697,6 +699,11 @@ export function issueService(db: Db) {
       if (filters?.parentId) conditions.push(eq(issues.parentId, filters.parentId));
       if (filters?.originKind) conditions.push(eq(issues.originKind, filters.originKind));
       if (filters?.originId) conditions.push(eq(issues.originId, filters.originId));
+      if (filters?.priorityTier === "priority") {
+        conditions.push(inArray(issues.priority, ["critical", "high"]));
+      } else if (filters?.priorityTier === "normal") {
+        conditions.push(inArray(issues.priority, ["medium", "low"]));
+      }
       if (filters?.labelId) {
         const labeledIssueIds = await db
           .select({ issueId: issueLabels.issueId })
@@ -732,11 +739,23 @@ export function issueService(db: Db) {
           ELSE 6
         END
       `;
+      const sortBy = filters?.sort ?? "priority";
+      const orderByClauses = [];
+      if (hasSearch) {
+        orderByClauses.push(asc(searchOrder));
+      }
+      if (sortBy === "queueRank") {
+        orderByClauses.push(sql`${issues.queueRank} ASC NULLS LAST`, asc(priorityOrder), desc(issues.createdAt));
+      } else if (sortBy === "updatedAt") {
+        orderByClauses.push(desc(issues.updatedAt));
+      } else {
+        orderByClauses.push(asc(priorityOrder), desc(issues.updatedAt));
+      }
       const rows = await db
         .select()
         .from(issues)
         .where(and(...conditions))
-        .orderBy(hasSearch ? asc(searchOrder) : asc(priorityOrder), asc(priorityOrder), desc(issues.updatedAt));
+        .orderBy(...orderByClauses);
       const withLabels = await withIssueLabels(db, rows);
       const runMap = await activeRunMapForIssues(db, withLabels);
       const withRuns = withActiveRuns(withLabels, runMap);
@@ -1046,6 +1065,14 @@ export function issueService(db: Db) {
         if (!values.status) {
           values.status = values.assigneeAgentId ? "todo" : "backlog";
         }
+        if (values.queueRank == null) {
+          const maxRankResult = await tx
+            .select({ max: max(issues.queueRank) })
+            .from(issues)
+            .where(eq(issues.companyId, companyId))
+            .then((r) => r[0]?.max ?? 0);
+          values.queueRank = (maxRankResult ?? 0) + 1000;
+        }
         if (values.status === "in_progress" && !values.startedAt) {
           values.startedAt = new Date();
         }
@@ -1065,7 +1092,7 @@ export function issueService(db: Db) {
       });
     },
 
-    update: async (id: string, data: Partial<typeof issues.$inferInsert> & { labelIds?: string[] }) => {
+    update: async (id: string, data: Partial<typeof issues.$inferInsert> & { labelIds?: string[]; priorityTier?: "priority" | "normal" }) => {
       const existing = await db
         .select()
         .from(issues)
@@ -1073,7 +1100,14 @@ export function issueService(db: Db) {
         .then((rows) => rows[0] ?? null);
       if (!existing) return null;
 
-      const { labelIds: nextLabelIds, ...issueData } = data;
+      const { labelIds: nextLabelIds, priorityTier, ...issueData } = data;
+      if (priorityTier && issueData.priority === undefined) {
+        if (priorityTier === "priority") {
+          issueData.priority = existing.priority === "critical" ? "critical" : "high";
+        } else {
+          issueData.priority = existing.priority === "low" ? "low" : "medium";
+        }
+      }
       const isolatedWorkspacesEnabled = (await instanceSettings.getExperimental()).enableIsolatedWorkspaces;
       if (!isolatedWorkspacesEnabled) {
         delete issueData.executionWorkspaceId;

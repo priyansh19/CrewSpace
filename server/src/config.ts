@@ -58,6 +58,7 @@ export interface Config {
   databaseBackupEnabled: boolean;
   databaseBackupIntervalMinutes: number;
   databaseBackupRetentionDays: number;
+  databaseBackupRetentionCount?: number;
   databaseBackupDir: string;
   serveUi: boolean;
   uiDevMiddleware: boolean;
@@ -209,6 +210,11 @@ export function loadConfig(): Config {
       fileDatabaseBackup?.retentionDays ||
       30,
   );
+  const rawRetentionCount = process.env.CREWSPACE_DB_BACKUP_RETENTION_COUNT;
+  const databaseBackupRetentionCount: number | undefined =
+    rawRetentionCount !== undefined
+      ? Math.max(0, Number(rawRetentionCount) || 0)
+      : (fileDatabaseBackup?.retentionCount ?? undefined);
   const databaseBackupDir = resolveHomeAwarePath(
     process.env.CREWSPACE_DB_BACKUP_DIR ??
       fileDatabaseBackup?.dir ??
@@ -233,6 +239,7 @@ export function loadConfig(): Config {
     databaseBackupEnabled,
     databaseBackupIntervalMinutes,
     databaseBackupRetentionDays,
+    databaseBackupRetentionCount,
     databaseBackupDir,
     serveUi:
       process.env.SERVE_UI !== undefined

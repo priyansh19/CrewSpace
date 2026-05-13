@@ -15,6 +15,7 @@ import {
   agentApiKeys,
   authUsers,
   companies,
+  companyMemberships,
   invites,
   joinRequests
 } from "@crewspaceai/db";
@@ -27,8 +28,10 @@ import {
   listJoinRequestsQuerySchema,
   resolveCliAuthChallengeSchema,
   updateMemberPermissionsSchema,
+  updateMemberRoleSchema,
   updateUserCompanyAccessSchema,
-  PERMISSION_KEYS
+  PERMISSION_KEYS,
+  COMPANY_MEMBERSHIP_ROLES
 } from "@crewspaceai/shared";
 import type { DeploymentExposure, DeploymentMode } from "@crewspaceai/shared";
 import {
@@ -48,7 +51,7 @@ import {
   logActivity,
   notifyHireApproved
 } from "../services/index.js";
-import { assertCompanyAccess } from "./authz.js";
+import { assertCompanyAccess, assertCompanyRole, getActorCompanyRole } from "./authz.js";
 import {
   claimBoardOwnership,
   inspectBoardClaimChallenge
@@ -864,12 +867,14 @@ function toInviteSummaryResponse(
   const onboardingPath = `/api/invites/${token}/onboarding`;
   const onboardingTextPath = `/api/invites/${token}/onboarding.txt`;
   const inviteMessage = extractInviteMessage(invite);
+  const desiredRole = extractInviteDesiredRole(invite);
   return {
     id: invite.id,
     companyId: invite.companyId,
     companyName,
     inviteType: invite.inviteType,
     allowedJoinTypes: invite.allowedJoinTypes,
+    desiredRole,
     expiresAt: invite.expiresAt,
     onboardingPath,
     onboardingUrl: baseUrl ? `${baseUrl}${onboardingPath}` : onboardingPath,
@@ -1347,6 +1352,25 @@ function extractInviteMessage(
   return trimmed.length ? trimmed : null;
 }
 
+function extractInviteDesiredRole(
+  invite: typeof invites.$inferSelect
+): string | null {
+  const rawDefaults = invite.defaultsPayload;
+  if (
+    !rawDefaults ||
+    typeof rawDefaults !== "object" ||
+    Array.isArray(rawDefaults)
+  ) {
+    return null;
+  }
+  const rawRole = (rawDefaults as Record<string, unknown>).desiredRole;
+  if (typeof rawRole !== "string") {
+    return null;
+  }
+  const trimmed = rawRole.trim();
+  return COMPANY_MEMBERSHIP_ROLES.includes(trimmed as any) ? trimmed : null;
+}
+
 function mergeInviteDefaults(
   defaultsPayload: Record<string, unknown> | null | undefined,
   agentMessage: string | null
@@ -1814,6 +1838,14 @@ export function accessRoutes(
     }
     if (req.actor.type !== "board") throw unauthorized();
     if (isLocalImplicit(req)) return;
+    // Role-based permission check (takes precedence over explicit grants)
+    const role = getActorCompanyRole(req, companyId);
+    if (role) {
+      const { ROLE_PERMISSIONS } = await import("../routes/authz.js");
+      if (ROLE_PERMISSIONS[role].has(permissionKey)) return;
+      throw forbidden("Permission denied");
+    }
+    // Fallback to explicit grant check
     const allowed = await access.canUser(
       companyId,
       req.actor.userId,
@@ -1850,19 +1882,31 @@ export function accessRoutes(
     allowedJoinTypes: "human" | "agent" | "both";
     defaultsPayload?: Record<string, unknown> | null;
     agentMessage?: string | null;
+    desiredRole?: string | null;
   }) {
     const normalizedAgentMessage =
       typeof input.agentMessage === "string"
         ? input.agentMessage.trim() || null
         : null;
+    const normalizedDesiredRole =
+      input.desiredRole && COMPANY_MEMBERSHIP_ROLES.includes(input.desiredRole as any)
+        ? input.desiredRole
+        : null;
+    let defaultsPayload = mergeInviteDefaults(
+      input.defaultsPayload ?? null,
+      normalizedAgentMessage
+    );
+    if (normalizedDesiredRole) {
+      if (!defaultsPayload) {
+        defaultsPayload = {};
+      }
+      defaultsPayload.desiredRole = normalizedDesiredRole;
+    }
     const insertValues = {
       companyId: input.companyId,
       inviteType: "company_join" as const,
       allowedJoinTypes: input.allowedJoinTypes,
-      defaultsPayload: mergeInviteDefaults(
-        input.defaultsPayload ?? null,
-        normalizedAgentMessage
-      ),
+      defaultsPayload,
       expiresAt: companyInviteExpiresAt(),
       invitedByUserId: input.req.actor.userId ?? null
     };
@@ -1945,7 +1989,8 @@ export function accessRoutes(
           companyId,
           allowedJoinTypes: req.body.allowedJoinTypes,
           defaultsPayload: req.body.defaultsPayload ?? null,
-          agentMessage: req.body.agentMessage ?? null
+          agentMessage: req.body.agentMessage ?? null,
+          desiredRole: req.body.desiredRole ?? null
         });
 
       await logActivity(db, {
@@ -2633,6 +2678,14 @@ export function accessRoutes(
       if (!invite) throw notFound("Invite not found");
 
       let createdAgentId: string | null = existing.createdAgentId ?? null;
+      const inviteDefaults = invite.defaultsPayload as Record<string, unknown> | null;
+      const desiredRoleRaw = inviteDefaults?.desiredRole;
+      const desiredRole =
+        typeof desiredRoleRaw === "string" &&
+        COMPANY_MEMBERSHIP_ROLES.includes(desiredRoleRaw as any)
+          ? desiredRoleRaw
+          : "member";
+
       if (existing.requestType === "human") {
         if (!existing.requestingUserId)
           throw conflict("Join request missing user identity");
@@ -2640,11 +2693,11 @@ export function accessRoutes(
           companyId,
           "user",
           existing.requestingUserId,
-          "member",
+          desiredRole as any,
           "active"
         );
         const grants = grantsFromDefaults(
-          invite.defaultsPayload as Record<string, unknown> | null,
+          inviteDefaults,
           "human"
         );
         await access.setPrincipalGrants(
@@ -2697,11 +2750,11 @@ export function accessRoutes(
           companyId,
           "agent",
           created.id,
-          "member",
+          desiredRole as any,
           "active"
         );
         const grants = agentJoinGrantsFromDefaults(
-          invite.defaultsPayload as Record<string, unknown> | null
+          inviteDefaults
         );
         await access.setPrincipalGrants(
           companyId,
@@ -2900,6 +2953,56 @@ export function accessRoutes(
         req.actor.userId ?? null
       );
       if (!updated) throw notFound("Member not found");
+      res.json(updated);
+    }
+  );
+
+  router.patch(
+    "/companies/:companyId/members/:memberId/role",
+    validate(updateMemberRoleSchema),
+    async (req, res) => {
+      const companyId = req.params.companyId as string;
+      const memberId = req.params.memberId as string;
+      assertCompanyRole(req, companyId, "owner", "admin");
+
+      const member = await db
+        .select()
+        .from(companyMemberships)
+        .where(and(eq(companyMemberships.companyId, companyId), eq(companyMemberships.id, memberId)))
+        .then((rows) => rows[0] ?? null);
+      if (!member) throw notFound("Member not found");
+
+      // Admins cannot change an owner's role
+      const actorRole = getActorCompanyRole(req, companyId);
+      if (member.membershipRole === "owner" && actorRole !== "owner") {
+        throw forbidden("Only owners can change an owner's role");
+      }
+
+      const updated = await access.updateMemberRole(
+        companyId,
+        memberId,
+        req.body.membershipRole
+      );
+      if (!updated) throw notFound("Member not found");
+
+      await logActivity(db, {
+        companyId,
+        actorType: req.actor.type === "agent" ? "agent" : "user",
+        actorId:
+          req.actor.type === "agent"
+            ? req.actor.agentId ?? "unknown-agent"
+            : req.actor.userId ?? "board",
+        action: "member.role_updated",
+        entityType: "company_membership",
+        entityId: memberId,
+        details: {
+          principalType: member.principalType,
+          principalId: member.principalId,
+          previousRole: member.membershipRole,
+          newRole: req.body.membershipRole,
+        }
+      });
+
       res.json(updated);
     }
   );

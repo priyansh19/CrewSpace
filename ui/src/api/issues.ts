@@ -33,6 +33,8 @@ export const issuesApi = {
       originId?: string;
       includeRoutineExecutions?: boolean;
       q?: string;
+      priorityTier?: "priority" | "normal";
+      sort?: "queueRank" | "priority" | "updatedAt";
     },
   ) => {
     const params = new URLSearchParams();
@@ -50,6 +52,8 @@ export const issuesApi = {
     if (filters?.originId) params.set("originId", filters.originId);
     if (filters?.includeRoutineExecutions) params.set("includeRoutineExecutions", "true");
     if (filters?.q) params.set("q", filters.q);
+    if (filters?.priorityTier) params.set("priorityTier", filters.priorityTier);
+    if (filters?.sort) params.set("sort", filters.sort);
     const qs = params.toString();
     return api.get<Issue[]>(`/companies/${companyId}/issues${qs ? `?${qs}` : ""}`);
   },

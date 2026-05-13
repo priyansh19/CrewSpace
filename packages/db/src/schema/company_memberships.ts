@@ -1,4 +1,5 @@
 import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import type { CompanyMembershipRole } from "@crewspaceai/shared";
 import { companies } from "./companies.js";
 
 export const companyMemberships = pgTable(
@@ -9,7 +10,7 @@ export const companyMemberships = pgTable(
     principalType: text("principal_type").notNull(),
     principalId: text("principal_id").notNull(),
     status: text("status").notNull().default("active"),
-    membershipRole: text("membership_role"),
+    membershipRole: text("membership_role").$type<CompanyMembershipRole>().notNull().default("member"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -1,6 +1,10 @@
+import type { CompanyMembershipRole } from "@crewspaceai/shared";
+
 export type AuthSession = {
   session: { id: string; userId: string };
   user: { id: string; email: string | null; name: string | null };
+  companyRoles: Record<string, CompanyMembershipRole>;
+  isInstanceAdmin: boolean;
 };
 
 function toSession(value: unknown): AuthSession | null {
@@ -14,6 +18,22 @@ function toSession(value: unknown): AuthSession | null {
   const user = userValue as Record<string, unknown>;
   if (typeof session.id !== "string" || typeof session.userId !== "string") return null;
   if (typeof user.id !== "string") return null;
+
+  const companyRolesRaw = record.companyRoles;
+  const companyRoles: Record<string, CompanyMembershipRole> = {};
+  if (companyRolesRaw && typeof companyRolesRaw === "object") {
+    for (const [key, val] of Object.entries(companyRolesRaw as Record<string, unknown>)) {
+      if (
+        val === "owner" ||
+        val === "admin" ||
+        val === "member" ||
+        val === "viewer"
+      ) {
+        companyRoles[key] = val as CompanyMembershipRole;
+      }
+    }
+  }
+
   return {
     session: { id: session.id, userId: session.userId },
     user: {
@@ -21,6 +41,8 @@ function toSession(value: unknown): AuthSession | null {
       email: typeof user.email === "string" ? user.email : null,
       name: typeof user.name === "string" ? user.name : null,
     },
+    companyRoles,
+    isInstanceAdmin: record.isInstanceAdmin === true,
   };
 }
 

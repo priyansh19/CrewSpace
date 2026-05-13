@@ -15,6 +15,7 @@ import {
 } from "@crewspaceai/adapter-utils/server-utils";
 import path from "node:path";
 import { parseKimiJsonl } from "./parse.js";
+import { readKimiAuthInfo, isKimiAuthValid } from "./auth.js";
 
 function summarizeStatus(checks: AdapterEnvironmentCheck[]): AdapterEnvironmentTestResult["status"] {
   if (checks.some((check) => check.level === "error")) return "fail";
@@ -101,6 +102,40 @@ export async function testEnvironment(
     });
   }
 
+  const configApiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
+  const hostApiKey = process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY;
+  const nativeAuth = await readKimiAuthInfo().catch(() => null);
+
+  if (isNonEmpty(configApiKey) || isNonEmpty(hostApiKey)) {
+    const source = isNonEmpty(configApiKey) ? "adapter config env" : "server environment";
+    checks.push({
+      code: "kimi_api_key_present",
+      level: "info",
+      message: "Kimi API key is set for authentication.",
+      detail: `Detected in ${source}.`,
+    });
+  } else if (nativeAuth) {
+    const valid = isKimiAuthValid(nativeAuth);
+    checks.push({
+      code: valid ? "kimi_native_auth_present" : "kimi_native_auth_expired",
+      level: valid ? "info" : "warn",
+      message: valid
+        ? "Kimi is authenticated via local credentials."
+        : "Kimi local credentials are expired.",
+      detail: nativeAuth.userId ? `User: ${nativeAuth.userId}` : `Token expires at ${new Date(nativeAuth.expiresAt * 1000).toISOString()}`,
+      ...(valid
+        ? {}
+        : { hint: "Run `kimi login` to refresh your local credentials, or set KIMI_API_KEY." }),
+    });
+  } else {
+    checks.push({
+      code: "kimi_api_key_missing",
+      level: "warn",
+      message: "No KIMI_API_KEY or MOONSHOT_API_KEY detected, and no local Kimi login found.",
+      hint: "Set KIMI_API_KEY or MOONSHOT_API_KEY in adapter env/shell, or run `kimi login` to log in.",
+    });
+  }
+
   const canRunProbe =
     checks.every((check) => check.code !== "kimi_cwd_invalid" && check.code !== "kimi_command_unresolvable");
   if (canRunProbe) {
@@ -175,6 +210,14 @@ export async function testEnvironment(
           message: "Kimi CLI is installed, but authentication is not ready.",
           ...(detail ? { detail } : {}),
           hint: "Run `kimi login` to authenticate the Kimi CLI.",
+        });
+      } else if (probe.stderr.includes("Application Control policy") || probe.stderr.includes("blocked this file")) {
+        checks.push({
+          code: "kimi_hello_probe_blocked_by_policy",
+          level: "error",
+          message: "Windows blocked the Kimi CLI from running.",
+          ...(detail ? { detail } : {}),
+          hint: "Windows Defender, AppLocker, or an Application Control policy is blocking kimi.exe. Whitelist it in Windows Security, or use KIMI_API_KEY instead of the local CLI.",
         });
       } else {
         checks.push({

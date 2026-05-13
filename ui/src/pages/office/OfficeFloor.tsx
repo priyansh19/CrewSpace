@@ -3,6 +3,7 @@ import { Clone, Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMemo, useEffect, useRef } from "react";
 import { useOfficeStore } from "@/stores/officeStore";
+import { useTheme } from "@/context/ThemeContext";
 import Room from "./Room";
 import Furniture from "./Furniture";
 import Plants from "./Plants";
@@ -285,6 +286,8 @@ const ParkedCar = ({
   rot?: number;
   car: (typeof CAR_MODELS)[number];
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const { scene } = useGLTF(car.path);
 
   const { carScene, fitted } = useMemo(() => {
@@ -345,10 +348,12 @@ const ParkedCar = ({
       >
         <primitive object={carScene} />
       </group>
-      <Html position={[0, car.labelY, 0]} center distanceFactor={28} style={{ pointerEvents: "none" }}>
-        <div style={{ fontSize: "6px", color: "#ffffff", background: "rgba(0,0,0,0.55)",
+      <Html position={[0, car.labelY, 0]} center distanceFactor={28} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
+        <div style={{
+          fontSize: "6px", color: "#ffffff", background: isDark ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.55)",
           padding: "1px 5px", borderRadius: "2px", fontFamily: "monospace",
-          letterSpacing: "0.06em", whiteSpace: "nowrap", fontWeight: 700 }}>
+          letterSpacing: "0.06em", whiteSpace: "nowrap", fontWeight: 700,
+        }}>
           {car.name}
         </div>
       </Html>
@@ -452,7 +457,7 @@ const NikeStore = ({ position }: { position: [number,number,number] }) => {
           <Clone object={logoScene} />
         </group>
       </group>
-      <Html position={[0, bh + 1.0, 0]} center distanceFactor={20} style={{ pointerEvents: "none" }}>
+      <Html position={[0, bh + 1.0, 0]} center distanceFactor={20} style={{ pointerEvents: "none" }} zIndexRange={[0, 0]}>
         <div style={{
           fontSize: "13px", letterSpacing: "0.25em", fontWeight: 900,
           padding: "3px 14px", borderRadius: "4px", color: "#fff",
@@ -506,6 +511,8 @@ const HALLWAY_PATHS: [number,number,number,number][] = [
 // Building spans x: -25→45, z: -19→19. Courtyard z: 19→45.
 
 const OfficeFloor = () => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const bw = 70, bd = 38, wh = 3, wt = 0.12, cx = 10, cz = 0;
   const plazaD = 26, plazaCZ = (19 + 45) / 2;
 
@@ -552,9 +559,11 @@ const OfficeFloor = () => {
                   <planeGeometry args={[dims.width, dims.depth]} />
                   <meshStandardMaterial color="#e8dcc8" roughness={0.85} />
                 </mesh>
-                <Html position={[pos.x,3.2,pos.z]} center distanceFactor={20} style={{ pointerEvents:"none" }}>
-                  <div style={{ fontSize:"11px",letterSpacing:"0.08em",padding:"2px 10px",borderRadius:"5px",
-                    color:"#5a4a3a",background:"#faf5ee",border:`2px solid ${room.accentColor}`,
+                <Html position={[pos.x,3.2,pos.z]} center distanceFactor={20} style={{ pointerEvents:"none" }} zIndexRange={[0, 0]}>
+                  <div style={{
+                    fontSize:"11px",letterSpacing:"0.08em",padding:"2px 10px",borderRadius:"5px",
+                    color: isDark ? "#faf9f5" : "#5a4a3a", background: isDark ? "#252320" : "#faf5ee",
+                    border:`2px solid ${room.accentColor}`,
                     fontWeight:600,fontFamily:"system-ui" }}>
                     {room.label}
                   </div>
@@ -673,7 +682,7 @@ const OfficeFloor = () => {
       <AshtrayPost position={[14.5,0,40.5]} />
       <AshtrayPost position={[17.5,0,42.0]} />
       <AshtrayPost position={[19,0,40.0]} />
-      <Html position={[16.5,2.0,41.5]} center distanceFactor={20} style={{ pointerEvents:"none" }}>
+      <Html position={[16.5,2.0,41.5]} center distanceFactor={20} style={{ pointerEvents:"none" }} zIndexRange={[0, 0]}>
         <div style={{ fontSize:"8px",background:"#222222",color:"#ddddcc",padding:"2px 8px",
           borderRadius:"3px",border:"1px solid #666",fontFamily:"monospace",
           whiteSpace:"nowrap",letterSpacing:"0.06em" }}>
@@ -698,7 +707,7 @@ const OfficeFloor = () => {
       </mesh>
       {/* Sign */}
       <mesh position={[39.5,1.0,23]} material={PARKING_SIGN_MAT}><cylinderGeometry args={[0.05,0.05,2,8]}/></mesh>
-      <Html position={[39.5,2.4,23]} center distanceFactor={20} style={{ pointerEvents:"none" }}>
+      <Html position={[39.5,2.4,23]} center distanceFactor={20} style={{ pointerEvents:"none" }} zIndexRange={[0, 0]}>
         <div style={{ fontSize:"8px",background:"#1a44aa",color:"#fff",padding:"2px 7px",
           borderRadius:"3px",border:"1px solid #88aaff",fontFamily:"monospace",
           whiteSpace:"nowrap",letterSpacing:"0.05em",fontWeight:700 }}>

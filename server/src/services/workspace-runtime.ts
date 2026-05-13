@@ -379,10 +379,11 @@ async function runWorkspaceCommand(input: {
   env: NodeJS.ProcessEnv;
   label: string;
 }) {
-  const shell = process.env.SHELL?.trim() || "/bin/sh";
+  const isWindows = process.platform === "win32";
+  const shell = isWindows ? (process.env.ComSpec || "cmd.exe") : (process.env.SHELL?.trim() || "/bin/sh");
   const proc = await executeProcess({
     command: shell,
-    args: ["-c", input.command],
+    args: [isWindows ? "/c" : "-c", input.command],
     cwd: input.cwd,
     env: input.env,
   });
@@ -475,10 +476,11 @@ async function recordWorkspaceCommandOperation(
     cwd: input.cwd,
     metadata: input.metadata ?? null,
     run: async () => {
-      const shell = process.env.SHELL?.trim() || "/bin/sh";
+      const isWindows = process.platform === "win32";
+      const shell = isWindows ? (process.env.ComSpec || "cmd.exe") : (process.env.SHELL?.trim() || "/bin/sh");
       const result = await executeProcess({
         command: shell,
-        args: ["-c", input.command],
+        args: [isWindows ? "/c" : "-c", input.command],
         cwd: input.cwd,
         env: input.env,
       });
@@ -1359,8 +1361,9 @@ async function startLocalRuntimeService(input: {
       );
     }
   }
-  const shell = process.env.SHELL?.trim() || "/bin/sh";
-  const child = spawn(shell, ["-lc", command], {
+  const isWindows = process.platform === "win32";
+  const shell = isWindows ? (process.env.ComSpec || "cmd.exe") : (process.env.SHELL?.trim() || "/bin/sh");
+  const child = spawn(shell, [isWindows ? "/c" : "-lc", command], {
     cwd: serviceCwd,
     env,
     detached: process.platform !== "win32",

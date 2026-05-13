@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   AGENT_ADAPTER_TYPES,
+  COMPANY_MEMBERSHIP_ROLES,
   INVITE_JOIN_TYPES,
   JOIN_REQUEST_STATUSES,
   JOIN_REQUEST_TYPES,
@@ -11,6 +12,7 @@ export const createCompanyInviteSchema = z.object({
   allowedJoinTypes: z.enum(INVITE_JOIN_TYPES).default("both"),
   defaultsPayload: z.record(z.string(), z.unknown()).optional().nullable(),
   agentMessage: z.string().max(4000).optional().nullable(),
+  desiredRole: z.enum(COMPANY_MEMBERSHIP_ROLES).optional().nullable(),
 });
 
 export type CreateCompanyInvite = z.infer<typeof createCompanyInviteSchema>;
@@ -84,6 +86,12 @@ export const updateMemberPermissionsSchema = z.object({
 });
 
 export type UpdateMemberPermissions = z.infer<typeof updateMemberPermissionsSchema>;
+
+export const updateMemberRoleSchema = z.object({
+  membershipRole: z.enum(COMPANY_MEMBERSHIP_ROLES),
+});
+
+export type UpdateMemberRole = z.infer<typeof updateMemberRoleSchema>;
 
 export const updateUserCompanyAccessSchema = z.object({
   companyIds: z.array(z.string().uuid()).default([]),

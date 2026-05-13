@@ -25,6 +25,8 @@ import {
   type OptimisticIssueComment,
 } from "../lib/optimistic-issue-comments";
 import { useProjectOrder } from "../hooks/useProjectOrder";
+import { useCompanyRole } from "../hooks/useCompanyRole";
+import { canEditIssues } from "../lib/permissions";
 import { relativeTime, cn, formatTokens, visibleRunCostUsd } from "../lib/utils";
 import { InlineEditor } from "../components/InlineEditor";
 import { CommentThread } from "../components/CommentThread";
@@ -227,6 +229,8 @@ export function IssueDetail() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [attachmentDragActive, setAttachmentDragActive] = useState(false);
   const [optimisticComments, setOptimisticComments] = useState<OptimisticIssueComment[]>([]);
+  const { role } = useCompanyRole();
+  const canEdit = canEditIssues(role);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastMarkedReadIssueIdRef = useRef<string | null>(null);
 
@@ -802,7 +806,7 @@ export function IssueDetail() {
   useEffect(() => {
     if (issue) {
       openPanel(
-        <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} />
+        <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} readOnly={!canEdit} />
       );
     }
     return () => closePanel();
@@ -1062,6 +1066,7 @@ export function IssueDetail() {
           onSave={(title) => updateIssue.mutateAsync({ title })}
           as="h2"
           className="text-xl font-bold"
+          readOnly={!canEdit}
         />
 
         <InlineEditor
@@ -1076,6 +1081,7 @@ export function IssueDetail() {
             const attachment = await uploadAttachment.mutateAsync(file);
             return attachment.contentPath;
           }}
+          readOnly={!canEdit}
         />
       </div>
 
@@ -1122,13 +1128,13 @@ export function IssueDetail() {
 
       <IssueDocumentsSection
         issue={issue}
-        canDeleteDocuments={Boolean(session?.user?.id)}
+        canDeleteDocuments={canEdit}
         mentions={mentionOptions}
         imageUploadHandler={async (file) => {
           const attachment = await uploadAttachment.mutateAsync(file);
           return attachment.contentPath;
         }}
-        extraActions={!hasAttachments ? attachmentUploadButton : undefined}
+        extraActions={canEdit && !hasAttachments ? attachmentUploadButton : undefined}
       />
 
       {hasAttachments ? (
@@ -1401,7 +1407,7 @@ export function IssueDetail() {
           </SheetHeader>
           <ScrollArea className="flex-1 overflow-y-auto">
             <div className="px-4 pb-4">
-              <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} inline />
+              <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} inline readOnly={!canEdit} />
             </div>
           </ScrollArea>
         </SheetContent>

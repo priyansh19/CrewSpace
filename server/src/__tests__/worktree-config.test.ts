@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyRuntimePortSelectionToConfig,
   maybePersistWorktreeRuntimePorts,
@@ -22,6 +22,14 @@ afterEach(() => {
   for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
     process.env[key] = value;
   }
+});
+
+beforeEach(() => {
+  // Clear environment variables that can leak from the outer test runner
+  // and take precedence over the test-scoped values.
+  delete process.env.CREWSPACE_HOME;
+  delete process.env.PORT;
+  delete process.env.DATABASE_URL;
 });
 
 function buildLegacyConfig(sharedRoot: string) {
