@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
-const roots = ["packages", "server", "ui", "cli"];
+const roots = ["packages", "server", "desktop-electron", "cli"];
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));

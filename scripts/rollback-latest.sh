@@ -60,7 +60,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.argv[2];
-const roots = ['packages', 'server', 'ui', 'cli'];
+const roots = ['packages', 'server', 'desktop-electron', 'cli'];
 const seen = new Set();
 
 function walk(relDir) {

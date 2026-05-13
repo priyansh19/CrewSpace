@@ -25,7 +25,7 @@
     "release:github": "./scripts/create-github-release.sh",
     "release:rollback": "./scripts/rollback-latest.sh",
     "check:tokens": "node scripts/check-forbidden-tokens.mjs",
-    "build:desktop": "pnpm -r build && pnpm --filter @crewspaceai/server run prepare:ui-dist && cd desktop-electron && pnpm make",
+    "build:desktop": "pnpm -r build && cd desktop-electron && pnpm run build:renderer && pnpm make",
     "docs:dev": "cd docs && npx mintlify dev",
     "smoke:openclaw-join": "./scripts/smoke/openclaw-join.sh",
     "smoke:openclaw-docker-ui": "./scripts/smoke/openclaw-docker-ui.sh",
