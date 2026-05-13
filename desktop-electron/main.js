@@ -170,7 +170,7 @@ ipcMain.handle("install-update", () => {
 ipcMain.handle("is-dev", () => isDev);
 ipcMain.handle("get-renderer-url", () => {
   if (isDev) {
-    return "http://localhost:5173/";
+    return serverUrl || "http://localhost:5173/";
   }
   return "../renderer-dist/index.html";
 });
@@ -431,9 +431,13 @@ function createWindow() {
   // Remove default menu
   mainWindow.setMenuBarVisibility(false);
 
-  const isFirstRun = !isFirstRunComplete();
-  const startPage = isFirstRun ? "onboarding.html" : "index.html";
-  mainWindow.loadFile(path.join(__dirname, "src", startPage));
+  if (isDev) {
+    mainWindow.loadURL("http://localhost:5173/src/index.html");
+  } else {
+    const isFirstRun = !isFirstRunComplete();
+    const startPage = isFirstRun ? "onboarding.html" : "index.html";
+    mainWindow.loadFile(path.join(__dirname, "src", startPage));
+  }
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
