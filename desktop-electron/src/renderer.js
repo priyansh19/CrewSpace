@@ -133,17 +133,6 @@ async function run() {
       el.statusText.textContent = "Ready";
       el.detail.textContent = "Launching CrewSpace";
 
-      // Show LAN URL if available
-      try {
-        const lanUrl = await window.electronAPI.getLanServerUrl();
-        if (lanUrl && el.lanUrl) {
-          el.lanUrl.textContent = `LAN: ${lanUrl}`;
-          el.lanUrl.style.display = "block";
-        }
-      } catch {
-        // ignore
-      }
-
       await sleep(800);
       const rendererUrl = await window.electronAPI.getRendererUrl();
       window.location.replace(rendererUrl);

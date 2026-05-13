@@ -16,7 +16,7 @@ const { readConfig, writeConfig, hasConfig, isFirstRunComplete, markFirstRunComp
 
 // ── Config ──────────────────────────────────────────────────────────
 const SERVER_PORT = 3150;
-const SERVER_BIND_HOST = "0.0.0.0"; // Listen on all interfaces for LAN access
+const SERVER_BIND_HOST = "127.0.0.1"; // Desktop-only: bind to localhost only
 const SERVER_LOCAL_HOST = "127.0.0.1"; // Electron window connects locally
 const HEALTH_MAX_RETRIES = 120;
 const HEALTH_INTERVAL_MS = 500;
@@ -50,18 +50,6 @@ function getAppDataDir() {
   return path.join(os.homedir(), "AppData", "Local", "CrewSpace");
 }
 
-function getLanIp() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name] || []) {
-      // Prefer IPv4, non-internal, non-loopback
-      if (iface.family === "IPv4" && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
-  return null;
-}
 
 function isCrewSpaceUrl(url) {
   return serverUrl && url.startsWith(serverUrl);
@@ -74,7 +62,6 @@ let mainWindow = null;
 let tray = null;
 let serverProcess = null;
 let serverUrl = null; // URL for Electron window (localhost)
-let lanServerUrl = null; // URL for other devices on the network
 let isQuitting = false;
 let normalBounds = null; // Pre-maximize bounds for frameless window restore
 let updateAvailable = false;
@@ -207,20 +194,18 @@ function spawnServer(port) {
     throw new Error(`Server entry not found: ${serverEntry}. Run 'pnpm --filter @crewspaceai/server build' first.`);
   }
 
-  const lanIp = getLanIp();
   const env = {
     ...process.env,
     CREWSPACE_DESKTOP_MODE: "1",
     CREWSPACE_HOME: dataDir,
     HOST: SERVER_BIND_HOST,
     PORT: String(port),
-    SERVE_UI: "true",
+    SERVE_UI: isDev ? "true" : "false",
     CREWSPACE_MIGRATION_AUTO_APPLY: "true",
     CREWSPACE_MIGRATION_PROMPT: "never",
     CREWSPACE_OPEN_ON_LISTEN: "false",
     CREWSPACE_DB_BACKUP_INTERVAL_MINUTES: "10",
     CREWSPACE_DB_BACKUP_RETENTION_COUNT: "1",
-    ...(lanIp ? { CREWSPACE_ALLOWED_HOSTNAMES: lanIp } : {}),
     ...authConfigToEnv(getAuthConfig()),
   };
 
@@ -244,9 +229,6 @@ function spawnServer(port) {
   console.log("[CrewSpace Desktop] Spawning server:", serverEntry);
   console.log("[CrewSpace Desktop] Data directory:", dataDir);
   console.log("[CrewSpace Desktop] Port:", port);
-  if (lanIp) {
-    console.log(`[CrewSpace Desktop] LAN IP: ${lanIp} — other devices can connect via http://${lanIp}:${port}`);
-  }
 
   const isCmd = path.extname(execPath).toLowerCase() === ".cmd";
   const proc = spawn(execPath, args, {
@@ -656,15 +638,6 @@ function createTray() {
       },
     },
     {
-      label: "Copy LAN URL",
-      click: () => {
-        if (lanServerUrl) {
-          const { clipboard } = require("electron");
-          clipboard.writeText(lanServerUrl);
-        }
-      },
-    },
-    {
       label: updateLabel,
       enabled: !updateAvailable || updateDownloaded,
       click: () => {
@@ -694,8 +667,6 @@ function createTray() {
 
 // ── IPC handlers ────────────────────────────────────────────────────
 ipcMain.handle("get-server-url", () => serverUrl);
-
-ipcMain.handle("get-lan-server-url", () => lanServerUrl);
 
 ipcMain.handle("check-server-health", async () => {
   if (!serverUrl) return false;
@@ -932,8 +903,6 @@ function emitMaximizedState() {
 app.whenReady().then(async () => {
   const port = await findFreePort(SERVER_PORT);
   serverUrl = `http://${SERVER_LOCAL_HOST}:${port}`;
-  const lanIp = getLanIp();
-  lanServerUrl = lanIp ? `http://${lanIp}:${port}` : null;
 
   serverProcess = spawnServer(port);
 
