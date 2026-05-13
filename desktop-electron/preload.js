@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Dev / Renderer URL
   isDev: () => ipcRenderer.invoke("is-dev"),
   getRendererUrl: () => ipcRenderer.invoke("get-renderer-url"),
+  loadRenderer: () => ipcRenderer.invoke("load-renderer"),
 
   // Auto-updater
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),

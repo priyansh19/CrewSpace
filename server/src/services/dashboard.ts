@@ -1,6 +1,6 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@crewspaceai/db";
-import { agents, approvals, companies, costEvents, issues } from "@crewspaceai/db";
+import { agents, approvals, companies, costEvents, heartbeatRuns, issues } from "@crewspaceai/db";
 import { notFound } from "../errors.js";
 import { budgetService } from "./budgets.js";
 
@@ -34,35 +34,11 @@ export function dashboardService(db: Db) {
         .where(and(eq(approvals.companyId, companyId), eq(approvals.status, "pending")))
         .then((rows) => Number(rows[0]?.count ?? 0));
 
-      const agentCounts: Record<string, number> = {
-        active: 0,
-        running: 0,
-        paused: 0,
-        error: 0,
-      };
-      for (const row of agentRows) {
-        const count = Number(row.count);
-        // "idle" agents are operational — count them as active
-        const bucket = row.status === "idle" ? "active" : row.status;
-        agentCounts[bucket] = (agentCounts[bucket] ?? 0) + count;
-      }
-
-      const taskCounts: Record<string, number> = {
-        open: 0,
-        inProgress: 0,
-        blocked: 0,
-        done: 0,
-      };
-      for (const row of taskRows) {
-        const count = Number(row.count);
-        if (row.status === "in_progress") taskCounts.inProgress += count;
-        if (row.status === "blocked") taskCounts.blocked += count;
-        if (row.status === "done") taskCounts.done += count;
-        if (row.status !== "done" && row.status !== "cancelled") taskCounts.open += count;
-      }
-
       const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterday = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
       const [{ monthSpend }] = await db
         .select({
           monthSpend: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::int`,
@@ -75,11 +51,140 @@ export function dashboardService(db: Db) {
           ),
         );
 
+      // Today's total spend
+      const [{ todaySpend }] = await db
+        .select({
+          todaySpend: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::int`,
+        })
+        .from(costEvents)
+        .where(
+          and(
+            eq(costEvents.companyId, companyId),
+            gte(costEvents.occurredAt, todayStart),
+          ),
+        );
+
+      // Per-agent burn today
+      const agentBurnRows = await db
+        .select({
+          agentId: costEvents.agentId,
+          costCents: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::int`,
+          runsToday: sql<number>`count(distinct ${costEvents.heartbeatRunId})::int`,
+        })
+        .from(costEvents)
+        .where(
+          and(
+            eq(costEvents.companyId, companyId),
+            gte(costEvents.occurredAt, todayStart),
+            isNotNull(costEvents.agentId),
+          ),
+        )
+        .groupBy(costEvents.agentId)
+        .orderBy(desc(sql`sum(${costEvents.costCents})`))
+        .limit(10);
+
+      // Fetch agent names for burn entries
+      const burnAgentIds = agentBurnRows.map((r) => r.agentId).filter(Boolean) as string[];
+      const burnAgents = burnAgentIds.length > 0
+        ? await db
+            .select({ id: agents.id, name: agents.name })
+            .from(agents)
+            .where(eq(agents.companyId, companyId))
+        : [];
+      const burnAgentMap = new Map(burnAgents.map((a) => [a.id, a.name]));
+
+      // Tasks completed today
+      const [{ todayDone }] = await db
+        .select({ todayDone: sql<number>`count(*)::int` })
+        .from(issues)
+        .where(
+          and(
+            eq(issues.companyId, companyId),
+            eq(issues.status, "done"),
+            gte(issues.completedAt, todayStart),
+          ),
+        );
+
+      // Recent completed tasks (last 24h)
+      const recentCompletedRows = await db
+        .select({
+          id: issues.id,
+          title: issues.title,
+          completedAt: issues.completedAt,
+          assigneeAgentId: issues.assigneeAgentId,
+        })
+        .from(issues)
+        .where(
+          and(
+            eq(issues.companyId, companyId),
+            eq(issues.status, "done"),
+            gte(issues.completedAt, yesterday),
+          ),
+        )
+        .orderBy(desc(issues.completedAt))
+        .limit(10);
+
+      // Fetch assignee names
+      const assigneeIds = recentCompletedRows
+        .map((r) => r.assigneeAgentId)
+        .filter(Boolean) as string[];
+      const assigneeAgents = assigneeIds.length > 0
+        ? await db
+            .select({ id: agents.id, name: agents.name })
+            .from(agents)
+            .where(eq(agents.companyId, companyId))
+        : [];
+      const assigneeMap = new Map(assigneeAgents.map((a) => [a.id, a.name]));
+
+      // Pending approvals list
+      const pendingApprovalRows = await db
+        .select({
+          id: approvals.id,
+          type: approvals.type,
+          requestedByAgentId: approvals.requestedByAgentId,
+          payload: approvals.payload,
+          createdAt: approvals.createdAt,
+        })
+        .from(approvals)
+        .where(and(eq(approvals.companyId, companyId), eq(approvals.status, "pending")))
+        .orderBy(desc(approvals.createdAt))
+        .limit(20);
+
+      const approvalAgentIds = pendingApprovalRows
+        .map((r) => r.requestedByAgentId)
+        .filter(Boolean) as string[];
+      const approvalAgents = approvalAgentIds.length > 0
+        ? await db
+            .select({ id: agents.id, name: agents.name })
+            .from(agents)
+            .where(eq(agents.companyId, companyId))
+        : [];
+      const approvalAgentMap = new Map(approvalAgents.map((a) => [a.id, a.name]));
+
+      const agentCounts: Record<string, number> = {
+        active: 0, running: 0, paused: 0, error: 0,
+      };
+      for (const row of agentRows) {
+        const count = Number(row.count);
+        const bucket = row.status === "idle" ? "active" : row.status;
+        agentCounts[bucket] = (agentCounts[bucket] ?? 0) + count;
+      }
+
+      const taskCounts: Record<string, number> = {
+        open: 0, inProgress: 0, blocked: 0, done: 0,
+      };
+      for (const row of taskRows) {
+        const count = Number(row.count);
+        if (row.status === "in_progress") taskCounts.inProgress += count;
+        if (row.status === "blocked") taskCounts.blocked += count;
+        if (row.status === "done") taskCounts.done += count;
+        if (row.status !== "done" && row.status !== "cancelled") taskCounts.open += count;
+      }
+
       const monthSpendCents = Number(monthSpend);
-      const utilization =
-        company.budgetMonthlyCents > 0
-          ? (monthSpendCents / company.budgetMonthlyCents) * 100
-          : 0;
+      const utilization = company.budgetMonthlyCents > 0
+        ? (monthSpendCents / company.budgetMonthlyCents) * 100
+        : 0;
       const budgetOverview = await budgets.overview(companyId);
 
       return {
@@ -90,19 +195,50 @@ export function dashboardService(db: Db) {
           paused: agentCounts.paused,
           error: agentCounts.error,
         },
-        tasks: taskCounts,
+        tasks: {
+          ...taskCounts,
+          todayCompleted: Number(todayDone ?? 0),
+        },
         costs: {
           monthSpendCents,
           monthBudgetCents: company.budgetMonthlyCents,
           monthUtilizationPercent: Number(utilization.toFixed(2)),
+          todaySpendCents: Number(todaySpend ?? 0),
         },
         pendingApprovals,
+        pendingApprovalsList: pendingApprovalRows.map((r) => ({
+          id: r.id,
+          type: r.type,
+          requestedByAgentId: r.requestedByAgentId ?? null,
+          requestedByAgentName: r.requestedByAgentId
+            ? (approvalAgentMap.get(r.requestedByAgentId) ?? null)
+            : null,
+          payload: (r.payload ?? {}) as Record<string, unknown>,
+          createdAt: r.createdAt.toISOString(),
+        })),
         budgets: {
           activeIncidents: budgetOverview.activeIncidents.length,
           pendingApprovals: budgetOverview.pendingApprovalCount,
           pausedAgents: budgetOverview.pausedAgentCount,
           pausedProjects: budgetOverview.pausedProjectCount,
         },
+        agentBurnToday: agentBurnRows
+          .filter((r) => r.agentId != null)
+          .map((r) => ({
+            agentId: r.agentId!,
+            agentName: burnAgentMap.get(r.agentId!) ?? "Unknown",
+            costCents: Number(r.costCents),
+            runsToday: Number(r.runsToday),
+          })),
+        recentCompleted: recentCompletedRows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          completedAt: r.completedAt?.toISOString() ?? new Date().toISOString(),
+          assigneeAgentId: r.assigneeAgentId ?? null,
+          assigneeAgentName: r.assigneeAgentId
+            ? (assigneeMap.get(r.assigneeAgentId) ?? null)
+            : null,
+        })),
       };
     },
   };

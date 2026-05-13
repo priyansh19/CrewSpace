@@ -134,8 +134,7 @@ async function run() {
       el.detail.textContent = "Launching CrewSpace";
 
       await sleep(800);
-      const rendererUrl = await window.electronAPI.getRendererUrl();
-      window.location.replace(rendererUrl);
+      await window.electronAPI.loadRenderer();
     } else {
       showError(el, "Server failed to start", "Please check the logs or restart CrewSpace. If this persists, contact support.");
     }

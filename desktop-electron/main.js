@@ -52,7 +52,10 @@ function getAppDataDir() {
 
 
 function isCrewSpaceUrl(url) {
-  return serverUrl && url.startsWith(serverUrl);
+  if (serverUrl && url.startsWith(serverUrl)) return true;
+  // Allow Vite dev server in dev mode
+  if (isDev && url.startsWith("http://localhost:5175")) return true;
+  return false;
 }
 
 // (GitHub login-check helpers removed — external links now open in system browser)
@@ -157,9 +160,20 @@ ipcMain.handle("install-update", () => {
 ipcMain.handle("is-dev", () => isDev);
 ipcMain.handle("get-renderer-url", () => {
   if (isDev) {
-    return "http://localhost:5173/";
+    return "http://localhost:5175/";
   }
   return "../renderer-dist/index.html";
+});
+
+// Navigate the main window to the renderer — bypasses will-navigate guard
+ipcMain.handle("load-renderer", () => {
+  const url = isDev ? "http://localhost:5175/" : path.join(__dirname, "renderer-dist", "index.html");
+  if (!mainWindow) return;
+  if (isDev) {
+    mainWindow.loadURL(url);
+  } else {
+    mainWindow.loadFile(url);
+  }
 });
 
 // ── Find free port ──────────────────────────────────────────────────
