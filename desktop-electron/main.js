@@ -182,8 +182,17 @@ ipcMain.handle("load-renderer", async () => {
     console.warn(`[CrewSpace Desktop] load-renderer: Vite not available, falling back to renderer-dist`);
   }
 
+  // Load via the embedded HTTP server so that absolute asset paths (base: "/")
+  // resolve correctly. serverUrl is confirmed healthy before this IPC is called.
+  const rendererUrl = serverUrl ? `${serverUrl}/` : null;
+  if (rendererUrl) {
+    console.log(`[CrewSpace Desktop] load-renderer: loading via embedded server at ${rendererUrl}`);
+    mainWindow.loadURL(rendererUrl);
+    return;
+  }
+  // Fallback: file:// only works when base is "./" — kept for safety
   const distPath = path.join(__dirname, "renderer-dist", "index.html");
-  console.log(`[CrewSpace Desktop] load-renderer: loading from renderer-dist`);
+  console.log(`[CrewSpace Desktop] load-renderer: loading from renderer-dist (file://)`);
   mainWindow.loadFile(distPath);
 });
 
