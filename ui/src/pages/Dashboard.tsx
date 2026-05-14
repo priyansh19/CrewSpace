@@ -1,95 +1,57 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { dashboardApi } from "../api/dashboard";
-import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
-import { projectsApi } from "../api/projects";
 import { heartbeatsApi } from "../api/heartbeats";
 import { approvalsApi } from "../api/approvals";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
-import { MetricCard } from "../components/MetricCard";
 import { EmptyState } from "../components/EmptyState";
-import { StatusIcon } from "../components/StatusIcon";
-import { timeAgo } from "../lib/timeAgo";
-import { cn, formatCents } from "../lib/utils";
+import { PageSkeleton } from "../components/PageSkeleton";
+import { CommandBridgeScene } from "../components/CommandBridgeScene";
+import type { ReactNode } from "react";
+import { formatCents } from "../lib/utils";
 import {
-  Bot,
-  CircleDot,
-  DollarSign,
-  ShieldCheck,
   LayoutDashboard,
   PauseCircle,
   CheckCircle2,
   XCircle,
-  Clock,
   Zap,
-  User,
-  ChevronDown,
-  Activity,
+  AlertTriangle,
 } from "lucide-react";
-import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
-import {
-  ChartCard,
-  RunActivityChart,
-  SuccessRateChart,
-  AgentStatusDonut,
-  TaskVelocityChart,
-  AgentUtilizationChart,
-} from "../components/ActivityCharts";
-import { PageSkeleton } from "../components/PageSkeleton";
-import { LiveActivityPanel } from "../components/LiveActivityPanel";
-import { DashboardHero } from "../components/DashboardHero";
-import type { Agent, Issue, Approval } from "@crewspaceai/shared";
-import { PluginSlotOutlet } from "@/plugins/slots";
-
-const APPROVAL_TYPE_LABELS: Record<string, string> = {
-  hire_agent: "Hire Agent",
-  approve_ceo_strategy: "CEO Strategy",
-  budget_override_required: "Budget Override",
-};
 
 export function Dashboard() {
   const { selectedCompanyId, companies } = useCompany();
   const { openOnboarding } = useDialog();
   const { setBreadcrumbs } = useBreadcrumbs();
-
-  const { data: agents } = useQuery({
-    queryKey: queryKeys.agents.list(selectedCompanyId!),
-    queryFn: () => agentsApi.list(selectedCompanyId!),
-    enabled: !!selectedCompanyId,
-  });
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setBreadcrumbs([{ label: "Dashboard" }]);
   }, [setBreadcrumbs]);
 
-  const { data, isLoading, error } = useQuery({
+  const { data: agents } = useQuery({
+    queryKey: queryKeys.agents.list(selectedCompanyId!),
+    queryFn: () => agentsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+    refetchInterval: 10_000,
+  });
+
+  const { data, isLoading } = useQuery({
     queryKey: queryKeys.dashboard(selectedCompanyId!),
     queryFn: () => dashboardApi.summary(selectedCompanyId!),
     enabled: !!selectedCompanyId,
-  });
-
-  const { data: issues } = useQuery({
-    queryKey: queryKeys.issues.list(selectedCompanyId!),
-    queryFn: () => issuesApi.list(selectedCompanyId!),
-    enabled: !!selectedCompanyId,
-  });
-
-  const { data: projects } = useQuery({
-    queryKey: queryKeys.projects.list(selectedCompanyId!),
-    queryFn: () => projectsApi.list(selectedCompanyId!),
-    enabled: !!selectedCompanyId,
-  });
-
-  const { data: runs } = useQuery({
-    queryKey: queryKeys.heartbeats(selectedCompanyId!),
-    queryFn: () => heartbeatsApi.list(selectedCompanyId!),
-    enabled: !!selectedCompanyId,
     refetchInterval: 15_000,
+  });
+
+  const { data: liveRuns } = useQuery({
+    queryKey: queryKeys.liveRuns(selectedCompanyId!),
+    queryFn: () => heartbeatsApi.liveRunsForCompany(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+    refetchInterval: 5_000,
   });
 
   const { data: pendingApprovals } = useQuery({
@@ -98,8 +60,6 @@ export function Dashboard() {
     enabled: !!selectedCompanyId,
     refetchInterval: 15_000,
   });
-
-  const queryClient = useQueryClient();
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => approvalsApi.approve(id),
@@ -117,17 +77,35 @@ export function Dashboard() {
     },
   });
 
-  const recentIssues = useMemo(() => {
-    if (!issues) return [];
-    return [...issues]
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 5);
-  }, [issues]);
+  const workingAgentIds = useMemo(() => {
+    if (!liveRuns) return new Set<string>();
+    return new Set(
+      liveRuns
+        .filter((r) => r.status === "running" || r.status === "in_progress")
+        .map((r) => r.agentId),
+    );
+  }, [liveRuns]);
 
-  const agentName = (id: string | null) => {
-    if (!id || !agents) return null;
-    return agents.find((a) => a.id === id)?.name ?? null;
-  };
+  const blockedAgentIds = useMemo(() => {
+    if (!agents) return new Set<string>();
+    return new Set(agents.filter((a) => a.status === "error" || a.status === "pending_approval").map((a) => a.id));
+  }, [agents]);
+
+  const agentTaskMap = useMemo(() => {
+    if (!liveRuns) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const run of liveRuns) {
+      if (!map.has(run.agentId) && run.triggerDetail) {
+        map.set(run.agentId, run.triggerDetail);
+      }
+    }
+    return map;
+  }, [liveRuns]);
+
+  const activeCount = workingAgentIds.size;
+  const totalAgents = agents?.length ?? 0;
+
+  const inProgressCount = data?.tasks?.inProgress ?? null;
 
   if (!selectedCompanyId) {
     if (companies.length === 0) {
@@ -140,358 +118,317 @@ export function Dashboard() {
         />
       );
     }
-    return (
-      <EmptyState icon={LayoutDashboard} message="Create or select a company to view the dashboard." />
-    );
+    return <EmptyState icon={LayoutDashboard} message="Create or select a company to view the dashboard." />;
   }
 
-  if (isLoading) {
-    return <PageSkeleton variant="dashboard" />;
-  }
-
-  const hasNoAgents = agents !== undefined && agents.length === 0;
+  if (isLoading) return <PageSkeleton variant="dashboard" />;
 
   return (
-    <div className="space-y-6">
-      {error && <p className="text-sm text-destructive">{error.message}</p>}
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100vh",
+        background: "#0a0908",
+        overflow: "hidden",
+      }}
+    >
+      {/* ── 3D Scene fills entire viewport ─────────────────────── */}
+      <div style={{ position: "absolute", inset: 0 }}>
+        <CommandBridgeScene
+          agents={agents ?? []}
+          workingAgentIds={workingAgentIds}
+          blockedAgentIds={blockedAgentIds}
+          agentTaskMap={agentTaskMap}
+        />
+      </div>
 
-      {hasNoAgents && (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-chart-5/20 bg-chart-5/10 px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <Bot className="h-4 w-4 text-chart-5 shrink-0" />
-            <p className="text-sm text-foreground">You have no agents.</p>
+      {/* ── Budget incident banner ──────────────────────────────── */}
+      {data?.budgets?.activeIncidents ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            background: "rgba(198,69,69,0.15)",
+            borderBottom: "1px solid rgba(198,69,69,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "8px 20px",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <PauseCircle style={{ color: "#c64545", width: 14, height: 14, flexShrink: 0 }} />
+            <span style={{ color: "#c64545", fontSize: 12 }}>
+              {data.budgets.activeIncidents} budget incident{data.budgets.activeIncidents === 1 ? "" : "s"} —{" "}
+              {data.budgets.pausedAgents} agents paused
+            </span>
           </div>
-          <button
-            onClick={() => openOnboarding({ initialStep: 2, companyId: selectedCompanyId! })}
-            className="text-sm font-medium text-chart-5 hover:text-chart-5/80 underline underline-offset-2 shrink-0"
-          >
-            Create one here
-          </button>
+          <Link to="/costs" style={{ color: "#c64545", fontSize: 12, textDecoration: "underline" }}>
+            Open budgets
+          </Link>
         </div>
-      )}
+      ) : null}
 
-      <DashboardHero agents={agents ?? []} summary={data} runs={runs ?? []} />
+      {/* ── Top-left: LIVE badge ────────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          top: data?.budgets?.activeIncidents ? 46 : 20,
+          left: 20,
+          zIndex: 20,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "4px 10px",
+            borderRadius: 20,
+            background: activeCount > 0 ? "rgba(93,184,114,0.15)" : "rgba(255,255,255,0.06)",
+            border: `1px solid ${activeCount > 0 ? "rgba(93,184,114,0.3)" : "rgba(255,255,255,0.1)"}`,
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: activeCount > 0 ? "#5db872" : "#4a4a48",
+              boxShadow: activeCount > 0 ? "0 0 6px rgba(93,184,114,0.7)" : "none",
+              display: "inline-block",
+            }}
+          />
+          <span style={{ color: activeCount > 0 ? "#5db872" : "#6c6a64", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em" }}>
+            {activeCount > 0 ? "LIVE" : "IDLE"}
+          </span>
+          <span style={{ color: "#6c6a64", fontSize: 11 }}>
+            {activeCount}/{totalAgents} active
+          </span>
+        </div>
+      </div>
 
-      {data && (
-        <div className="space-y-6">
-          {/* Budget incidents alert */}
-          {data.budgets.activeIncidents > 0 ? (
-            <div className="flex items-start justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3">
-              <div className="flex items-start gap-2.5">
-                <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <div>
-                  <p className="text-sm font-medium text-destructive">
-                    {data.budgets.activeIncidents} active budget incident
-                    {data.budgets.activeIncidents === 1 ? "" : "s"}
-                  </p>
-                  <p className="text-xs text-destructive/70">
-                    {data.budgets.pausedAgents} agents paused &middot;{" "}
-                    {data.budgets.pausedProjects} projects paused &middot;{" "}
-                    {data.budgets.pendingApprovals} pending budget approvals
-                  </p>
+      {/* ── Top-right: pending approvals ───────────────────────── */}
+      {(pendingApprovals?.length ?? 0) > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: data?.budgets?.activeIncidents ? 46 : 20,
+            right: 20,
+            zIndex: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            maxWidth: 280,
+          }}
+        >
+          {pendingApprovals!.slice(0, 2).map((approval) => {
+            const agentName = agents?.find((a) => a.id === approval.requestedByAgentId)?.name;
+            const isActing =
+              (approveMutation.isPending && approveMutation.variables === approval.id) ||
+              (rejectMutation.isPending && rejectMutation.variables === approval.id);
+            return (
+              <div
+                key={approval.id}
+                style={{
+                  background: "rgba(25,22,20,0.85)",
+                  border: "1px solid rgba(204,120,92,0.25)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  backdropFilter: "blur(12px)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <AlertTriangle style={{ width: 12, height: 12, color: "#e8a55a", flexShrink: 0 }} />
+                  <span style={{ color: "#e8a55a", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Needs approval
+                  </span>
+                  {agentName && (
+                    <span style={{ color: "#6c6a64", fontSize: 10 }}>· {agentName}</span>
+                  )}
+                </div>
+                <p style={{ color: "#faf9f5", fontSize: 11, margin: "0 0 8px", lineHeight: 1.4 }}>
+                  {approval.type === "hire_agent" ? "Hire Agent" :
+                    approval.type === "approve_ceo_strategy" ? "CEO Strategy" :
+                      approval.type === "budget_override_required" ? "Budget Override" :
+                        approval.type}
+                </p>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => approveMutation.mutate(approval.id)}
+                    disabled={isActing}
+                    style={{
+                      flex: 1,
+                      padding: "4px 0",
+                      borderRadius: 6,
+                      background: "rgba(93,184,114,0.15)",
+                      border: "1px solid rgba(93,184,114,0.3)",
+                      color: "#5db872",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      opacity: isActing ? 0.5 : 1,
+                    }}
+                  >
+                    <CheckCircle2 style={{ width: 11, height: 11 }} />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => rejectMutation.mutate(approval.id)}
+                    disabled={isActing}
+                    style={{
+                      flex: 1,
+                      padding: "4px 0",
+                      borderRadius: 6,
+                      background: "rgba(198,69,69,0.12)",
+                      border: "1px solid rgba(198,69,69,0.25)",
+                      color: "#c64545",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      opacity: isActing ? 0.5 : 1,
+                    }}
+                  >
+                    <XCircle style={{ width: 11, height: 11 }} />
+                    Reject
+                  </button>
                 </div>
               </div>
-              <Link to="/costs" className="text-sm underline underline-offset-2 text-destructive">
-                Open budgets
-              </Link>
-            </div>
-          ) : null}
-
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-            <MetricCard
-              icon={Bot}
-              value={data.agents.active + data.agents.running + data.agents.paused + data.agents.error}
-              label="Agents Enabled"
-              to="/agents"
-              description={
-                <span>
-                  {data.agents.running} running{", "}
-                  {data.agents.paused} paused{", "}
-                  {data.agents.error} errors
-                </span>
-              }
-            />
-            <MetricCard
-              icon={CircleDot}
-              value={data.tasks.inProgress}
-              label="Tasks In Progress"
-              to="/issues"
-              description={
-                <span>
-                  {data.tasks.open} open{", "}
-                  {data.tasks.blocked} blocked
-                </span>
-              }
-            />
-            <MetricCard
-              icon={DollarSign}
-              value={formatCents(data.costs.monthSpendCents)}
-              label="Month Spend"
-              to="/costs"
-              description={
-                <span>
-                  {data.costs.monthBudgetCents > 0
-                    ? `${data.costs.monthUtilizationPercent}% of ${formatCents(data.costs.monthBudgetCents)} budget`
-                    : "Unlimited budget"}
-                </span>
-              }
-            />
-            <MetricCard
-              icon={ShieldCheck}
-              value={data.pendingApprovals + data.budgets.pendingApprovals}
-              label="Pending Approvals"
+            );
+          })}
+          {(pendingApprovals?.length ?? 0) > 2 && (
+            <Link
               to="/approvals"
-              description={
-                <span>
-                  {data.budgets.pendingApprovals > 0
-                    ? `${data.budgets.pendingApprovals} budget overrides awaiting board review`
-                    : "Awaiting board review"}
-                </span>
-              }
-            />
-          </div>
-
-          {/* Primary Insight Charts — Run Activity + Success Rate */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Run Activity" subtitle="Execution volume & outcomes (14d)" heightClass="h-64">
-              <RunActivityChart runs={runs ?? []} />
-            </ChartCard>
-            <ChartCard title="Success Rate" subtitle="Daily run quality trend (14d)" heightClass="h-64">
-              <SuccessRateChart runs={runs ?? []} />
-            </ChartCard>
-          </div>
-
-          {/* Secondary Insight Charts — Agent Status + Task Velocity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Agent Status" subtitle="Fleet availability" heightClass="h-60">
-              <AgentStatusDonut agents={data.agents} />
-            </ChartCard>
-            <ChartCard title="Task Velocity" subtitle="Created vs completed (14d)" heightClass="h-60">
-              <TaskVelocityChart issues={issues ?? []} />
-            </ChartCard>
-          </div>
-
-          {/* Operational Detail — Agent Utilization full width */}
-          <ChartCard title="Agent Utilization" subtitle="Top performers by run count (14d)" heightClass="h-60">
-            <AgentUtilizationChart runs={runs ?? []} agents={agents ?? []} />
-          </ChartCard>
-
-          {/* Collapsible Live Activity Feed */}
-          <CollapsibleActivityPanel companyId={selectedCompanyId!} />
-
-          {/* Collapsible Active Agents */}
-          <CollapsibleAgentsPanel companyId={selectedCompanyId!} />
-
-          {/* Pending Approvals */}
-          {(pendingApprovals?.length ?? 0) > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Pending Approvals
-                  <span className="ml-1 inline-flex items-center justify-center rounded-full bg-chart-5/15 text-chart-5 text-xs font-semibold px-1.5 py-px min-w-[18px]">
-                    {pendingApprovals!.length}
-                  </span>
-                </h3>
-                <Link
-                  to="/approvals"
-                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-                >
-                  View all
-                </Link>
-              </div>
-              <div className="border border-border rounded-lg divide-y divide-border overflow-hidden">
-                {pendingApprovals!.slice(0, 5).map((approval) => {
-                  const agentName = agents?.find((a) => a.id === approval.requestedByAgentId)?.name;
-                  const isApproving = approveMutation.isPending && approveMutation.variables === approval.id;
-                  const isRejecting = rejectMutation.isPending && rejectMutation.variables === approval.id;
-                  return (
-                    <div
-                      key={approval.id}
-                      className="flex items-start gap-3 px-4 py-3 bg-card hover:bg-accent/30 transition-colors"
-                    >
-                      <div className="mt-0.5 flex-shrink-0">
-                        <Clock className="h-4 w-4 text-chart-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-medium px-1.5 py-px rounded bg-muted text-muted-foreground">
-                            {APPROVAL_TYPE_LABELS[approval.type] ?? approval.type}
-                          </span>
-                          {agentName && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Zap className="h-3 w-3" />
-                              {agentName}
-                            </span>
-                          )}
-                          {approval.requestedByUserId && !agentName && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <User className="h-3 w-3" />
-                              User
-                            </span>
-                          )}
-                        </div>
-                        {approval.payload && Object.keys(approval.payload).length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                            {((approval.payload as Record<string, unknown>).reason as string) ??
-                              ((approval.payload as Record<string, unknown>).description as string) ??
-                              JSON.stringify(approval.payload).slice(0, 80)}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground/60 mt-0.5">
-                          {timeAgo(approval.createdAt)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-                        <button
-                          onClick={() => approveMutation.mutate(approval.id)}
-                          disabled={isApproving || isRejecting}
-                          className={cn(
-                            "flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors",
-                            "bg-chart-3/10 text-chart-3 hover:bg-chart-3/20",
-                            (isApproving || isRejecting) && "opacity-50 pointer-events-none"
-                          )}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {isApproving ? "…" : "Approve"}
-                        </button>
-                        <button
-                          onClick={() => rejectMutation.mutate(approval.id)}
-                          disabled={isApproving || isRejecting}
-                          className={cn(
-                            "flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors",
-                            "bg-destructive/10 text-destructive hover:bg-destructive/20",
-                            (isApproving || isRejecting) && "opacity-50 pointer-events-none"
-                          )}
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                          {isRejecting ? "…" : "Reject"}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {pendingApprovals!.length > 5 && (
-                  <Link
-                    to="/approvals"
-                    className="block px-4 py-2.5 text-xs text-center text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors no-underline"
-                  >
-                    + {pendingApprovals!.length - 5} more pending approvals
-                  </Link>
-                )}
-              </div>
-            </div>
+              style={{
+                display: "block",
+                textAlign: "center",
+                color: "#a09d96",
+                fontSize: 11,
+                textDecoration: "underline",
+                padding: "4px 0",
+              }}
+            >
+              +{pendingApprovals!.length - 2} more
+            </Link>
           )}
-
-          <PluginSlotOutlet
-            slotTypes={["dashboardWidget"]}
-            context={{ companyId: selectedCompanyId }}
-            className="grid gap-4 md:grid-cols-2"
-            itemClassName="rounded-lg border bg-card p-4 shadow-sm"
-          />
-
-          {/* Recent Tasks — compact */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Recent Tasks
-            </h3>
-            {recentIssues.length === 0 ? (
-              <div className="border border-border p-4 rounded-lg">
-                <p className="text-sm text-muted-foreground">No tasks yet.</p>
-              </div>
-            ) : (
-              <div className="border border-border divide-y divide-border overflow-hidden rounded-lg">
-                {recentIssues.map((issue) => (
-                  <Link
-                    key={issue.id}
-                    to={`/issues/${issue.identifier ?? issue.id}`}
-                    className="px-4 py-3 text-sm cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit block"
-                  >
-                    <div className="flex items-start gap-2 sm:items-center sm:gap-3">
-                      <span className="shrink-0 sm:hidden">
-                        <StatusIcon status={issue.status} />
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
-                        <span className="line-clamp-2 text-sm sm:order-2 sm:flex-1 sm:min-w-0 sm:line-clamp-none sm:truncate">
-                          {issue.title}
-                        </span>
-                        <span className="flex items-center gap-2 sm:order-1 sm:shrink-0">
-                          <span className="hidden sm:inline-flex">
-                            <StatusIcon status={issue.status} />
-                          </span>
-                          <span className="text-xs font-mono text-muted-foreground">
-                            {issue.identifier ?? issue.id.slice(0, 8)}
-                          </span>
-                          {issue.assigneeAgentId && (() => {
-                            const name = agentName(issue.assigneeAgentId);
-                            return name ? (
-                              <span className="hidden sm:inline-flex text-xs text-muted-foreground bg-muted px-1.5 py-px rounded">
-                                {name}
-                              </span>
-                            ) : null;
-                          })()}
-                          <span className="text-xs text-muted-foreground shrink-0 sm:order-last">
-                            {timeAgo(issue.updatedAt)}
-                          </span>
-                        </span>
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       )}
+
+      {/* ── Bottom metric bar ───────────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 20,
+          background: "rgba(15,13,11,0.88)",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+          backdropFilter: "blur(16px)",
+          display: "flex",
+          alignItems: "stretch",
+        }}
+      >
+        <MetricTile
+          value={String(activeCount)}
+          label="Active Agents"
+          valueColor="#5db872"
+          to="/agents"
+          icon={<Zap style={{ width: 13, height: 13 }} />}
+        />
+        <MetricTile
+          value={inProgressCount !== null ? String(inProgressCount) : "—"}
+          label="In Progress"
+          valueColor="#faf9f5"
+          to="/issues"
+        />
+        <MetricTile
+          value={data ? formatCents(data.costs.monthSpendCents) : "—"}
+          label="Month Spend"
+          valueColor="#e8a55a"
+          to="/costs"
+        />
+        <MetricTile
+          value={String(data?.tasks?.open ?? "—")}
+          label="Open Tasks"
+          valueColor="#faf9f5"
+          to="/issues"
+          last
+        />
+      </div>
     </div>
   );
 }
 
-// ─── Collapsible Activity Panel ───
-function CollapsibleActivityPanel({ companyId }: { companyId: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-accent/30 transition-colors"
-      >
-        <span className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-muted-foreground" />
-          Live Activity Feed
-        </span>
-        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
-      </button>
-      {open && (
-        <div className="border-t border-border h-[300px]">
-          <LiveActivityPanel companyId={companyId} />
-        </div>
-      )}
-    </div>
-  );
+interface MetricTileProps {
+  value: string;
+  label: string;
+  valueColor?: string;
+  to: string;
+  icon?: ReactNode;
+  last?: boolean;
 }
 
-// ─── Collapsible Active Agents Panel ───
-function CollapsibleAgentsPanel({ companyId }: { companyId: string }) {
-  const [open, setOpen] = useState(false);
+function MetricTile({ value, label, valueColor = "#faf9f5", to, icon, last }: MetricTileProps) {
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-accent/30 transition-colors"
-      >
-        <span className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-muted-foreground" />
-          Active Agent Runs
+    <Link
+      to={to}
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "14px 12px",
+        borderRight: last ? "none" : "1px solid rgba(255,255,255,0.06)",
+        textDecoration: "none",
+        gap: 2,
+      }}
+      className="hover:bg-white/[0.03] transition-colors"
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        {icon && <span style={{ color: valueColor, opacity: 0.7 }}>{icon}</span>}
+        <span
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            color: valueColor,
+            fontFamily: "StyreneB, Inter, sans-serif",
+            letterSpacing: "-0.02em",
+            lineHeight: 1,
+          }}
+        >
+          {value}
         </span>
-        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
-      </button>
-      {open && (
-        <div className="border-t border-border p-4">
-          <ActiveAgentsPanel companyId={companyId} />
-        </div>
-      )}
-    </div>
+      </div>
+      <span
+        style={{
+          fontSize: 10,
+          color: "#6c6a64",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          fontWeight: 500,
+        }}
+      >
+        {label}
+      </span>
+    </Link>
   );
 }

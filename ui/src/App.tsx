@@ -43,6 +43,7 @@ import { OrgChart } from "./pages/OrgChart";
 import { MemoryGraph } from "./pages/MemoryGraph";
 import { AgentChat } from "./pages/AgentChat";
 const Office = lazy(() => import("./pages/Office").then((m) => ({ default: m.Office })));
+const IntelligenceProposals = lazy(() => import("./pages/IntelligenceProposals").then((m) => ({ default: m.IntelligenceProposals })));
 import { Blockers } from "./pages/Blockers";
 import { CeoTerminal } from "./pages/CeoTerminal";
 import { SharedWorkspace } from "./pages/SharedWorkspace";
@@ -150,6 +151,7 @@ function boardRoutes() {
       <Route path="org" element={<OrgChart />} />
       <Route path="memory" element={<MemoryGraph />} />
       <Route path="agent-chat" element={<AgentChat />} />
+      <Route path="proposals" element={<Suspense fallback={null}><IntelligenceProposals /></Suspense>} />
       <Route path="office" element={<Suspense fallback={null}><Office /></Suspense>} />
       <Route path="terminal" element={<CeoTerminal />} />
       <Route path="workspace" element={<SharedWorkspace />} />

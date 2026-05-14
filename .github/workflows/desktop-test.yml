@@ -1,0 +1,49 @@
+name: Desktop Tests
+
+on:
+  pull_request:
+    paths:
+      - "desktop-electron/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "desktop-electron/**"
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run desktop unit tests
+        run: pnpm --filter crewspace-desktop test

@@ -400,6 +400,13 @@
       "when": 1778487025864,
       "tag": "0056_soft_zarek",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1778666380000,
+      "tag": "0057_feature_proposals",
+      "breakpoints": true
     }
   ]
 }
