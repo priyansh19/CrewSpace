@@ -4,23 +4,36 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  root: path.resolve(__dirname, "src/renderer"),
+  base: "/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      lexical: path.resolve(__dirname, "./node_modules/lexical/Lexical.mjs"),
+      "@": path.resolve(__dirname, "src/renderer"),
+      lexical: path.resolve(__dirname, "node_modules/lexical/Lexical.mjs"),
     },
   },
   server: {
-    port: 5173,
+    port: 5175,
     proxy: {
       "/api": {
-        target: "http://localhost:3100",
+        // In dev, proxy to Docker server (3100). The embedded server (3150) only
+        // runs in the packaged Electron app, not during Vite dev.
+        target: process.env.VITE_API_TARGET ?? "http://localhost:3100",
         ws: true,
+        bypass: (req) => {
+          // Don't proxy Vite source-module requests — only real API calls
+          if (req.url && /\.(ts|tsx|js|jsx|css|json|vue|svelte)(\?|$)/.test(req.url)) {
+            return req.url;
+          }
+          return undefined;
+        },
       },
     },
   },
   build: {
+    outDir: path.resolve(__dirname, "renderer-dist"),
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {

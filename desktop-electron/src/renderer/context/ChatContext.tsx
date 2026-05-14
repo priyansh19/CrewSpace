@@ -38,6 +38,8 @@ export interface ChatSession {
   messages: ChatMessage[];
   updatedAt: Date;
   name?: string;
+  icon?: string;
+  lastMessage?: { content: string; role: "user" | "agent" } | null;
 }
 
 export interface ChatStream {
@@ -59,6 +61,7 @@ interface ChatContextValue {
   updateSession: (id: string, messages: ChatMessage[], participants: ChatParticipant[]) => void;
   deleteSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
+  setSessionIcon: (id: string, icon: string) => void;
   persistMessage: (sessionId: string, role: string, content: string, agentId?: string | null, attachments?: ChatAttachment[]) => void;
   sendMessage: (sessionId: string, text: string, attachments?: ChatAttachment[]) => Promise<void>;
   abortStream: (sessionId: string) => void;
@@ -85,6 +88,9 @@ function serverToLocal(s: Awaited<ReturnType<typeof chatSessionsApi.list>>[numbe
       status: p.agentStatus ?? "active",
     })),
     messages: [],
+    lastMessage: s.lastMessage
+      ? { content: s.lastMessage.content, role: s.lastMessage.role === "user" ? "user" : "agent" }
+      : null,
   };
 }
 
@@ -268,6 +274,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setSessionIcon = useCallback((id: string, icon: string) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, icon } : s)),
+    );
+  }, []);
+
   const persistMessage = useCallback(
     (sessionId: string, role: string, content: string, agentId?: string | null, _attachments?: ChatAttachment[]) => {
       if (!isServerSession(sessionId) || !content.trim()) return;
@@ -298,7 +310,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setSessions((prev) =>
         prev.map((s) =>
           s.id === sessionId
-            ? { ...s, messages: [...s.messages, userMsg], updatedAt: new Date() }
+            ? { ...s, messages: [...s.messages, userMsg], lastMessage: { content: text, role: "user" }, updatedAt: new Date() }
             : s,
         ),
       );
@@ -357,7 +369,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setSessions((prev) =>
           prev.map((s) =>
             s.id === sessionId
-              ? { ...s, messages: [...s.messages, agentMsg], updatedAt: new Date() }
+              ? { ...s, messages: [...s.messages, agentMsg], lastMessage: { content: finalContent, role: "agent" }, updatedAt: new Date() }
               : s,
           ),
         );
@@ -388,6 +400,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         updateSession,
         deleteSession,
         renameSession,
+        setSessionIcon,
         persistMessage,
         sendMessage,
         abortStream,

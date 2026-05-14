@@ -88,6 +88,13 @@ export const updateAgentInstructionsPathSchema = z.object({
 
 export type UpdateAgentInstructionsPath = z.infer<typeof updateAgentInstructionsPathSchema>;
 
+export const bulkUpdateAdapterSchema = z.object({
+  adapterType: z.enum(AGENT_ADAPTER_TYPES as unknown as [string, ...string[]]),
+  adapterConfig: z.record(z.unknown()).optional(),
+});
+
+export type BulkUpdateAdapter = z.infer<typeof bulkUpdateAdapterSchema>;
+
 export const createAgentKeySchema = z.object({
   name: z.string().min(1).default("default"),
 });

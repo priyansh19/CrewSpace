@@ -13,6 +13,8 @@ import {
   Copy,
   CheckCheck,
   Paperclip,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +29,21 @@ import { agentDotColor, formatChatTime, isEmptyAgentMessage } from "../lib/agent
 import { ChatMessageContent } from "./ChatMessageContent";
 import type { ChatMessage } from "../context/ChatContext";
 import type { Agent } from "@crewspaceai/shared";
+
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/!\[.*?\]\(.*?\)/g, "[image]")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/```[\s\S]*?```/g, "[code]")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/(\*\*|__)(.*?)\1/g, "$2")
+    .replace(/(\*|_)(.*?)\1/g, "$2")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+}
 
 function timeAgoShort(date: Date): string {
   const diff = Date.now() - date.getTime();
@@ -245,20 +262,72 @@ function SessionListItem({
   session,
   isActive,
   onSelect,
+  onDelete,
+  onRename,
 }: {
   session: ChatSession;
   isActive: boolean;
   onSelect: () => void;
+  onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => void;
 }) {
+  const [hovered, setHovered] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+
   const lastMsg = session.messages[session.messages.length - 1];
   const shown = session.participants.slice(0, 3);
   const extra = session.participants.length - 3;
+  const isGroup = session.participants.length > 1;
+
+  const previewText = (() => {
+    if (lastMsg) {
+      const prefix = lastMsg.role === "user" ? "You: " : "";
+      return prefix + stripMarkdown(lastMsg.content);
+    }
+    if (session.lastMessage) {
+      return stripMarkdown(session.lastMessage.content);
+    }
+    return "No messages yet";
+  })();
+
+  const startRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenameValue(session.name ?? session.participants.map((p) => p.name).join(", "));
+    setRenaming(true);
+  };
+
+  const commitRename = () => {
+    const trimmed = renameValue.trim();
+    if (trimmed) onRename(session.id, trimmed);
+    setRenaming(false);
+  };
+
+  if (renaming) {
+    return (
+      <div className="px-3 py-2.5 border-b border-border/30">
+        <input
+          autoFocus
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitRename();
+            if (e.key === "Escape") setRenaming(false);
+          }}
+          className="w-full text-xs bg-muted rounded px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
+        />
+      </div>
+    );
+  }
 
   return (
     <button
       onClick={onSelect}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className={cn(
-        "w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50 transition-colors text-left",
+        "w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50 transition-colors text-left group",
         isActive && "bg-primary/10",
       )}
     >
@@ -287,16 +356,39 @@ function SessionListItem({
       <div className="flex flex-col min-w-0 flex-1 gap-0.5">
         <div className="flex items-center justify-between gap-1">
           <span className="text-xs font-medium text-foreground truncate leading-tight">
-            {session.participants.map((p) => p.name).join(", ")}
+            {session.name ?? session.participants.map((p) => p.name).join(", ")}
           </span>
-          <span className="text-[10px] text-muted-foreground/50 shrink-0 leading-tight tabular-nums">
-            {timeAgoShort(session.updatedAt)}
-          </span>
+          <div className="flex items-center gap-0.5 shrink-0">
+            {hovered ? (
+              <>
+                {isGroup && (
+                  <span
+                    role="button"
+                    onClick={startRename}
+                    className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                    title="Rename"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </span>
+                )}
+                <span
+                  role="button"
+                  onClick={(e) => { e.stopPropagation(); onDelete(session.id); }}
+                  className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </span>
+              </>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/50 leading-tight tabular-nums">
+                {timeAgoShort(session.updatedAt)}
+              </span>
+            )}
+          </div>
         </div>
         <span className="text-[11px] text-muted-foreground/70 truncate leading-snug">
-          {lastMsg
-            ? `${lastMsg.role === "user" ? "You: " : ""}${lastMsg.content}`
-            : "No messages yet"}
+          {previewText}
         </span>
       </div>
     </button>
@@ -614,7 +706,7 @@ function ChatArea({
 // ── Main ChatSidebar ──────────────────────────────────────────────────────────
 
 export function ChatSidebar({ onClose }: { onClose?: () => void }) {
-  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents } = useChat();
+  const { sessions, activeSessionId, setActiveSessionId, openChatWithAgent, openChatWithAgents, deleteSession, renameSession } = useChat();
   const { selectedCompanyId } = useCompany();
 
   const { data: agents } = useQuery({
@@ -689,6 +781,8 @@ export function ChatSidebar({ onClose }: { onClose?: () => void }) {
               onSelect={() =>
                 setActiveSessionId(session.id === activeSessionId ? null : session.id)
               }
+              onDelete={deleteSession}
+              onRename={renameSession}
             />
           ))
         )}

@@ -228,12 +228,13 @@ function main() {
     console.log("[prepare-desktop-server] Patching deployed package exports...");
     patchAllExportsInDir(deployBase);
 
-    // 6. Copy ui-dist
-    const uiDistSrc = join(repoRoot, "server", "ui-dist");
-    const uiDistDst = join(serverProdDir, "ui-dist");
-    if (existsSync(uiDistSrc)) {
-      cpSyncWithRetry(uiDistSrc, uiDistDst, { recursive: true, force: true });
-      console.log("[prepare-desktop-server] Copied ui-dist");
+    // 6. Copy renderer-dist into desktop-electron build artifacts
+    // The desktop app bundles renderer-dist directly; server ui-dist is not needed.
+    const rendererDistSrc = join(repoRoot, "desktop-electron", "renderer-dist");
+    const rendererDistDst = join(repoRoot, "desktop-electron", "dist", "renderer-dist");
+    if (existsSync(rendererDistSrc)) {
+      cpSyncWithRetry(rendererDistSrc, rendererDistDst, { recursive: true, force: true });
+      console.log("[prepare-desktop-server] Copied renderer-dist");
     }
 
     // 7. Remove duplicate/conflicting migrations from deployed db package

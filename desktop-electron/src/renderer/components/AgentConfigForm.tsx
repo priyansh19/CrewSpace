@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "../context/ToastContext";
 import { AGENT_ADAPTER_TYPES } from "@crewspaceai/shared";
 import type {
   Agent,
@@ -180,6 +181,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const hideInstructionsFile = props.hideInstructionsFile ?? false;
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
+  const { pushToast } = useToast();
 
   const { data: availableSecrets = [] } = useQuery({
     queryKey: selectedCompanyId ? queryKeys.secrets.list(selectedCompanyId) : ["secrets", "none"],
@@ -202,6 +204,24 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     mutationFn: async ({ file, namespace }: { file: File; namespace: string }) => {
       if (!selectedCompanyId) throw new Error("Select a company to upload images");
       return assetsApi.uploadImage(selectedCompanyId, file, namespace);
+    },
+  });
+
+  // ---- Bulk adapter update ----
+  const [applyToAll, setApplyToAll] = useState(false);
+
+  const bulkUpdateAdapter = useMutation({
+    mutationFn: ({ adapterType, adapterConfig }: { adapterType: string; adapterConfig: Record<string, unknown> }) => {
+      if (!selectedCompanyId) throw new Error("No company selected");
+      return agentsApi.bulkUpdateAdapter(selectedCompanyId, adapterType, adapterConfig);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      pushToast({ tone: "success", title: `Adapter updated`, body: `${(result as any).updated ?? "All"} agents switched to new adapter.` });
+      setApplyToAll(false);
+    },
+    onError: (err) => {
+      pushToast({ tone: "error", title: "Bulk adapter failed", body: err instanceof Error ? err.message : "Unknown error" });
     },
   });
 
@@ -244,6 +264,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const handleSave = useCallback(() => {
     if (isCreate || !isDirty) return;
     const agent = props.agent;
+
     const patch: Record<string, unknown> = {};
 
     if (Object.keys(overlay.identity).length > 0) {
@@ -285,7 +306,24 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     }
 
     props.onSave(patch);
-  }, [isCreate, isDirty, overlay, props]);
+  }, [isCreate, isDirty, overlay, props]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fires immediately — does not require the form to be saved first
+  const handleBulkApply = useCallback(() => {
+    if (isCreate) return;
+    const agent = (props as { agent: Agent }).agent;
+    if (overlay.adapterType !== undefined) {
+      const existing = (agent.adapterConfig ?? {}) as Record<string, unknown>;
+      const agnosticKeys = ["env", "promptTemplate", "instructionsFilePath", "cwd", "timeoutSec", "graceSec", "bootstrapPromptTemplate"];
+      const preserved: Record<string, unknown> = {};
+      for (const key of agnosticKeys) {
+        if (key in existing) preserved[key] = existing[key];
+      }
+      bulkUpdateAdapter.mutate({ adapterType: overlay.adapterType, adapterConfig: { ...preserved, ...overlay.adapterConfig } });
+    } else {
+      bulkUpdateAdapter.mutate({ adapterType: agent.adapterType ?? "process", adapterConfig: {} });
+    }
+  }, [isCreate, overlay, props, bulkUpdateAdapter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isCreate) {
@@ -633,6 +671,24 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 }}
               />
             </Field>
+          )}
+
+          {/* Apply adapter to all agents — edit mode only */}
+          {!isCreate && showAdapterTypeField && (
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                disabled={bulkUpdateAdapter.isPending}
+                onClick={handleBulkApply}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border/60 bg-muted/30 hover:bg-accent/60 hover:border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bulkUpdateAdapter.isPending ? (
+                  <span className="opacity-60">Applying…</span>
+                ) : (
+                  <>Apply <strong className="font-semibold">{overlay.adapterType ?? (props as any).agent?.adapterType ?? "current"}</strong> adapter to all agents</>
+                )}
+              </button>
+            </div>
           )}
 
           {testEnvironment.error && (

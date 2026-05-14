@@ -93,7 +93,6 @@ pnpm dev
 This starts:
 
 - API: `http://localhost:3100`
-- UI: `http://localhost:3100` (served by API server in dev middleware mode)
 
 Quick checks:
 
@@ -132,7 +131,7 @@ pnpm dev --tailscale-auth
 | `pnpm dev:list` | List current dev runner processes |
 | `pnpm dev:stop` | Stop current dev runner |
 | `pnpm dev:server` | Start server only |
-| `pnpm dev:ui` | Start Vite dev server for UI only |
+
 
 ### 5.2 Build
 

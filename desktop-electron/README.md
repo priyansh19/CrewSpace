@@ -8,24 +8,6 @@ A standalone desktop application for CrewSpace, packaging the Express server and
 - **Server**: The CrewSpace Express API server runs embedded PostgreSQL and serves the static UI.
 - **UI**: The same React board UI served by the server at `http://127.0.0.1:<port>`.
 
-## Local Network Access
-
-The desktop app binds the server to `0.0.0.0` so other devices on the same network can access CrewSpace.
-
-- **Electron window**: Loads from `http://127.0.0.1:<port>` (fast, secure, local-only).
-- **Other devices**: Connect via the machine's LAN IP, e.g. `http://192.168.1.100:3150`.
-
-The LAN URL is displayed on the loading screen and available in the system tray (**Copy LAN URL**).
-
-### Firewall
-
-Windows may block incoming connections on port 3150. If other devices cannot connect:
-
-```powershell
-# Run as Administrator
-netsh advfirewall firewall add rule name="CrewSpace Desktop" dir=in action=allow protocol=tcp localport=3150-3160
-```
-
 ## Dev Mode
 
 The renderer app is built with Vite + React. In development, run the Vite dev server and Electron simultaneously:

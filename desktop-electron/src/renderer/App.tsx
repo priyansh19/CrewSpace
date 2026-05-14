@@ -50,6 +50,7 @@ import { SharedWorkspace } from "./pages/SharedWorkspace";
 import { TaskboardV2 } from "./pages/TaskboardV2";
 import { Queues } from "./pages/Queues";
 import { NewAgent } from "./pages/NewAgent";
+import { ControlCenter } from "./pages/ControlCenter";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
 import { CliAuthPage } from "./pages/CliAuth";
@@ -158,6 +159,7 @@ function boardRoutes() {
       <Route path="blockers" element={<Blockers />} />
       <Route path="taskboard" element={<TaskboardV2 />} />
       <Route path="queues" element={<Queues />} />
+      <Route path="control" element={<ControlCenter />} />
       <Route path="agents" element={<Navigate to="/agents/all" replace />} />
       <Route path="agents/all" element={<Agents />} />
       <Route path="agents/active" element={<Agents />} />

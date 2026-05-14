@@ -7,7 +7,6 @@ export default defineConfig({
       "packages/adapters/codex-local",
       "packages/adapters/opencode-local",
       "server",
-      "ui",
       "cli",
       "desktop-electron",
     ],

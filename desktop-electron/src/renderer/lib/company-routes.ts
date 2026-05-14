@@ -18,6 +18,14 @@ const BOARD_ROUTE_ROOTS = new Set([
   "inbox",
   "design-guide",
   "terminal",
+  "proposals",
+  "queues",
+  "memory",
+  "agent-chat",
+  "office",
+  "workspace",
+  "blockers",
+  "taskboard",
 ]);
 
 const GLOBAL_ROUTE_ROOTS = new Set(["auth", "invite", "board-claim", "cli-auth", "docs", "instance"]);

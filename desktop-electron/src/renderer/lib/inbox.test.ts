@@ -183,19 +183,24 @@ const dashboard: DashboardSummary = {
     inProgress: 0,
     blocked: 0,
     done: 0,
+    todayCompleted: 0,
   },
   costs: {
     monthSpendCents: 900,
     monthBudgetCents: 1000,
     monthUtilizationPercent: 90,
+    todaySpendCents: 0,
   },
   pendingApprovals: 1,
+  pendingApprovalsList: [],
   budgets: {
     activeIncidents: 0,
     pendingApprovals: 0,
     pausedAgents: 0,
     pausedProjects: 0,
   },
+  agentBurnToday: [],
+  recentCompleted: [],
 };
 
 describe("inbox helpers", () => {
