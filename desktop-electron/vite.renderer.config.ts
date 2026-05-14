@@ -19,6 +19,13 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:3150",
         ws: true,
+        bypass: (req) => {
+          // Don't proxy Vite source-module requests — only real API calls
+          if (req.url && /\.(ts|tsx|js|jsx|css|json|vue|svelte)(\?|$)/.test(req.url)) {
+            return req.url;
+          }
+          return undefined;
+        },
       },
     },
   },

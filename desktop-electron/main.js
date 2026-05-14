@@ -64,6 +64,7 @@ function isCrewSpaceUrl(url) {
 let mainWindow = null;
 let tray = null;
 let serverProcess = null;
+let viteProcess = null; // Dev-mode Vite renderer server
 let serverUrl = null; // URL for Electron window (localhost)
 let isQuitting = false;
 let normalBounds = null; // Pre-maximize bounds for frameless window restore
@@ -169,8 +170,10 @@ ipcMain.handle("get-renderer-url", () => {
 ipcMain.handle("load-renderer", () => {
   const url = isDev ? "http://localhost:5175/" : path.join(__dirname, "renderer-dist", "index.html");
   if (!mainWindow) return;
+  console.log(`[CrewSpace Desktop] load-renderer: isDev=${isDev}, url=${url}`);
   if (isDev) {
     mainWindow.loadURL(url);
+    mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
     mainWindow.loadFile(url);
   }
@@ -214,7 +217,7 @@ function spawnServer(port) {
     CREWSPACE_HOME: dataDir,
     HOST: SERVER_BIND_HOST,
     PORT: String(port),
-    SERVE_UI: isDev ? "true" : "false",
+    SERVE_UI: "false",
     CREWSPACE_MIGRATION_AUTO_APPLY: "true",
     CREWSPACE_MIGRATION_PROMPT: "never",
     CREWSPACE_OPEN_ON_LISTEN: "false",
@@ -292,6 +295,51 @@ function spawnServer(port) {
   });
 
   return proc;
+}
+
+// ── Spawn Vite dev renderer ─────────────────────────────────────────
+const VITE_PORT = 5175;
+
+async function isViteRunning() {
+  try {
+    const res = await fetch(`http://localhost:${VITE_PORT}/`, { signal: AbortSignal.timeout(1000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function spawnVite() {
+  if (!isDev) return;
+  if (await isViteRunning()) {
+    console.log(`[CrewSpace Desktop] Vite already running on port ${VITE_PORT}`);
+    return;
+  }
+  const viteBin = path.join(__dirname, "node_modules", ".bin", "vite.cmd");
+  const viteConfig = path.join(__dirname, "vite.renderer.config.ts");
+  console.log(`[CrewSpace Desktop] Starting Vite dev server on port ${VITE_PORT}...`);
+  viteProcess = spawn(viteBin, ["--config", viteConfig, "--port", String(VITE_PORT), "--strictPort"], {
+    cwd: __dirname,
+    stdio: "pipe",
+    shell: false,
+    windowsHide: true,
+  });
+  viteProcess.stdout.on("data", (d) => console.log("[vite]", d.toString().trimEnd()));
+  viteProcess.stderr.on("data", (d) => console.error("[vite]", d.toString().trimEnd()));
+  viteProcess.on("close", (code) => {
+    if (!isQuitting) console.log(`[CrewSpace Desktop] Vite exited with code ${code}`);
+    viteProcess = null;
+  });
+
+  // Wait up to 30s for Vite to be ready
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (await isViteRunning()) {
+      console.log(`[CrewSpace Desktop] Vite ready on port ${VITE_PORT}`);
+      return;
+    }
+  }
+  console.error("[CrewSpace Desktop] Vite did not start in time");
 }
 
 // ── Kill server ─────────────────────────────────────────────────────
@@ -531,11 +579,34 @@ function createWindow() {
   }
 
   mainWindow.webContents.on("did-navigate", (_event, url) => {
+    console.log(`[CrewSpace Desktop] did-navigate: ${url}`);
     handleNavigation(url);
   });
 
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (level >= 2) { // 2=warning, 3=error
+      console.log(`[renderer][${level === 3 ? "ERROR" : "WARN"}] ${message} (${sourceId}:${line})`);
+    }
+  });
+
   mainWindow.webContents.on("dom-ready", () => {
-    handleNavigation(mainWindow.webContents.getURL());
+    const url = mainWindow.webContents.getURL();
+    handleNavigation(url);
+    // Before React mounts: seed localStorage with the saved theme preference
+    if (url.includes("localhost:5175") || url.startsWith("file://")) {
+      try {
+        const rawTheme = getThemePreference();
+        const savedTheme = (rawTheme === "dark" || rawTheme === "light") ? rawTheme : "dark";
+        mainWindow.webContents.executeJavaScript(`
+          (function() {
+            const t = ${JSON.stringify(savedTheme)};
+            try { localStorage.setItem("crewspace.theme", t); } catch {}
+            document.documentElement.classList.toggle("dark", t === "dark");
+            document.documentElement.style.colorScheme = t === "dark" ? "dark" : "light";
+          })();
+        `).catch(() => {});
+      } catch { /* ignore */ }
+    }
   });
 
   return mainWindow;
@@ -550,7 +621,7 @@ function injectCrewSpaceTitleBar(win) {
   }
   const css = [
     "body > div:first-child { padding-top: 32px !important; height: 100% !important; display: flex !important; flex-direction: column !important; box-sizing: border-box !important; }",
-    "body > div:first-child > div:first-child { flex: 1 1 auto !important; min-height: 0 !important; height: auto !important; max-height: none !important; }",
+    "body > div:first-child > div:first-child { flex: 1 1 auto !important; min-height: 0 !important; max-height: none !important; }",
     ".crewspace-titlebar { position: fixed; top: 0; left: 0; right: 0; height: 32px; background: hsl(var(--background)); border-bottom: 1px solid hsl(var(--border)); display: flex; align-items: center; justify-content: space-between; padding: 0 0 0 12px; z-index: 99999; -webkit-app-region: drag; user-select: none; box-sizing: border-box; }",
     ".crewspace-titlebar-drag { flex: 1; height: 100%; -webkit-app-region: drag; }",
     ".crewspace-titlebar-btns { display: flex; align-items: center; height: 100%; gap: 0; }",
@@ -915,10 +986,29 @@ function emitMaximizedState() {
 
 // ── App lifecycle ───────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  const port = await findFreePort(SERVER_PORT);
+  // In dev mode, ensure Vite renderer server is running
+  if (isDev) {
+    await spawnVite();
+  }
+
+  // Quick-check: reuse port 3150 if a healthy server is already running
+  let port = SERVER_PORT;
+  let existingHealthy = false;
+  try {
+    const res = await fetch(`http://${SERVER_LOCAL_HOST}:${port}/api/health`, { signal: AbortSignal.timeout(1500) });
+    existingHealthy = res.ok;
+  } catch { /* not running */ }
+
+  if (!existingHealthy) {
+    port = await findFreePort(SERVER_PORT);
+  }
   serverUrl = `http://${SERVER_LOCAL_HOST}:${port}`;
 
-  serverProcess = spawnServer(port);
+  if (!existingHealthy) {
+    serverProcess = spawnServer(port);
+  } else {
+    console.log(`[CrewSpace Desktop] Reusing existing server on port ${port}`);
+  }
 
   createWindow();
   createTray();
@@ -940,10 +1030,18 @@ app.on("before-quit", () => {
     tray = null;
   }
   killServer();
+  if (viteProcess) {
+    viteProcess.kill("SIGTERM");
+    viteProcess = null;
+  }
 });
 
 app.on("will-quit", () => {
   killServer();
+  if (viteProcess) {
+    viteProcess.kill("SIGTERM");
+    viteProcess = null;
+  }
 });
 
 // Single instance lock
