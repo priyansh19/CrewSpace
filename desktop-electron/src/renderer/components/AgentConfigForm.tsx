@@ -214,8 +214,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
       return agentsApi.bulkUpdateAdapter(selectedCompanyId, adapterType, adapterConfig);
     },
     onSuccess: () => {
-      if (!selectedCompanyId) return;
-      queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId) });
+      // Invalidate all agent queries (list + every detail) since every agent changed
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
     },
   });
 
