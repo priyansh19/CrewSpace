@@ -20,6 +20,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { AgentGlobe } from "../components/AgentGlobe";
+import { AgentAvatar } from "../components/AgentAvatar";
 import { formatCents } from "../lib/utils";
 import type { Agent, PendingApprovalEntry, RecentActivityEntry, AgentBurnEntry } from "@crewspaceai/shared";
 import {
@@ -68,13 +69,6 @@ function approvalLabel(type: string): string {
   if (type === "pr_merge") return "Merge PR";
   return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
-const AGENT_COLORS = [
-  "#f59e0b", "#818cf8", "#34d399", "#f472b6",
-  "#38bdf8", "#fb923c", "#a78bfa", "#4ade80",
-  "#e879f9", "#67e8f9", "#fbbf24", "#86efac",
-];
-function agentColor(index: number) { return AGENT_COLORS[index % AGENT_COLORS.length]; }
 
 // ── Panel anatomy helpers ───────────────────────────────────────────────────
 
@@ -264,9 +258,18 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
   const tk = tokens(isDark);
 
   const burnMap = new Map(agentBurnToday.map((b) => [b.agentId, b]));
-  const maxRuns = Math.max(1, ...agentBurnToday.map((b) => b.runsToday));
 
-  // Map agent → active run detail (for subtitle)
+  // Per-agent run outcome counts
+  const runStats = new Map<string, { active: number; success: number; fail: number }>();
+  for (const run of liveRuns) {
+    const e = runStats.get(run.agentId) ?? { active: 0, success: 0, fail: 0 };
+    if (run.status === "running" || run.status === "in_progress") e.active++;
+    else if (run.status === "completed") e.success++;
+    else if (run.status === "failed") e.fail++;
+    runStats.set(run.agentId, e);
+  }
+
+  // Active run detail per agent (for subtitle)
   const activeRunMap = new Map<string, LiveRunForIssue>();
   for (const run of liveRuns) {
     if ((run.status === "running" || run.status === "in_progress") && !activeRunMap.has(run.agentId)) {
@@ -274,33 +277,51 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
     }
   }
 
-  // Count completed / failed runs per agent from liveRuns history
-  const sessionMap = new Map<string, { success: number; fail: number }>();
-  for (const run of liveRuns) {
-    const entry = sessionMap.get(run.agentId) ?? { success: 0, fail: 0 };
-    if (run.status === "completed") entry.success++;
-    if (run.status === "failed") entry.fail++;
-    sessionMap.set(run.agentId, entry);
-  }
-
   const liveCount = agents.filter((a) => workingAgentIds.has(a.id)).length;
+  const totalRunsToday = agentBurnToday.reduce((s, b) => s + b.runsToday, 0);
+  const totalCostToday = agentBurnToday.reduce((s, b) => s + b.costCents, 0);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <PanelHeader title="Agent Sessions" badge={liveCount > 0 ? liveCount : undefined} badgeColor="#5db872" dot={liveCount > 0} tk={tk} />
+
+      {/* Summary strip */}
+      <div style={{
+        display: "flex", gap: 0, borderBottom: `1px solid ${tk.divider}`, flexShrink: 0,
+      }}>
+        {[
+          { label: "Live", value: liveCount, color: liveCount > 0 ? "#5db872" : tk.textDim },
+          { label: "Runs Today", value: totalRunsToday, color: tk.textMuted },
+          { label: "Cost Today", value: formatCents(totalCostToday), color: "#e8a55a" },
+        ].map((stat) => (
+          <div key={stat.label} style={{
+            flex: 1, textAlign: "center", padding: "5px 4px",
+            borderRight: `1px solid ${tk.divider}`,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: stat.color, letterSpacing: "-0.03em" }}>{stat.value}</div>
+            <div style={{ fontSize: 9, color: tk.textDim, textTransform: "uppercase", letterSpacing: "0.06em" }}>{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {agents.length === 0 ? (
           <div style={{ padding: 12, color: tk.textDim, fontSize: 11 }}>No agents configured</div>
         ) : (
-          agents.map((agent, index) => {
+          agents.map((agent) => {
             const burn = burnMap.get(agent.id);
-            const sessions = sessionMap.get(agent.id);
+            const stats = runStats.get(agent.id) ?? { active: 0, success: 0, fail: 0 };
             const isLive = workingAgentIds.has(agent.id);
             const isPaused = agent.status === "paused";
             const isError = agent.status === "error";
             const activeRun = activeRunMap.get(agent.id);
             const runsToday = burn?.runsToday ?? 0;
-            const barWidth = Math.round((runsToday / maxRuns) * 100);
+            // Stacked bar segments
+            const total = Math.max(1, stats.success + stats.fail + stats.active);
+            const pctSuccess = Math.round((stats.success / total) * 100);
+            const pctFail = Math.round((stats.fail / total) * 100);
+            const pctActive = Math.round((stats.active / total) * 100);
+            const hasRuns = stats.success + stats.fail + stats.active > 0;
 
             return (
               <Link
@@ -315,91 +336,93 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
                 }}
                 className="group hover:bg-white/[0.03]"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {/* Avatar with live ring */}
+                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                  {/* Dicebear avatar with live ring */}
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <div style={{
-                      width: 28, height: 28, borderRadius: "50%",
-                      background: agentColor(index),
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 11, fontWeight: 700, color: "#fff",
                       outline: isLive ? "2px solid #5db872" : isError ? "2px solid #c64545" : "none",
                       outlineOffset: 2,
+                      borderRadius: "50%",
+                      lineHeight: 0,
                     }}>
-                      {agent.name.charAt(0).toUpperCase()}
+                      <AgentAvatar agent={agent} size="xs" variant="circle" />
                     </div>
                     {isLive && (
                       <span className="animate-ping" style={{
                         position: "absolute", bottom: -1, right: -1,
-                        width: 8, height: 8, borderRadius: "50%",
+                        width: 7, height: 7, borderRadius: "50%",
                         background: "#5db872",
                         border: `1.5px solid ${isDark ? "#0a0908" : "#faf9f5"}`,
                       }} />
                     )}
                   </div>
 
-                  {/* Name + task subtitle */}
+                  {/* Name + bars */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
                       <span style={{
-                        fontSize: 12, fontWeight: 600, color: tk.text,
+                        fontSize: 11, fontWeight: 600, color: tk.text,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        flex: 1, minWidth: 0,
                       }}>{agent.name}</span>
-                      {/* Status pill */}
                       {isLive ? (
-                        <span style={{
-                          display: "flex", alignItems: "center", gap: 3,
-                          padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700,
-                          background: "rgba(93,184,114,0.18)", color: "#5db872", flexShrink: 0,
-                          letterSpacing: "0.04em",
-                        }}>LIVE</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 3, padding: "0 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "rgba(93,184,114,0.18)", color: "#5db872", flexShrink: 0 }}>LIVE</span>
                       ) : isPaused ? (
-                        <span style={{ padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "rgba(232,165,90,0.15)", color: "#e8a55a", flexShrink: 0, letterSpacing: "0.04em" }}>PAUSED</span>
+                        <span style={{ padding: "0 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "rgba(232,165,90,0.15)", color: "#e8a55a", flexShrink: 0 }}>PAUSED</span>
                       ) : isError ? (
-                        <span style={{ padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "rgba(198,69,69,0.15)", color: "#c64545", flexShrink: 0, letterSpacing: "0.04em" }}>ERROR</span>
+                        <span style={{ padding: "0 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "rgba(198,69,69,0.15)", color: "#c64545", flexShrink: 0 }}>ERROR</span>
                       ) : (
-                        <span style={{ padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: tk.barBg, color: tk.textDim, flexShrink: 0, letterSpacing: "0.04em" }}>IDLE</span>
+                        <span style={{ padding: "0 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: tk.barBg, color: tk.textDim, flexShrink: 0 }}>IDLE</span>
                       )}
                     </div>
-                    {/* Active task or stats row */}
-                    {activeRun && activeRun.triggerDetail ? (
-                      <p style={{
-                        margin: 0, fontSize: 10, color: "#5db872",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        marginTop: 1,
-                      }}>{activeRun.triggerDetail}</p>
+
+                    {/* Active task subtitle OR stacked outcome bar */}
+                    {isLive && activeRun?.triggerDetail ? (
+                      <p style={{ margin: 0, fontSize: 10, color: "#5db872", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {activeRun.triggerDetail}
+                      </p>
                     ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                        {/* Mini run bar */}
-                        <div style={{ flex: 1, height: 3, borderRadius: 2, background: tk.barBg, maxWidth: 70 }}>
-                          <div style={{ width: `${barWidth}%`, height: "100%", borderRadius: 2, background: agentColor(index), transition: "width 0.4s" }} />
+                      <div>
+                        {/* Stacked bar: success / fail / active */}
+                        <div style={{ display: "flex", height: 5, borderRadius: 3, overflow: "hidden", background: tk.barBg, marginBottom: 2 }}>
+                          {hasRuns ? (
+                            <>
+                              {pctSuccess > 0 && <div style={{ width: `${pctSuccess}%`, background: "#5db872", transition: "width 0.4s" }} />}
+                              {pctFail > 0 && <div style={{ width: `${pctFail}%`, background: "#c64545", transition: "width 0.4s" }} />}
+                              {pctActive > 0 && <div style={{ width: `${pctActive}%`, background: "#e8a55a", transition: "width 0.4s" }} />}
+                            </>
+                          ) : null}
                         </div>
-                        <span style={{ fontSize: 10, color: tk.textDim }}>
-                          {runsToday} run{runsToday !== 1 ? "s" : ""}
-                          {sessions && (sessions.success > 0 || sessions.fail > 0) && (
-                            <> · <span style={{ color: "#5db872" }}>✓{sessions.success}</span> <span style={{ color: "#c64545" }}>✗{sessions.fail}</span></>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 9, color: tk.textDim }}>{runsToday} run{runsToday !== 1 ? "s" : ""}</span>
+                          {hasRuns && (
+                            <>
+                              <span style={{ fontSize: 9, color: "#5db872" }}>✓{stats.success}</span>
+                              <span style={{ fontSize: 9, color: "#c64545" }}>✗{stats.fail}</span>
+                              {stats.active > 0 && <span style={{ fontSize: 9, color: "#e8a55a" }}>~{stats.active}</span>}
+                            </>
                           )}
-                        </span>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Cost + action buttons */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <span style={{ fontSize: 10, color: "#e8a55a", minWidth: 36, textAlign: "right" }}>
+                  {/* Cost + hover actions */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, color: "#e8a55a", fontWeight: 600 }}>
                       {burn ? formatCents(burn.costCents) : "—"}
                     </span>
-                    {/* Hover action buttons */}
                     <div className="opacity-0 group-hover:opacity-100" style={{ display: "flex", gap: 3, transition: "opacity 0.15s" }}>
-                      {isPaused || (!isLive && agent.status !== "error") ? (
+                      {(isPaused || (!isLive && !isError)) ? (
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWakeup?.(agent.id); }}
                           title="Wake up"
                           style={{
-                            width: 20, height: 20, borderRadius: 5, border: `1px solid rgba(93,184,114,0.3)`,
+                            width: 18, height: 18, borderRadius: 4,
+                            border: "1px solid rgba(93,184,114,0.35)",
                             background: "rgba(93,184,114,0.1)", color: "#5db872",
                             display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: "pointer", fontSize: 10,
+                            cursor: "pointer", fontSize: 9,
                           }}
                         >▶</button>
                       ) : isLive ? (
@@ -407,10 +430,11 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPause?.(agent.id); }}
                           title="Pause"
                           style={{
-                            width: 20, height: 20, borderRadius: 5, border: `1px solid rgba(232,165,90,0.3)`,
+                            width: 18, height: 18, borderRadius: 4,
+                            border: "1px solid rgba(232,165,90,0.35)",
                             background: "rgba(232,165,90,0.1)", color: "#e8a55a",
                             display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: "pointer", fontSize: 10,
+                            cursor: "pointer", fontSize: 9,
                           }}
                         >⏸</button>
                       ) : null}
