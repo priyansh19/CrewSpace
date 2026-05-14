@@ -256,13 +256,25 @@ interface AgentSessionsPanelProps {
   liveRuns: LiveRunForIssue[];
   workingAgentIds: Set<string>;
   isDark: boolean;
+  onWakeup?: (agentId: string) => void;
+  onPause?: (agentId: string) => void;
 }
 
-function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds, isDark }: AgentSessionsPanelProps) {
+function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds, isDark, onWakeup, onPause }: AgentSessionsPanelProps) {
   const tk = tokens(isDark);
 
   const burnMap = new Map(agentBurnToday.map((b) => [b.agentId, b]));
+  const maxRuns = Math.max(1, ...agentBurnToday.map((b) => b.runsToday));
 
+  // Map agent → active run detail (for subtitle)
+  const activeRunMap = new Map<string, LiveRunForIssue>();
+  for (const run of liveRuns) {
+    if ((run.status === "running" || run.status === "in_progress") && !activeRunMap.has(run.agentId)) {
+      activeRunMap.set(run.agentId, run);
+    }
+  }
+
+  // Count completed / failed runs per agent from liveRuns history
   const sessionMap = new Map<string, { success: number; fail: number }>();
   for (const run of liveRuns) {
     const entry = sessionMap.get(run.agentId) ?? { success: 0, fail: 0 };
@@ -271,9 +283,11 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
     sessionMap.set(run.agentId, entry);
   }
 
+  const liveCount = agents.filter((a) => workingAgentIds.has(a.id)).length;
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <PanelHeader title="Agent Sessions" tk={tk} />
+      <PanelHeader title="Agent Sessions" badge={liveCount > 0 ? liveCount : undefined} badgeColor="#5db872" dot={liveCount > 0} tk={tk} />
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {agents.length === 0 ? (
           <div style={{ padding: 12, color: tk.textDim, fontSize: 11 }}>No agents configured</div>
@@ -284,70 +298,126 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
             const isLive = workingAgentIds.has(agent.id);
             const isPaused = agent.status === "paused";
             const isError = agent.status === "error";
+            const activeRun = activeRunMap.get(agent.id);
+            const runsToday = burn?.runsToday ?? 0;
+            const barWidth = Math.round((runsToday / maxRuns) * 100);
 
             return (
-              <div key={agent.id} style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 12px",
-                borderBottom: `1px solid ${tk.divider}`,
-              }}>
-                {/* Avatar */}
-                <div style={{
-                  width: 24, height: 24, borderRadius: "50%",
-                  background: agentColor(index),
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0,
-                }}>
-                  {agent.name.charAt(0).toUpperCase()}
+              <Link
+                key={agent.id}
+                to={`/agents/${agent.id}`}
+                style={{
+                  display: "block",
+                  padding: "8px 12px",
+                  borderBottom: `1px solid ${tk.divider}`,
+                  textDecoration: "none",
+                  transition: "background 0.12s",
+                }}
+                className="group hover:bg-white/[0.03]"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {/* Avatar with live ring */}
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%",
+                      background: agentColor(index),
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11, fontWeight: 700, color: "#fff",
+                      outline: isLive ? "2px solid #5db872" : isError ? "2px solid #c64545" : "none",
+                      outlineOffset: 2,
+                    }}>
+                      {agent.name.charAt(0).toUpperCase()}
+                    </div>
+                    {isLive && (
+                      <span className="animate-ping" style={{
+                        position: "absolute", bottom: -1, right: -1,
+                        width: 8, height: 8, borderRadius: "50%",
+                        background: "#5db872",
+                        border: `1.5px solid ${isDark ? "#0a0908" : "#faf9f5"}`,
+                      }} />
+                    )}
+                  </div>
+
+                  {/* Name + task subtitle */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{
+                        fontSize: 12, fontWeight: 600, color: tk.text,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{agent.name}</span>
+                      {/* Status pill */}
+                      {isLive ? (
+                        <span style={{
+                          display: "flex", alignItems: "center", gap: 3,
+                          padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700,
+                          background: "rgba(93,184,114,0.18)", color: "#5db872", flexShrink: 0,
+                          letterSpacing: "0.04em",
+                        }}>LIVE</span>
+                      ) : isPaused ? (
+                        <span style={{ padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "rgba(232,165,90,0.15)", color: "#e8a55a", flexShrink: 0, letterSpacing: "0.04em" }}>PAUSED</span>
+                      ) : isError ? (
+                        <span style={{ padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "rgba(198,69,69,0.15)", color: "#c64545", flexShrink: 0, letterSpacing: "0.04em" }}>ERROR</span>
+                      ) : (
+                        <span style={{ padding: "0px 5px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: tk.barBg, color: tk.textDim, flexShrink: 0, letterSpacing: "0.04em" }}>IDLE</span>
+                      )}
+                    </div>
+                    {/* Active task or stats row */}
+                    {activeRun && activeRun.triggerDetail ? (
+                      <p style={{
+                        margin: 0, fontSize: 10, color: "#5db872",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        marginTop: 1,
+                      }}>{activeRun.triggerDetail}</p>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                        {/* Mini run bar */}
+                        <div style={{ flex: 1, height: 3, borderRadius: 2, background: tk.barBg, maxWidth: 70 }}>
+                          <div style={{ width: `${barWidth}%`, height: "100%", borderRadius: 2, background: agentColor(index), transition: "width 0.4s" }} />
+                        </div>
+                        <span style={{ fontSize: 10, color: tk.textDim }}>
+                          {runsToday} run{runsToday !== 1 ? "s" : ""}
+                          {sessions && (sessions.success > 0 || sessions.fail > 0) && (
+                            <> · <span style={{ color: "#5db872" }}>✓{sessions.success}</span> <span style={{ color: "#c64545" }}>✗{sessions.fail}</span></>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cost + action buttons */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, color: "#e8a55a", minWidth: 36, textAlign: "right" }}>
+                      {burn ? formatCents(burn.costCents) : "—"}
+                    </span>
+                    {/* Hover action buttons */}
+                    <div className="opacity-0 group-hover:opacity-100" style={{ display: "flex", gap: 3, transition: "opacity 0.15s" }}>
+                      {isPaused || (!isLive && agent.status !== "error") ? (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWakeup?.(agent.id); }}
+                          title="Wake up"
+                          style={{
+                            width: 20, height: 20, borderRadius: 5, border: `1px solid rgba(93,184,114,0.3)`,
+                            background: "rgba(93,184,114,0.1)", color: "#5db872",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            cursor: "pointer", fontSize: 10,
+                          }}
+                        >▶</button>
+                      ) : isLive ? (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPause?.(agent.id); }}
+                          title="Pause"
+                          style={{
+                            width: 20, height: 20, borderRadius: 5, border: `1px solid rgba(232,165,90,0.3)`,
+                            background: "rgba(232,165,90,0.1)", color: "#e8a55a",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            cursor: "pointer", fontSize: 10,
+                          }}
+                        >⏸</button>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-
-                {/* Name */}
-                <span style={{
-                  flex: 1, fontSize: 12, color: tk.text,
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>{agent.name}</span>
-
-                {/* Status badge */}
-                {isLive ? (
-                  <span style={{
-                    display: "flex", alignItems: "center", gap: 3,
-                    padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: 600,
-                    background: "rgba(93,184,114,0.15)", color: "#5db872", flexShrink: 0,
-                  }}>
-                    <span className="animate-ping" style={{ width: 5, height: 5, borderRadius: "50%", background: "#5db872", display: "inline-block" }} />
-                    LIVE
-                  </span>
-                ) : isPaused ? (
-                  <span style={{ padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: 600, background: "rgba(232,165,90,0.15)", color: "#e8a55a", flexShrink: 0 }}>PAUSED</span>
-                ) : isError ? (
-                  <span style={{ padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: 600, background: "rgba(198,69,69,0.15)", color: "#c64545", flexShrink: 0 }}>ERROR</span>
-                ) : (
-                  <span style={{ padding: "1px 7px", borderRadius: 10, fontSize: 10, fontWeight: 600, background: tk.barBg, color: tk.textDim, flexShrink: 0 }}>IDLE</span>
-                )}
-
-                {/* Runs today */}
-                <span style={{ fontSize: 11, color: tk.textMuted, width: 20, textAlign: "right", flexShrink: 0 }}>
-                  {burn?.runsToday ?? 0}
-                </span>
-
-                {/* Sessions success/fail */}
-                {sessions ? (
-                  <span style={{ fontSize: 10, flexShrink: 0 }}>
-                    <span style={{ color: "#5db872" }}>✓{sessions.success}</span>
-                    {" "}
-                    <span style={{ color: "#c64545" }}>✗{sessions.fail}</span>
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 10, color: tk.textDim, flexShrink: 0, width: 28 }}>—</span>
-                )}
-
-                {/* Cost */}
-                <span style={{ fontSize: 10, color: "#e8a55a", width: 44, textAlign: "right", flexShrink: 0 }}>
-                  {burn ? formatCents(burn.costCents) : "—"}
-                </span>
-              </div>
+              </Link>
             );
           })
         )}
@@ -877,6 +947,16 @@ export function Dashboard() {
     },
   });
 
+  const wakeupMutation = useMutation({
+    mutationFn: (agentId: string) => agentsApi.wakeup(agentId, selectedCompanyId ?? undefined, { trigger: "manual" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId!) }),
+  });
+
+  const pauseMutation = useMutation({
+    mutationFn: (agentId: string) => agentsApi.pause(agentId, selectedCompanyId ?? undefined),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId!) }),
+  });
+
   const workingAgentIds = useMemo(() => {
     if (!liveRuns) return new Set<string>();
     return new Set(
@@ -1052,6 +1132,8 @@ export function Dashboard() {
             liveRuns={liveRuns ?? []}
             workingAgentIds={workingAgentIds}
             isDark={isDark}
+            onWakeup={(id) => wakeupMutation.mutate(id)}
+            onPause={(id) => pauseMutation.mutate(id)}
           />
         </div>
       </div>
