@@ -368,6 +368,8 @@ export {
   updateAgentInstructionsBundleSchema,
   upsertAgentInstructionsFileSchema,
   updateAgentInstructionsPathSchema,
+  bulkUpdateAdapterSchema,
+  type BulkUpdateAdapter,
   createAgentKeySchema,
   agentMineInboxQuerySchema,
   wakeAgentSchema,

@@ -89,7 +89,7 @@ export const updateAgentInstructionsPathSchema = z.object({
 export type UpdateAgentInstructionsPath = z.infer<typeof updateAgentInstructionsPathSchema>;
 
 export const bulkUpdateAdapterSchema = z.object({
-  adapterType: z.enum(AGENT_ADAPTER_TYPES as [string, ...string[]]),
+  adapterType: z.enum(AGENT_ADAPTER_TYPES as unknown as [string, ...string[]]),
   adapterConfig: z.record(z.unknown()).optional(),
 });
 
