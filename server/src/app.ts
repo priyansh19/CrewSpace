@@ -286,9 +286,11 @@ export async function createApp(
 
   if (opts.uiMode === "vite-dev") {
     const uiRoot = path.resolve(__dirname, "../../desktop-electron/src/renderer");
+    const rendererConfigFile = path.resolve(__dirname, "../../desktop-electron/vite.renderer.config.ts");
     const hmrPort = resolveViteHmrPort(opts.serverPort);
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
+      configFile: rendererConfigFile,
       root: uiRoot,
       appType: "custom",
       server: {
