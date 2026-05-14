@@ -1,7 +1,7 @@
 /**
  * AgentChat — full-page chat experience
  * Two-column: session list on the left, chat area on the right.
- * Reuses all logic from ChatSidebar but in a full-page layout.
+ * Optional right detail panel for media/search.
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -9,11 +9,10 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Plus, Send, X, Search, MessageCircle, AlertCircle,
   Users, CircleDot, Check, Trash2, Pencil,
-  Copy, CheckCheck, Paperclip, Mic, ImageIcon, FileText,
+  Copy, CheckCheck, Paperclip, ImageIcon, FileText, Images,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { AgentIcon } from "@/components/AgentIconPicker";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { cn } from "@/lib/utils";
 import { useChat, type ChatSession, type ChatMessage, type ChatParticipant, type ChatAttachment } from "../context/ChatContext";
@@ -37,6 +36,21 @@ function timeAgoShort(date: Date): string {
   if (hrs < 24) return `${hrs}h`;
   return `${Math.floor(hrs / 24)}d`;
 }
+
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, "[code]")
+    .replace(/`[^`]+`/g, (m) => m.slice(1, -1))
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+    .replace(/>\s?.+/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+}
+
+const GROUP_EMOJIS = ["💬", "🎯", "🚀", "🧠", "⚡", "🔥", "🛠️", "📊", "🌐", "🎪", "🤝", "💡", "🏗️", "📋", "🔬", "🎭"];
 
 // ── New Chat Menu ─────────────────────────────────────────────────────────────
 
@@ -81,7 +95,7 @@ function NewChatMenu({ allAgents, onStart, open, onOpenChange }: { allAgents: Ag
       </Button>
 
       {isOpen && (
-        <div className="absolute top-9 right-0 z-50 w-60 bg-popover border border-border rounded-lg overflow-hidden">
+        <div className="absolute top-9 right-0 z-50 w-60 bg-popover border border-border rounded-lg overflow-hidden shadow-lg">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)}
@@ -159,7 +173,7 @@ function AddParticipantMenu({ allAgents, participants, onAdd }: {
         <Users className="h-3 w-3 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute top-8 left-0 z-50 w-48 bg-popover border border-border rounded-lg overflow-hidden">
+        <div className="absolute top-8 left-0 z-50 w-48 bg-popover border border-border rounded-lg overflow-hidden shadow-lg">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)}
@@ -181,6 +195,50 @@ function AddParticipantMenu({ allAgents, participants, onAdd }: {
   );
 }
 
+// ── Emoji Icon Picker ─────────────────────────────────────────────────────────
+
+function EmojiIconPicker({ current, onSelect }: { current?: string; onSelect: (emoji: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-9 h-9 rounded-xl bg-muted/60 border border-border/40 flex items-center justify-center text-base hover:bg-accent/60 transition-colors"
+        title="Set group icon"
+      >
+        {current ?? "💬"}
+      </button>
+      {open && (
+        <div className="absolute top-10 left-0 z-50 bg-popover border border-border rounded-xl p-2 shadow-xl grid grid-cols-4 gap-1 w-32">
+          {GROUP_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => { onSelect(emoji); setOpen(false); }}
+              className={cn(
+                "w-7 h-7 flex items-center justify-center rounded-lg text-base hover:bg-accent transition-colors",
+                current === emoji && "bg-accent"
+              )}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Session List Item ─────────────────────────────────────────────────────────
 
 function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
@@ -190,13 +248,21 @@ function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
   onDelete: () => void;
   onRename: (name: string) => void;
 }) {
-  const lastMsg = session.messages[session.messages.length - 1];
   const shown = session.participants.slice(0, 3);
   const extra = session.participants.length - 3;
   const isGroup = session.participants.length > 1;
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Resolve last message — prefer live messages array, fall back to server-cached lastMessage
+  const lastMsgContent = useMemo(() => {
+    const msgs = session.messages.filter((m) => m.content.trim() && !isEmptyAgentMessage(m));
+    const last = msgs[msgs.length - 1];
+    if (last) return { role: last.role, text: stripMarkdown(last.content) };
+    if (session.lastMessage?.content) return { role: session.lastMessage.role, text: stripMarkdown(session.lastMessage.content) };
+    return null;
+  }, [session.messages, session.lastMessage]);
 
   const startEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -221,16 +287,24 @@ function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
       )}
       onClick={onSelect}
     >
-      {/* Stacked avatars */}
+      {/* Avatar stack */}
       <div className="relative shrink-0 h-10 w-12 mt-0.5">
-        {shown.map((agent, i) => (
-          <div key={agent.id}
-            className="absolute"
-            style={{ left: i * 8, top: i * 2.5, zIndex: shown.length - i }}>
-            <AgentAvatar agent={agent as any} size="sm" className="border-2 border-card" />
+        {isGroup && session.icon ? (
+          <div className="w-10 h-10 rounded-full bg-muted border border-border/40 flex items-center justify-center text-xl">
+            {session.icon}
           </div>
-        ))}
-        {extra > 0 && (
+        ) : (
+          shown.map((agent, i) => (
+            <div key={agent.id} className="absolute" style={{ left: i * 8, top: i * 2.5, zIndex: shown.length - i }}>
+              <AgentAvatar agent={agent as any} size="sm" className="border-2 border-card" />
+            </div>
+          ))
+        )}
+        {!isGroup && shown.length > 0 && (
+          <span className="absolute -bottom-0.5 right-1 w-2.5 h-2.5 rounded-full border-2 border-card"
+            style={{ backgroundColor: agentDotColor(shown[0]?.status ?? "idle") }} />
+        )}
+        {extra > 0 && !session.icon && (
           <div className="absolute w-8 h-8 rounded-full bg-muted border-2 border-card flex items-center justify-center"
             style={{ left: 3 * 8, top: 3 * 2.5, zIndex: 0 }}>
             <span className="text-[10px] text-muted-foreground font-medium">+{extra}</span>
@@ -260,7 +334,7 @@ function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
               {displayName}
             </span>
           )}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0">
             {!editing && (
               <span className="text-[10px] text-muted-foreground/50 tabular-nums group-hover:hidden">
                 {timeAgoShort(session.updatedAt)}
@@ -286,11 +360,14 @@ function SessionListItem({ session, isActive, onSelect, onDelete, onRename }: {
             )}
           </div>
         </div>
-        {lastMsg ? (
-          <span className="text-xs text-muted-foreground truncate leading-snug">
-            {lastMsg.role === "user" ? "You: " : ""}{lastMsg.content}
+
+        {/* Last message preview */}
+        {lastMsgContent && (
+          <span className="text-[11px] text-muted-foreground/60 truncate leading-snug">
+            {lastMsgContent.role === "user" && <span className="text-muted-foreground/80">You: </span>}
+            {lastMsgContent.text}
           </span>
-        ) : null}
+        )}
       </div>
     </div>
   );
@@ -356,7 +433,7 @@ function UserMessageBubble({ msg }: { msg: ChatMessage }) {
             <MessageAttachments attachments={msg.attachments} />
           </div>
         )}
-        <div className="px-4 py-2.5 text-sm leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-md">
+        <div className="px-3.5 py-2 text-sm leading-relaxed bg-primary text-primary-foreground rounded-2xl rounded-br-md">
           <ChatMessageContent content={msg.content} />
         </div>
         <div className="flex items-center gap-1.5 px-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
@@ -390,13 +467,147 @@ function AgentMessageBubble({ msg, sender, color, participants }: {
             <MessageAttachments attachments={msg.attachments} />
           </div>
         )}
-        <div className="px-4 py-2.5 text-sm leading-relaxed bg-muted/50 text-foreground rounded-2xl rounded-bl-md">
+        <div className="px-3.5 py-2 text-sm leading-relaxed bg-muted/50 text-foreground rounded-2xl rounded-bl-md">
           <ChatMessageContent content={msg.content} />
         </div>
         <div className="flex items-center gap-1.5 px-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
           <CopyMessageButton text={msg.content} />
           <span className="text-[10px] text-muted-foreground/50">{formatChatTime(msg.ts)}</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Media Panel ───────────────────────────────────────────────────────────────
+
+function MediaPanel({ messages }: { messages: ChatMessage[] }) {
+  const images = useMemo(
+    () => messages.flatMap((m) => (m.attachments ?? []).filter((a) => a.type === "image")),
+    [messages],
+  );
+  const files = useMemo(
+    () => messages.flatMap((m) => (m.attachments ?? []).filter((a) => a.type === "file")),
+    [messages],
+  );
+
+  if (images.length === 0 && files.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 py-12 text-center px-4">
+        <Images className="h-10 w-10 text-muted-foreground/20" />
+        <p className="text-xs text-muted-foreground">No media shared yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-y-auto h-full">
+      {images.length > 0 && (
+        <div className="px-3 py-3">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+            Images ({images.length})
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {images.map((att) => (
+              <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer"
+                className="rounded-lg overflow-hidden border border-border/30 hover:border-primary/40 transition-colors block aspect-square">
+                <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="px-3 py-3 border-t border-border/20">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+            Files ({files.length})
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {files.map((att) => (
+              <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" download={att.name}
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border/30 bg-muted/20 hover:bg-accent/30 transition-colors">
+                <FileText className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-medium truncate">{att.name}</span>
+                  {att.size && <span className="text-[10px] text-muted-foreground">{(att.size / 1024).toFixed(1)} KB</span>}
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Search Panel ──────────────────────────────────────────────────────────────
+
+function SearchPanel({ messages, participants }: { messages: ChatMessage[]; participants: ChatParticipant[] }) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const results = useMemo(() => {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    return messages.filter((m) => m.content.toLowerCase().includes(q) && m.content.trim());
+  }, [messages, query]);
+
+  const highlight = (text: string, q: string): string => {
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return text.slice(0, 100) + (text.length > 100 ? "…" : "");
+    const start = Math.max(0, idx - 25);
+    const end = Math.min(text.length, idx + q.length + 50);
+    return (start > 0 ? "…" : "") + text.slice(start, end) + (end < text.length ? "…" : "");
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-3 pt-3 pb-2 shrink-0">
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/40 focus-within:border-primary/40 transition-colors">
+          <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search in this chat…"
+            className="flex-1 text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground/50"
+          />
+          {query && (
+            <button onClick={() => setQuery("")} className="text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-3 pb-3 min-h-0">
+        {!query.trim() ? (
+          <p className="text-[11px] text-muted-foreground/40 text-center pt-8">Type to search messages</p>
+        ) : results.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground/40 text-center pt-8">No results for "{query}"</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-[10px] text-muted-foreground/50 mb-0.5">
+              {results.length} result{results.length !== 1 ? "s" : ""}
+            </p>
+            {results.map((msg) => {
+              const sender = msg.role === "user" ? null : participants.find((p) => p.id === msg.agentId);
+              return (
+                <div key={msg.id} className="px-2.5 py-2 rounded-lg bg-muted/30 border border-border/30 hover:border-border/50 transition-colors">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[10px] font-semibold text-foreground/70">
+                      {msg.role === "user" ? "You" : (sender?.name ?? "Agent")}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/40">{formatChatTime(msg.ts)}</span>
+                  </div>
+                  <p className="text-[11px] text-foreground/70 leading-relaxed">
+                    {highlight(msg.content, query)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -446,9 +657,7 @@ function ChatComposer({
           size: file.size,
           mimeType: file.type,
         });
-      } catch {
-        /* skip failed uploads */
-      }
+      } catch { /* skip failed uploads */ }
     }
     setDraftAttachments([...draftAttachments, ...newAttachments]);
     setUploading(false);
@@ -474,14 +683,14 @@ function ChatComposer({
   }, [handleSendWithAttachments, onKeyDown]);
 
   return (
-    <div className="px-5 py-3 shrink-0">
-      {/* Attachment chips */}
+    <div className="px-4 pb-3 pt-1.5 shrink-0">
+      {/* Draft attachment chips */}
       {draftAttachments.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2">
+        <div className="flex flex-wrap gap-1.5 mb-1.5">
           {draftAttachments.map((att) => (
-            <div key={att.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/50 bg-muted/40 text-xs">
-              {att.type === "image" ? <ImageIcon className="h-3.5 w-3.5 text-primary" /> : <FileText className="h-3.5 w-3.5 text-primary" />}
-              <span className="max-w-[120px] truncate">{att.name}</span>
+            <div key={att.id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-border/50 bg-muted/40 text-xs">
+              {att.type === "image" ? <ImageIcon className="h-3 w-3 text-primary" /> : <FileText className="h-3 w-3 text-primary" />}
+              <span className="max-w-[100px] truncate">{att.name}</span>
               <button onClick={() => removeAttachment(att.id)} className="text-muted-foreground hover:text-destructive transition-colors">
                 <X className="h-3 w-3" />
               </button>
@@ -490,48 +699,45 @@ function ChatComposer({
         </div>
       )}
 
-      <div className="flex gap-2 items-end">
-        <div className="flex-1 relative">
-          <div className="flex items-end gap-2 bg-muted/40 border border-border/30 rounded-2xl px-3 py-2 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || !!typingAgentId}
-              className="shrink-0 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
-              title="Attach file"
-            >
-              <Paperclip className="h-4 w-4" />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,.pdf,.txt,.md,.json,.csv,.doc,.docx"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <Textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleComposerKeyDown}
-              placeholder={participants.length > 1
-                ? `Message ${participants.length} agents…`
-                : `Message ${participants[0]?.name ?? "agent"}…`}
-              className="min-h-[36px] max-h-28 resize-none text-sm py-1.5 leading-relaxed bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-              rows={1}
-              disabled={!!typingAgentId}
-            />
-            <button
-              onClick={handleSendWithAttachments}
-              disabled={(!input.trim() && draftAttachments.length === 0) || !!typingAgentId}
-              className="shrink-0 p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:hover:bg-primary transition-colors"
-            >
-              <Send className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
+      {/* Composer row */}
+      <div className="flex items-end gap-2 bg-muted/40 border border-border/30 rounded-2xl px-2.5 py-1.5 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || !!typingAgentId}
+          className="shrink-0 p-1 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 self-end mb-0.5"
+          title="Attach file"
+        >
+          <Paperclip className="h-3.5 w-3.5" />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.txt,.md,.json,.csv,.doc,.docx"
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+        <Textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleComposerKeyDown}
+          placeholder={participants.length > 1
+            ? `Message ${participants.length} agents…`
+            : `Message ${participants[0]?.name ?? "agent"}…`}
+          className="min-h-[28px] max-h-24 resize-none text-sm py-1 leading-relaxed bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+          rows={1}
+          disabled={!!typingAgentId}
+        />
+        <button
+          onClick={handleSendWithAttachments}
+          disabled={(!input.trim() && draftAttachments.length === 0) || !!typingAgentId}
+          className="shrink-0 p-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:hover:bg-primary transition-colors self-end mb-0.5"
+        >
+          <Send className="h-3 w-3" />
+        </button>
       </div>
-      <p className="text-[10px] text-muted-foreground/30 mt-1.5 select-none px-1">
+      <p className="text-[10px] text-muted-foreground/25 mt-1 select-none px-1">
         {typingAgentId ? "Waiting for response…" : "Enter to send · Shift+Enter for new line"}
       </p>
     </div>
@@ -540,23 +746,22 @@ function ChatComposer({
 
 // ── Chat Area ─────────────────────────────────────────────────────────────────
 
+type RightPanelTab = "media" | "search";
+
 function ChatArea({ session, allAgents, companyId }: {
   session: ChatSession;
   allAgents: Agent[];
   companyId: string | undefined;
 }) {
   const { openNewIssue } = useDialog();
-  const { sendMessage, streams, updateSession } = useChat();
+  const { sendMessage, streams, updateSession, setSessionIcon } = useChat();
 
   const [participants, setParticipants] = useState<ChatParticipant[]>(session.participants);
+  const [rightPanel, setRightPanel] = useState<RightPanelTab | null>(null);
 
-  useEffect(() => {
-    setParticipants(session.participants);
-  }, [session.id]);
+  useEffect(() => { setParticipants(session.participants); }, [session.id]);
 
-  const activeStreams = streams.filter(
-    (s) => s.sessionId === session.id && s.status === "streaming"
-  );
+  const activeStreams = streams.filter((s) => s.sessionId === session.id && s.status === "streaming");
   const typingAgentId = activeStreams[0]?.agentId ?? null;
 
   const streamMessages: ChatMessage[] = activeStreams.map((s) => ({
@@ -608,6 +813,7 @@ function ChatArea({ session, allAgents, companyId }: {
   };
 
   const agentById = (id: string) => participants.find((p) => p.id === id);
+  const isGroup = participants.length > 1;
 
   const handleCreateIssue = useCallback(() => {
     const recent = displayMessages.filter((m) => m.content.trim()).slice(-8).map((m) => {
@@ -618,117 +824,176 @@ function ChatArea({ session, allAgents, companyId }: {
     openNewIssue({ description: recent ? `*From chat discussion:*\n\n${recent}` : undefined });
   }, [displayMessages, participants, openNewIssue]);
 
+  const toggleRightPanel = (tab: RightPanelTab) => {
+    setRightPanel((prev) => (prev === tab ? null : tab));
+  };
+
   return (
-    <div className="flex flex-col flex-1 min-h-0 min-w-0">
-      {/* Chat header — minimal floating bar */}
-      <div className="flex items-center justify-between px-5 py-2.5 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          {participants.length === 1 ? (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <AgentAvatar agent={participants[0] as any} size="sm" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background"
-                  style={{ backgroundColor: agentDotColor(participants[0].status) }} />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-semibold text-foreground truncate">{participants[0].name}</span>
-                <span className="text-[10px] text-muted-foreground capitalize">{participants[0].status}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-              {participants.map((agent) => (
-                <div key={agent.id}
-                  className="flex items-center gap-1.5 bg-muted/60 border border-border rounded-full pl-1 pr-1.5 py-0.5">
-                  <div className="relative">
-                    <AgentAvatar agent={agent as any} size="xs" />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-card"
-                      style={{ backgroundColor: agentDotColor(agent.status) }} />
-                  </div>
-                  <span className="text-[11px] font-medium text-foreground">{agent.name}</span>
-                  <button onClick={() => removeParticipant(agent.id)}
-                    className="ml-0.5 text-muted-foreground/40 hover:text-foreground transition-colors">
-                    <X className="h-2.5 w-2.5" />
-                  </button>
+    <div className="flex flex-1 min-h-0 min-w-0">
+      {/* Main chat column */}
+      <div className="flex flex-col flex-1 min-h-0 min-w-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-2 shrink-0 border-b border-border/20">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            {isGroup ? (
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <EmojiIconPicker
+                  current={session.icon}
+                  onSelect={(emoji) => setSessionIcon(session.id, emoji)}
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-semibold text-foreground truncate">
+                    {session.name ?? participants.map((p) => p.name).join(", ")}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{participants.length} agents</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <AddParticipantMenu allAgents={allAgents} participants={participants as unknown as Agent[]} onAdd={addParticipant} />
-      </div>
-
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-5 min-h-0">
-        {displayMessages.map((msg) => {
-          if (isEmptyAgentMessage(msg)) return null;
-
-          if (msg.role === "user") {
-            return (
-              <UserMessageBubble key={msg.id} msg={msg} />
-            );
-          }
-
-          const sender = msg.agentId ? agentById(msg.agentId) : null;
-          const color = agentDotColor(msg.agentId ? (sender?.status ?? "idle") : "idle");
-
-          return (
-            <AgentMessageBubble key={msg.id} msg={msg} sender={sender} color={color} participants={participants} />
-          );
-        })}
-
-        {typingAgentId && (() => {
-          const agent = agentById(typingAgentId);
-          return (
-            <div className="flex gap-3 items-end">
-              <div className="relative shrink-0 mb-0.5">
-                <AgentAvatar agent={agent as any} size="sm" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background"
-                  style={{ backgroundColor: agentDotColor(agent?.status ?? "idle") }} />
-              </div>
-              <div className="bg-accent px-4 py-3 rounded-2xl rounded-bl-sm">
-                <div className="flex gap-1 items-center h-4">
-                  {[0, 150, 300].map((delay) => (
-                    <span key={delay}
-                      className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce"
-                      style={{ animationDelay: `${delay}ms` }} />
+                <div className="flex flex-wrap items-center gap-1 ml-1">
+                  {participants.map((agent) => (
+                    <div key={agent.id} className="flex items-center gap-1 bg-muted/60 border border-border rounded-full pl-0.5 pr-1.5 py-0.5">
+                      <div className="relative">
+                        <AgentAvatar agent={agent as any} size="xs" />
+                        <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-card"
+                          style={{ backgroundColor: agentDotColor(agent.status) }} />
+                      </div>
+                      <span className="text-[10px] font-medium">{agent.name}</span>
+                      <button onClick={() => removeParticipant(agent.id)} className="ml-0.5 text-muted-foreground/40 hover:text-foreground">
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
-            </div>
-          );
-        })()}
-
-        {sendError && (
-          <div className="flex items-start gap-2 px-1">
-            <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
-            <span className="text-sm text-destructive">{sendError}</span>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <AgentAvatar agent={participants[0] as any} size="sm" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background"
+                    style={{ backgroundColor: agentDotColor(participants[0]?.status ?? "idle") }} />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-semibold text-foreground truncate">{participants[0]?.name}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize">{participants[0]?.status}</span>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Header actions */}
+          <div className="flex items-center gap-1 shrink-0">
+            <AddParticipantMenu allAgents={allAgents} participants={participants as unknown as Agent[]} onAdd={addParticipant} />
+            <button
+              onClick={() => toggleRightPanel("search")}
+              className={cn("p-1.5 rounded-lg transition-colors", rightPanel === "search" ? "bg-accent text-foreground" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/50")}
+              title="Search in chat"
+            >
+              <Search className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => toggleRightPanel("media")}
+              className={cn("p-1.5 rounded-lg transition-colors", rightPanel === "media" ? "bg-accent text-foreground" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/50")}
+              title="Media & files"
+            >
+              <Images className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
+          {displayMessages.map((msg) => {
+            if (isEmptyAgentMessage(msg)) return null;
+            if (msg.role === "user") return <UserMessageBubble key={msg.id} msg={msg} />;
+            const sender = msg.agentId ? agentById(msg.agentId) : null;
+            const color = agentDotColor(msg.agentId ? (sender?.status ?? "idle") : "idle");
+            return <AgentMessageBubble key={msg.id} msg={msg} sender={sender} color={color} participants={participants} />;
+          })}
+
+          {typingAgentId && (() => {
+            const agent = agentById(typingAgentId);
+            return (
+              <div className="flex gap-3 items-end">
+                <div className="relative shrink-0 mb-0.5">
+                  <AgentAvatar agent={agent as any} size="sm" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background"
+                    style={{ backgroundColor: agentDotColor(agent?.status ?? "idle") }} />
+                </div>
+                <div className="bg-accent px-4 py-3 rounded-2xl rounded-bl-sm">
+                  <div className="flex gap-1 items-center h-4">
+                    {[0, 150, 300].map((delay) => (
+                      <span key={delay} className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce"
+                        style={{ animationDelay: `${delay}ms` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {sendError && (
+            <div className="flex items-start gap-2 px-1">
+              <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+              <span className="text-sm text-destructive">{sendError}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Create issue */}
+        <div className="px-4 pt-1 shrink-0">
+          <button onClick={handleCreateIssue}
+            className="w-full flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent/20 transition-colors">
+            <CircleDot className="h-3 w-3" />
+            Create issue from this chat
+          </button>
+        </div>
+
+        {/* Composer */}
+        <ChatComposer
+          input={input}
+          setInput={setInput}
+          onSend={handleSend}
+          onKeyDown={handleKeyDown}
+          participants={participants}
+          typingAgentId={typingAgentId}
+          inputRef={inputRef}
+          companyId={companyId}
+          draftAttachments={draftAttachments}
+          setDraftAttachments={setDraftAttachments}
+        />
       </div>
 
-      {/* Create issue */}
-      <div className="px-5 pt-2 shrink-0">
-        <button onClick={handleCreateIssue}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors">
-          <CircleDot className="h-3.5 w-3.5" />
-          Create issue from this chat
-        </button>
-      </div>
+      {/* Right detail panel */}
+      {rightPanel && (
+        <div className="w-60 shrink-0 border-l border-border/40 flex flex-col bg-card/20 min-h-0">
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-3 h-9 border-b border-border/30 shrink-0">
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setRightPanel("media")}
+                className={cn("px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors", rightPanel === "media" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
+              >
+                Media
+              </button>
+              <button
+                onClick={() => setRightPanel("search")}
+                className={cn("px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors", rightPanel === "search" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
+              >
+                Search
+              </button>
+            </div>
+            <button onClick={() => setRightPanel(null)} className="text-muted-foreground/50 hover:text-foreground transition-colors p-0.5">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
-      {/* Input */}
-      <ChatComposer
-        input={input}
-        setInput={setInput}
-        onSend={handleSend}
-        onKeyDown={handleKeyDown}
-        participants={participants}
-        typingAgentId={typingAgentId}
-        inputRef={inputRef}
-        companyId={companyId}
-        draftAttachments={draftAttachments}
-        setDraftAttachments={setDraftAttachments}
-      />
+          {/* Panel content */}
+          <div className="flex-1 overflow-hidden min-h-0">
+            {rightPanel === "media"
+              ? <MediaPanel messages={displayMessages} />
+              : <SearchPanel messages={session.messages} participants={participants} />
+            }
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -788,9 +1053,9 @@ export function AgentChat() {
   return (
     <div className="flex h-full min-h-0 bg-background">
       {/* Session list sidebar */}
-      <div className="w-72 shrink-0 flex flex-col bg-card/30">
+      <div className="w-72 shrink-0 flex flex-col bg-card/30 border-r border-border/30">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-13 shrink-0">
+        <div className="flex items-center justify-between px-4 h-12 shrink-0 border-b border-border/20">
           <div className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Agent Chat</span>
@@ -807,24 +1072,22 @@ export function AgentChat() {
         </div>
 
         {/* Search */}
-        {sessions.length > 0 && (
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted border border-border/50">
-              <Search className="h-3 w-3 text-muted-foreground shrink-0" />
-              <input
-                value={sessionSearch}
-                onChange={(e) => setSessionSearch(e.target.value)}
-                placeholder="Search chats…"
-                className="flex-1 text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground/50 min-w-0"
-              />
-              {sessionSearch && (
-                <button onClick={() => setSessionSearch("")} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+        <div className="px-3 py-2 border-b border-border/10">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/30 focus-within:border-primary/30 transition-colors">
+            <Search className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+            <input
+              value={sessionSearch}
+              onChange={(e) => setSessionSearch(e.target.value)}
+              placeholder="Search chats..."
+              className="flex-1 text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground/40 min-w-0"
+            />
+            {sessionSearch && (
+              <button onClick={() => setSessionSearch("")} className="text-muted-foreground/50 hover:text-foreground">
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Session list */}
         <div className="flex-1 overflow-y-auto">
@@ -834,8 +1097,10 @@ export function AgentChat() {
                 <MessageCircle className="h-5 w-5 text-muted-foreground/40" />
               </div>
               <div>
-                <p className="text-xs font-medium">No conversations yet</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Click New Chat to get started</p>
+                <p className="text-xs font-medium">{sessionSearch ? "No matching chats" : "No conversations yet"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {sessionSearch ? "Try a different search" : "Click New Chat to get started"}
+                </p>
               </div>
             </div>
           ) : (
@@ -867,4 +1132,3 @@ export function AgentChat() {
     </div>
   );
 }
-
