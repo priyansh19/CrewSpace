@@ -167,16 +167,24 @@ ipcMain.handle("get-renderer-url", () => {
 });
 
 // Navigate the main window to the renderer — bypasses will-navigate guard
-ipcMain.handle("load-renderer", () => {
-  const url = isDev ? "http://localhost:5175/" : path.join(__dirname, "renderer-dist", "index.html");
+ipcMain.handle("load-renderer", async () => {
   if (!mainWindow) return;
-  console.log(`[CrewSpace Desktop] load-renderer: isDev=${isDev}, url=${url}`);
+
+  // In dev mode, prefer Vite (hot reload). Fall back to renderer-dist if Vite is down.
   if (isDev) {
-    mainWindow.loadURL(url);
-    mainWindow.webContents.openDevTools({ mode: "detach" });
-  } else {
-    mainWindow.loadFile(url);
+    const viteAvailable = await isViteRunning();
+    if (viteAvailable) {
+      console.log(`[CrewSpace Desktop] load-renderer: Vite at 5175 available, using dev server`);
+      mainWindow.loadURL("http://localhost:5175/");
+      mainWindow.webContents.openDevTools({ mode: "detach" });
+      return;
+    }
+    console.warn(`[CrewSpace Desktop] load-renderer: Vite not available, falling back to renderer-dist`);
   }
+
+  const distPath = path.join(__dirname, "renderer-dist", "index.html");
+  console.log(`[CrewSpace Desktop] load-renderer: loading from renderer-dist`);
+  mainWindow.loadFile(distPath);
 });
 
 // ── Find free port ──────────────────────────────────────────────────
