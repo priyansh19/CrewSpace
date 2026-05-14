@@ -286,7 +286,7 @@ function SessionListItem({
       return prefix + stripMarkdown(lastMsg.content);
     }
     if (session.lastMessage) {
-      return stripMarkdown(session.lastMessage);
+      return stripMarkdown(session.lastMessage.content);
     }
     return "No messages yet";
   })();

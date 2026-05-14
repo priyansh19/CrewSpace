@@ -972,7 +972,7 @@ export function Dashboard() {
   });
 
   const wakeupMutation = useMutation({
-    mutationFn: (agentId: string) => agentsApi.wakeup(agentId, selectedCompanyId ?? undefined, { trigger: "manual" }),
+    mutationFn: (agentId: string) => agentsApi.wakeup(agentId, { source: "on_demand", triggerDetail: "manual" }, selectedCompanyId ?? undefined),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId!) }),
   });
 

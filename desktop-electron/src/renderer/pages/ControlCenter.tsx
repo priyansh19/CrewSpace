@@ -108,6 +108,8 @@ function ProjectDropdown({ projects, value, onChange }: {
 
 // ── Approval Card ─────────────────────────────────────────────────────────────
 
+type IconComp = React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+
 function ApprovalRow({ approval, agents, onApprove, onReject, onRevise, isPendingApprove, isPendingReject }: {
   approval: Approval;
   agents: Agent[];
@@ -119,7 +121,7 @@ function ApprovalRow({ approval, agents, onApprove, onReject, onRevise, isPendin
 }) {
   const meta = TYPE_META[approval.type] ?? { label: approval.type, icon: CircleDot, color: "#888" };
   const statusStyle = STATUS_STYLE[approval.status] ?? STATUS_STYLE.pending;
-  const Icon = meta.icon;
+  const Icon = meta.icon as IconComp;
   const requester = agents.find((a) => a.id === approval.requestedByAgentId);
   const payload = approval.payload as Record<string, unknown>;
 
@@ -315,7 +317,7 @@ function PrApprovalsSection({ companyId, projectId }: { companyId: string; proje
 function Section({ title, count, icon: Icon, children, emptyMsg, color = "#818cf8" }: {
   title: string;
   count?: number;
-  icon: React.ElementType;
+  icon: IconComp;
   children: React.ReactNode;
   emptyMsg?: string;
   color?: string;
@@ -383,7 +385,7 @@ export function ControlCenter() {
     queryKey: queryKeys.liveRuns(selectedCompanyId!),
     queryFn: async () => {
       const { heartbeatsApi } = await import("../api/heartbeats");
-      return heartbeatsApi.liveRuns(selectedCompanyId!);
+      return heartbeatsApi.liveRunsForCompany(selectedCompanyId!);
     },
     enabled: !!selectedCompanyId,
     refetchInterval: 5_000,
