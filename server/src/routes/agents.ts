@@ -23,6 +23,8 @@ import {
   updateAgentInstructionsPathSchema,
   wakeAgentSchema,
   updateAgentSchema,
+  bulkUpdateAdapterSchema,
+  type BulkUpdateAdapter,
 } from "@crewspaceai/shared";
 import {
   readCrewSpaceSkillSyncPreference,
@@ -1845,6 +1847,56 @@ export function agentRoutes(db: Db) {
     });
 
     res.json(agent);
+  });
+
+  // ── Bulk adapter update ────────────────────────────────────────────────────
+  // PATCH /companies/:companyId/agents/bulk-adapter
+  // Changes adapterType (and optionally adapterConfig) for every non-terminated
+  // agent in the company. Adapter-agnostic fields (env, cwd, timeoutSec, etc.)
+  // and instructions bundle config are preserved per-agent.
+  router.patch("/companies/:companyId/agents/bulk-adapter", validate(bulkUpdateAdapterSchema), async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyRole(req, companyId, "owner", "admin");
+
+    const { adapterType, adapterConfig: requestedAdapterConfig = {} } = req.body as BulkUpdateAdapter;
+
+    const allAgents = await svc.list(companyId);
+    const nonTerminated = allAgents.filter((a) => a.status !== "terminated");
+    const actor = getActorInfo(req);
+
+    const ADAPTER_AGNOSTIC_KEYS = [
+      "env", "cwd", "timeoutSec", "graceSec",
+      "promptTemplate", "bootstrapPromptTemplate",
+    ] as const;
+
+    const results = await Promise.all(
+      nonTerminated.map(async (existing) => {
+        const existingAdapterConfig = asRecord(existing.adapterConfig) ?? {};
+        let effectiveConfig: Record<string, unknown> = { ...(requestedAdapterConfig as Record<string, unknown>) };
+
+        // Preserve adapter-agnostic keys from each agent's existing config
+        for (const key of ADAPTER_AGNOSTIC_KEYS) {
+          if (effectiveConfig[key] === undefined && existingAdapterConfig[key] !== undefined) {
+            effectiveConfig[key] = existingAdapterConfig[key];
+          }
+        }
+
+        // Preserve instructions bundle config
+        effectiveConfig = preserveInstructionsBundleConfig(existingAdapterConfig, effectiveConfig);
+        effectiveConfig = applyCreateDefaultsByAdapterType(adapterType, effectiveConfig);
+
+        return svc.update(existing.id, { adapterType, adapterConfig: effectiveConfig }, {
+          recordRevision: {
+            createdByAgentId: actor.agentId,
+            createdByUserId: actor.actorType === "user" ? actor.actorId : null,
+            source: "patch",
+          },
+        });
+      }),
+    );
+
+    const updated = results.filter(Boolean).length;
+    res.json({ updated });
   });
 
   router.post("/agents/:id/pause", async (req, res) => {

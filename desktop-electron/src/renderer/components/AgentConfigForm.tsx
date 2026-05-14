@@ -205,6 +205,20 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     },
   });
 
+  // ---- Bulk adapter update ----
+  const [applyToAll, setApplyToAll] = useState(false);
+
+  const bulkUpdateAdapter = useMutation({
+    mutationFn: ({ adapterType, adapterConfig }: { adapterType: string; adapterConfig: Record<string, unknown> }) => {
+      if (!selectedCompanyId) throw new Error("No company selected");
+      return agentsApi.bulkUpdateAdapter(selectedCompanyId, adapterType, adapterConfig);
+    },
+    onSuccess: () => {
+      if (!selectedCompanyId) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId) });
+    },
+  });
+
   // ---- Edit mode: overlay for dirty tracking ----
   const [overlay, setOverlay] = useState<Overlay>(emptyOverlay);
   const agentRef = useRef<Agent | null>(null);
@@ -244,6 +258,22 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const handleSave = useCallback(() => {
     if (isCreate || !isDirty) return;
     const agent = props.agent;
+
+    // ── Bulk adapter apply path ──────────────────────────────────────────────
+    if (applyToAll && overlay.adapterType !== undefined) {
+      const existing = (agent.adapterConfig ?? {}) as Record<string, unknown>;
+      const agnosticKeys = ["env", "promptTemplate", "instructionsFilePath", "cwd", "timeoutSec", "graceSec", "bootstrapPromptTemplate"];
+      const preserved: Record<string, unknown> = {};
+      for (const key of agnosticKeys) {
+        if (key in existing) preserved[key] = existing[key];
+      }
+      const adapterConfig = { ...preserved, ...overlay.adapterConfig };
+      bulkUpdateAdapter.mutate({ adapterType: overlay.adapterType, adapterConfig });
+      setApplyToAll(false);
+      setOverlay({ ...emptyOverlay });
+      return;
+    }
+
     const patch: Record<string, unknown> = {};
 
     if (Object.keys(overlay.identity).length > 0) {
@@ -285,7 +315,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     }
 
     props.onSave(patch);
-  }, [isCreate, isDirty, overlay, props]);
+  }, [isCreate, isDirty, overlay, props, applyToAll, bulkUpdateAdapter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isCreate) {
@@ -633,6 +663,22 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 }}
               />
             </Field>
+          )}
+
+          {/* Apply to all agents checkbox — edit mode only, shown when adapter type changed */}
+          {!isCreate && showAdapterTypeField && overlay.adapterType !== undefined && (
+            <label className="flex items-center gap-2 cursor-pointer select-none group">
+              <input
+                type="checkbox"
+                checked={applyToAll}
+                onChange={(e) => setApplyToAll(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
+              />
+              <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                Apply this adapter to <strong>all agents</strong> in this company
+                {bulkUpdateAdapter.isPending && <span className="ml-1 opacity-60">(updating…)</span>}
+              </span>
+            </label>
           )}
 
           {testEnvironment.error && (

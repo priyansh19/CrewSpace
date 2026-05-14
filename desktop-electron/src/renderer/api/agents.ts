@@ -116,6 +116,8 @@ export const agentsApi = {
     api.post<AgentHireResponse>(`/companies/${companyId}/agent-hires`, data),
   update: (id: string, data: Record<string, unknown>, companyId?: string) =>
     api.patch<Agent>(agentPath(id, companyId), data),
+  bulkUpdateAdapter: (companyId: string, adapterType: string, adapterConfig?: Record<string, unknown>) =>
+    api.patch<{ updated: number }>(`/companies/${companyId}/agents/bulk-adapter`, { adapterType, adapterConfig }),
   updatePermissions: (id: string, data: AgentPermissionUpdate, companyId?: string) =>
     api.patch<AgentDetail>(agentPath(id, companyId, "/permissions"), data),
   instructionsBundle: (id: string, companyId?: string) =>
