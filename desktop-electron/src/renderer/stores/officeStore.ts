@@ -563,11 +563,11 @@ export const useOfficeStore = create<OfficeStore>((set) => {
     isNightMode: false,
     liveMode: false,
     isInitialLoad: true,
-    selectAgent: (id) => set({ selectedAgentId: id }),
-    toggleNightMode: () => set((state) => ({ isNightMode: !state.isNightMode })),
+    selectAgent: (id: string | null) => set({ selectedAgentId: id }),
+    toggleNightMode: () => set((state: OfficeStore) => ({ isNightMode: !state.isNightMode })),
     setInitialLoadComplete: () => set({ isInitialLoad: false }),
-    setBackendSnapshot: (snapshot) =>
-      set((state) => {
+    setBackendSnapshot: (snapshot: BackendSnapshot) =>
+      set((state: OfficeStore) => {
         const agents = buildAgents(snapshot, state.agents);
         const hasSelectedAgent = state.selectedAgentId && agents.some((a) => a.id === state.selectedAgentId);
         return {
