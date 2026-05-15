@@ -318,12 +318,15 @@ function spawnServer(port) {
 const VITE_PORT = 5175;
 
 async function isViteRunning() {
-  try {
-    const res = await fetch(`http://localhost:${VITE_PORT}/`, { signal: AbortSignal.timeout(1000) });
-    return res.ok;
-  } catch {
-    return false;
+  for (const host of ["127.0.0.1", "localhost"]) {
+    try {
+      const res = await fetch(`http://${host}:${VITE_PORT}/`, { signal: AbortSignal.timeout(1000) });
+      if (res.ok) return true;
+    } catch {
+      // try next
+    }
   }
+  return false;
 }
 
 async function spawnVite() {
