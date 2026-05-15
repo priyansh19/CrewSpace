@@ -186,23 +186,22 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     // Best-effort config copy; Kimi will create defaults if missing.
   }
 
+  // Only pass KIMI_API_KEY / MOONSHOT_API_KEY to the child if they were
+  // explicitly set in adapter config.env. Otherwise strip them from the
+  // inherited server environment so kimi falls back to its own native
+  // credentials (copied into KIMI_SHARE_DIR above) — the same auth path
+  // the user gets when running `kimi` directly in a terminal.
+  const baseProcessEnv = { ...process.env };
+  if (!hasNonEmptyEnvValue(env, "KIMI_API_KEY")) delete baseProcessEnv["KIMI_API_KEY"];
+  if (!hasNonEmptyEnvValue(env, "MOONSHOT_API_KEY")) delete baseProcessEnv["MOONSHOT_API_KEY"];
+
   const runtimeEnv = Object.fromEntries(
-    Object.entries(ensurePathInEnv({ ...process.env, ...env })).filter(
+    Object.entries(ensurePathInEnv({ ...baseProcessEnv, ...env })).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   );
 
   const billingType = resolveKimiBillingType(runtimeEnv);
-  if (billingType === "subscription") {
-    // Subscription mode requires `kimi login` interactive auth.
-    // In non-interactive --print mode this will hang on OAuth/device flow.
-    // We still allow it (the user may have run login already), but we log a warning.
-    await onLog(
-      "stdout",
-      "[crewspace] Warning: No KIMI_API_KEY or MOONSHOT_API_KEY detected. " +
-        "Kimi CLI will use interactive/session auth. If the run hangs, run `kimi login` or set an API key.\n",
-    );
-  }
 
   await ensureCommandResolvable(command, cwd, runtimeEnv);
   const resolvedCommand = await resolveCommandForLogs(command, cwd, runtimeEnv);

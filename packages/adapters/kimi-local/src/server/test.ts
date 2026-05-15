@@ -50,7 +50,7 @@ function summarizeProbeDetail(stdout: string, stderr: string, parsedError: strin
 }
 
 const KIMI_AUTH_REQUIRED_RE =
-  /(?:not\s+logged\s+in|login\s+required|authentication\s+required|unauthorized|invalid(?:\s+or\s+missing)?\s+api(?:[_\s-]?key)?|api[_\s-]?key.*required|please\s+run\s+`?kimi\s+login`?)/i;
+  /(?:not\s+logged\s+in|login\s+required|authentication\s+required|unauthorized|invalid(?:\s+or\s+missing)?\s+api(?:[_\s-]?key)?|api[_\s-]?key.*(?:invalid|expired|required)|invalid_authentication_error|please\s+run\s+`?kimi\s+login`?)/i;
 
 export async function testEnvironment(
   ctx: AdapterEnvironmentTestContext,
@@ -81,8 +81,14 @@ export async function testEnvironment(
   for (const [key, value] of Object.entries(envConfig)) {
     if (typeof value === "string") env[key] = value;
   }
+  // Strip KIMI_API_KEY / MOONSHOT_API_KEY from the server environment unless
+  // they were explicitly set in adapter config.env, so the probe authenticates
+  // via native kimi credentials just like a terminal invocation.
+  const baseProcessEnv = { ...process.env };
+  if (!env["KIMI_API_KEY"]) delete baseProcessEnv["KIMI_API_KEY"];
+  if (!env["MOONSHOT_API_KEY"]) delete baseProcessEnv["MOONSHOT_API_KEY"];
   const runtimeEnv = Object.fromEntries(
-    Object.entries(ensurePathInEnv({ ...process.env, ...env })).filter(
+    Object.entries(ensurePathInEnv({ ...baseProcessEnv, ...env })).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   );
@@ -103,16 +109,14 @@ export async function testEnvironment(
   }
 
   const configApiKey = env.KIMI_API_KEY || env.MOONSHOT_API_KEY;
-  const hostApiKey = process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY;
   const nativeAuth = await readKimiAuthInfo().catch(() => null);
 
-  if (isNonEmpty(configApiKey) || isNonEmpty(hostApiKey)) {
-    const source = isNonEmpty(configApiKey) ? "adapter config env" : "server environment";
+  if (isNonEmpty(configApiKey)) {
     checks.push({
       code: "kimi_api_key_present",
       level: "info",
       message: "Kimi API key is set for authentication.",
-      detail: `Detected in ${source}.`,
+      detail: "Detected in adapter config env.",
     });
   } else if (nativeAuth) {
     const valid = isKimiAuthValid(nativeAuth);
@@ -137,7 +141,11 @@ export async function testEnvironment(
   }
 
   const canRunProbe =
-    checks.every((check) => check.code !== "kimi_cwd_invalid" && check.code !== "kimi_command_unresolvable");
+    checks.every((check) =>
+      check.code !== "kimi_cwd_invalid" &&
+      check.code !== "kimi_command_unresolvable" &&
+      check.code !== "kimi_native_auth_expired"
+    );
   if (canRunProbe) {
     if (!commandLooksLike(command, "kimi")) {
       checks.push({

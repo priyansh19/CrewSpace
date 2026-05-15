@@ -1,10 +1,11 @@
-import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck } from "lucide-react";
+import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck, FileText } from "lucide-react";
 import { formatCents } from "../lib/utils";
 
 export const typeLabel: Record<string, string> = {
   hire_agent: "Hire Agent",
   approve_ceo_strategy: "CEO Strategy",
   budget_override_required: "Budget Override",
+  proposal: "Proposal",
 };
 
 /** Build a contextual label for an approval, e.g. "Hire Agent: Designer" */
@@ -13,6 +14,9 @@ export function approvalLabel(type: string, payload?: Record<string, unknown> | 
   if (type === "hire_agent" && payload?.name) {
     return `${base}: ${String(payload.name)}`;
   }
+  if (type === "proposal" && payload?.title) {
+    return `${base}: ${String(payload.title)}`;
+  }
   return base;
 }
 
@@ -20,6 +24,7 @@ export const typeIcon: Record<string, typeof UserPlus> = {
   hire_agent: UserPlus,
   approve_ceo_strategy: Lightbulb,
   budget_override_required: ShieldAlert,
+  proposal: FileText,
 };
 
 export const defaultTypeIcon = ShieldCheck;
@@ -127,8 +132,47 @@ export function BudgetOverridePayload({ payload }: { payload: Record<string, unk
   );
 }
 
+export function ProposalPayload({ payload }: { payload: Record<string, unknown> }) {
+  const summary = payload.summary ?? payload.description ?? payload.plan ?? payload.text;
+  const options = Array.isArray(payload.options) ? payload.options : null;
+  return (
+    <div className="mt-3 space-y-1.5 text-sm">
+      <PayloadField label="Title" value={payload.title} />
+      <PayloadField label="Scope" value={payload.scope} />
+      {!!summary && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">
+          {String(summary)}
+        </div>
+      )}
+      {options && options.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {options.map((opt: unknown, i: number) => {
+            const o = typeof opt === "object" && opt !== null ? (opt as Record<string, unknown>) : null;
+            return (
+              <div key={i} className="rounded bg-muted/30 px-2.5 py-1.5 text-xs">
+                {o ? (
+                  <>
+                    {o.label && <span className="font-medium">{String(o.label)}: </span>}
+                    <span className="text-muted-foreground">{String(o.description ?? o.text ?? o.summary ?? "")}</span>
+                  </>
+                ) : String(opt)}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!summary && !options && (
+        <pre className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground overflow-x-auto max-h-48">
+          {JSON.stringify(payload, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export function ApprovalPayloadRenderer({ type, payload }: { type: string; payload: Record<string, unknown> }) {
   if (type === "hire_agent") return <HireAgentPayload payload={payload} />;
   if (type === "budget_override_required") return <BudgetOverridePayload payload={payload} />;
+  if (type === "proposal") return <ProposalPayload payload={payload} />;
   return <CeoStrategyPayload payload={payload} />;
 }
