@@ -54,7 +54,7 @@ function getAppDataDir() {
 function isCrewSpaceUrl(url) {
   if (serverUrl && url.startsWith(serverUrl)) return true;
   // Allow Vite dev server in dev mode
-  if (isDev && url.startsWith("http://localhost:5175")) return true;
+  if (isDev && url.startsWith("http://localhost:5285")) return true;
   return false;
 }
 
@@ -162,7 +162,7 @@ ipcMain.handle("install-update", () => {
 ipcMain.handle("is-dev", () => isDev);
 ipcMain.handle("get-renderer-url", () => {
   if (isDev) {
-    return "http://localhost:5175/";
+    return "http://localhost:5285/";
   }
   return "../renderer-dist/index.html";
 });
@@ -175,8 +175,8 @@ ipcMain.handle("load-renderer", async () => {
   if (isDev) {
     const viteAvailable = viteReady || await isViteRunning();
     if (viteAvailable) {
-      console.log(`[CrewSpace Desktop] load-renderer: Vite at 5175 available, using dev server`);
-      mainWindow.loadURL("http://localhost:5175/");
+      console.log(`[CrewSpace Desktop] load-renderer: Vite at 5285 available, using dev server`);
+      mainWindow.loadURL("http://localhost:5285/");
       mainWindow.webContents.openDevTools({ mode: "detach" });
       return;
     }
@@ -316,7 +316,7 @@ function spawnServer(port) {
 }
 
 // ── Spawn Vite dev renderer ─────────────────────────────────────────
-const VITE_PORT = 5175;
+const VITE_PORT = 5285;
 
 async function isViteRunning() {
   for (const host of ["127.0.0.1", "localhost"]) {
@@ -615,7 +615,7 @@ function createWindow() {
     const url = mainWindow.webContents.getURL();
     handleNavigation(url);
     // Before React mounts: seed localStorage with the saved theme preference
-    if (url.includes("localhost:5175") || url.startsWith("file://")) {
+    if (url.includes("localhost:5285") || url.startsWith("file://")) {
       try {
         const rawTheme = getThemePreference();
         const savedTheme = (rawTheme === "dark" || rawTheme === "light") ? rawTheme : "dark";
