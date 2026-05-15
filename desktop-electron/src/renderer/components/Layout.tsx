@@ -412,10 +412,10 @@ export function Layout() {
               id="main-content"
               tabIndex={-1}
               className={cn(
-                "flex-1",
+                "flex-1 min-w-0",
                 isFullPageRoute(location.pathname)
                   ? "relative min-h-0 overflow-hidden"
-                  : cn("p-4 md:p-6", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
+                  : cn("px-6 py-5 md:px-10 md:py-6", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
               )}
             >
               {hasUnknownCompanyPrefix ? (

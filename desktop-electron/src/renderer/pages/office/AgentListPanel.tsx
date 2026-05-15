@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import type { OfficeAgent } from "@/stores/officeStore";
-import { Users, X } from "lucide-react";
+import { Users, X, Loader2 } from "lucide-react";
 import { AgentAvatar } from "@/components/AgentAvatar";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -18,12 +18,14 @@ interface AgentListPanelProps {
   agents: OfficeAgent[];
   selectedAgentId: string | null;
   onSelectAgent: (id: string | null) => void;
+  isLoading?: boolean;
 }
 
 export function AgentListPanel({
   agents,
   selectedAgentId,
   onSelectAgent,
+  isLoading = false,
 }: AgentListPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -70,8 +72,10 @@ export function AgentListPanel({
               "rgba(100,140,220,0.35)";
           }}
         >
-          <Users className="h-4 w-4" />
-          <span>{activeAgents.length}</span>
+          {isLoading
+            ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+            : <Users className="h-4 w-4" />}
+          <span>{isLoading ? "…" : activeAgents.length}</span>
         </button>
       )}
 
@@ -149,7 +153,12 @@ export function AgentListPanel({
               scrollBehavior: "smooth",
             }}
           >
-            {activeAgents.length === 0 ? (
+            {isLoading ? (
+              <div style={{ padding: "16px 12px", textAlign: "center", fontSize: "11px", color: "rgba(192,208,240,0.35)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Loader2 style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />
+                Loading agents…
+              </div>
+            ) : activeAgents.length === 0 ? (
               <div
                 style={{
                   padding: "16px 12px",

@@ -21,8 +21,9 @@ const LiveDataBridge = () => {
     queryKey: queryKeys.agents.list(selectedCompanyId ?? ""),
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
-    refetchInterval: 15_000,
-    staleTime: 10_000,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
+    staleTime: 8_000,
     gcTime: 5 * 60 * 1000,
   });
 
