@@ -110,7 +110,8 @@ export const queryKeys = {
     list: (companyId: string) => ["secrets", companyId] as const,
     providers: (companyId: string) => ["secret-providers", companyId] as const,
   },
-  dashboard: (companyId: string) => ["dashboard", companyId] as const,
+  dashboard: (companyId: string, projectId?: string | null) => ["dashboard", companyId, projectId ?? "__all__"] as const,
+  githubPulls: (companyId: string, projectId: string) => ["github-pulls", companyId, projectId] as const,
   sidebarBadges: (companyId: string) => ["sidebar-badges", companyId] as const,
   activity: (companyId: string) => ["activity", companyId] as const,
   costs: (companyId: string, from?: string, to?: string) =>

@@ -1,6 +1,22 @@
 import { api } from "./client";
 import type { ProjectGithubRepo, ProjectRepoPermission, GithubConnectRequest, GithubRepoSummary } from "@crewspaceai/shared";
 
+export interface PullRequestEntry {
+  number: number;
+  title: string;
+  url: string;
+  author: string;
+  authorAvatar: string;
+  state: "ready" | "open" | "draft";
+  updatedAt: string;
+  labels: string[];
+  referencedPrNumbers: number[];
+  headRef: string;
+  baseRef: string;
+  repoOwner: string;
+  repoName: string;
+}
+
 export const githubIntegrationApi = {
   getRepo: (companyId: string, projectId: string) =>
     api.get<ProjectGithubRepo>(`/companies/${companyId}/projects/${projectId}/github/repo`),
@@ -25,4 +41,7 @@ export const githubIntegrationApi = {
 
   removeAgentPermission: (companyId: string, projectId: string, agentId: string) =>
     api.delete<void>(`/companies/${companyId}/projects/${projectId}/github/agents/${agentId}`),
+
+  listPullRequests: (companyId: string, projectId: string) =>
+    api.get<PullRequestEntry[]>(`/companies/${companyId}/projects/${projectId}/github/pulls`),
 };

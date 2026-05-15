@@ -7,7 +7,7 @@ import { budgetService } from "./budgets.js";
 export function dashboardService(db: Db) {
   const budgets = budgetService(db);
   return {
-    summary: async (companyId: string) => {
+    summary: async (companyId: string, projectId?: string) => {
       const company = await db
         .select()
         .from(companies)
@@ -25,7 +25,11 @@ export function dashboardService(db: Db) {
       const taskRows = await db
         .select({ status: issues.status, count: sql<number>`count(*)` })
         .from(issues)
-        .where(eq(issues.companyId, companyId))
+        .where(
+          projectId
+            ? and(eq(issues.companyId, companyId), eq(issues.projectId, projectId))
+            : eq(issues.companyId, companyId),
+        )
         .groupBy(issues.status);
 
       const pendingApprovals = await db
@@ -83,26 +87,58 @@ export function dashboardService(db: Db) {
         .orderBy(desc(sql`sum(${costEvents.costCents})`))
         .limit(10);
 
-      // Fetch agent names for burn entries
+      // Per-agent run outcome counts today (succeeded/failed)
+      const runOutcomeRows = await db
+        .select({
+          agentId: heartbeatRuns.agentId,
+          succeeded: sql<number>`count(*) filter (where ${heartbeatRuns.status} = 'succeeded')::int`,
+          failed: sql<number>`count(*) filter (where ${heartbeatRuns.status} = 'failed')::int`,
+        })
+        .from(heartbeatRuns)
+        .where(
+          and(
+            eq(heartbeatRuns.companyId, companyId),
+            gte(heartbeatRuns.startedAt, todayStart),
+          ),
+        )
+        .groupBy(heartbeatRuns.agentId);
+      const runOutcomeMap = new Map(
+        runOutcomeRows.map((r) => [r.agentId, { succeeded: Number(r.succeeded), failed: Number(r.failed) }]),
+      );
+
+      // Token usage today
+      const [tokenRow] = await db
+        .select({
+          inputTokens: sql<number>`coalesce(sum(${costEvents.inputTokens}), 0)::bigint`,
+          outputTokens: sql<number>`coalesce(sum(${costEvents.outputTokens}), 0)::bigint`,
+          cachedInputTokens: sql<number>`coalesce(sum(${costEvents.cachedInputTokens}), 0)::bigint`,
+        })
+        .from(costEvents)
+        .where(
+          and(
+            eq(costEvents.companyId, companyId),
+            gte(costEvents.occurredAt, todayStart),
+          ),
+        );
+
+      // Fetch agent names + statuses for burn entries
       const burnAgentIds = agentBurnRows.map((r) => r.agentId).filter(Boolean) as string[];
       const burnAgents = burnAgentIds.length > 0
         ? await db
-            .select({ id: agents.id, name: agents.name })
+            .select({ id: agents.id, name: agents.name, status: agents.status })
             .from(agents)
             .where(eq(agents.companyId, companyId))
         : [];
-      const burnAgentMap = new Map(burnAgents.map((a) => [a.id, a.name]));
+      const burnAgentMap = new Map(burnAgents.map((a) => [a.id, { name: a.name, status: a.status }]));
 
       // Tasks completed today
       const [{ todayDone }] = await db
         .select({ todayDone: sql<number>`count(*)::int` })
         .from(issues)
         .where(
-          and(
-            eq(issues.companyId, companyId),
-            eq(issues.status, "done"),
-            gte(issues.completedAt, todayStart),
-          ),
+          projectId
+            ? and(eq(issues.companyId, companyId), eq(issues.projectId, projectId), eq(issues.status, "done"), gte(issues.completedAt, todayStart))
+            : and(eq(issues.companyId, companyId), eq(issues.status, "done"), gte(issues.completedAt, todayStart)),
         );
 
       // Recent completed tasks (last 24h)
@@ -115,11 +151,9 @@ export function dashboardService(db: Db) {
         })
         .from(issues)
         .where(
-          and(
-            eq(issues.companyId, companyId),
-            eq(issues.status, "done"),
-            gte(issues.completedAt, yesterday),
-          ),
+          projectId
+            ? and(eq(issues.companyId, companyId), eq(issues.projectId, projectId), eq(issues.status, "done"), gte(issues.completedAt, yesterday))
+            : and(eq(issues.companyId, companyId), eq(issues.status, "done"), gte(issues.completedAt, yesterday)),
         )
         .orderBy(desc(issues.completedAt))
         .limit(10);
@@ -204,6 +238,11 @@ export function dashboardService(db: Db) {
           monthBudgetCents: company.budgetMonthlyCents,
           monthUtilizationPercent: Number(utilization.toFixed(2)),
           todaySpendCents: Number(todaySpend ?? 0),
+          tokensToday: {
+            inputTokens: Number(tokenRow?.inputTokens ?? 0),
+            outputTokens: Number(tokenRow?.outputTokens ?? 0),
+            cachedInputTokens: Number(tokenRow?.cachedInputTokens ?? 0),
+          },
         },
         pendingApprovals,
         pendingApprovalsList: pendingApprovalRows.map((r) => ({
@@ -224,12 +263,19 @@ export function dashboardService(db: Db) {
         },
         agentBurnToday: agentBurnRows
           .filter((r) => r.agentId != null)
-          .map((r) => ({
-            agentId: r.agentId!,
-            agentName: burnAgentMap.get(r.agentId!) ?? "Unknown",
-            costCents: Number(r.costCents),
-            runsToday: Number(r.runsToday),
-          })),
+          .map((r) => {
+            const agentInfo = burnAgentMap.get(r.agentId!);
+            const outcomes = runOutcomeMap.get(r.agentId!) ?? { succeeded: 0, failed: 0 };
+            return {
+              agentId: r.agentId!,
+              agentName: agentInfo?.name ?? "Unknown",
+              costCents: Number(r.costCents),
+              runsToday: Number(r.runsToday),
+              succeededToday: outcomes.succeeded,
+              failedToday: outcomes.failed,
+              status: agentInfo?.status ?? "idle",
+            };
+          }),
         recentCompleted: recentCompletedRows.map((r) => ({
           id: r.id,
           title: r.title,

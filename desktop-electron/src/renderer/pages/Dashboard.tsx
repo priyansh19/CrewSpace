@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
-  RadialBarChart, RadialBar,
 } from "recharts";
 import { dashboardApi } from "../api/dashboard";
 import { agentsApi } from "../api/agents";
 import { heartbeatsApi } from "../api/heartbeats";
 import { approvalsApi } from "../api/approvals";
+import { projectsApi } from "../api/projects";
+import { githubIntegrationApi } from "../api/githubIntegration";
 import type { LiveRunForIssue } from "../api/heartbeats";
+import type { PullRequestEntry } from "../api/githubIntegration";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -32,7 +34,9 @@ import {
   CheckSquare,
   Clock,
   GitMerge,
-  Activity,
+  GitPullRequest,
+  ExternalLink,
+  ChevronDown,
 } from "lucide-react";
 
 // ── Theme tokens ────────────────────────────────────────────────────────────
@@ -259,14 +263,12 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
 
   const burnMap = new Map(agentBurnToday.map((b) => [b.agentId, b]));
 
-  // Per-agent run outcome counts
-  const runStats = new Map<string, { active: number; success: number; fail: number }>();
+  // Active run count per agent (for live indicator)
+  const activeRunCountMap = new Map<string, number>();
   for (const run of liveRuns) {
-    const e = runStats.get(run.agentId) ?? { active: 0, success: 0, fail: 0 };
-    if (run.status === "running" || run.status === "in_progress") e.active++;
-    else if (run.status === "completed") e.success++;
-    else if (run.status === "failed") e.fail++;
-    runStats.set(run.agentId, e);
+    if (run.status === "running" || run.status === "in_progress") {
+      activeRunCountMap.set(run.agentId, (activeRunCountMap.get(run.agentId) ?? 0) + 1);
+    }
   }
 
   // Active run detail per agent (for subtitle)
@@ -310,18 +312,21 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
         ) : (
           agents.map((agent) => {
             const burn = burnMap.get(agent.id);
-            const stats = runStats.get(agent.id) ?? { active: 0, success: 0, fail: 0 };
             const isLive = workingAgentIds.has(agent.id);
             const isPaused = agent.status === "paused";
             const isError = agent.status === "error";
             const activeRun = activeRunMap.get(agent.id);
             const runsToday = burn?.runsToday ?? 0;
+            // Use historical succeeded/failed from burn data (covers completed runs too)
+            const success = burn?.succeededToday ?? 0;
+            const fail = burn?.failedToday ?? 0;
+            const active = activeRunCountMap.get(agent.id) ?? 0;
             // Stacked bar segments
-            const total = Math.max(1, stats.success + stats.fail + stats.active);
-            const pctSuccess = Math.round((stats.success / total) * 100);
-            const pctFail = Math.round((stats.fail / total) * 100);
-            const pctActive = Math.round((stats.active / total) * 100);
-            const hasRuns = stats.success + stats.fail + stats.active > 0;
+            const total = Math.max(1, success + fail + active);
+            const pctSuccess = Math.round((success / total) * 100);
+            const pctFail = Math.round((fail / total) * 100);
+            const pctActive = Math.round((active / total) * 100);
+            const hasRuns = runsToday > 0;
 
             return (
               <Link
@@ -397,9 +402,9 @@ function AgentSessionsPanel({ agents, agentBurnToday, liveRuns, workingAgentIds,
                           <span style={{ fontSize: 9, color: tk.textDim }}>{runsToday} run{runsToday !== 1 ? "s" : ""}</span>
                           {hasRuns && (
                             <>
-                              <span style={{ fontSize: 9, color: "#5db872" }}>✓{stats.success}</span>
-                              <span style={{ fontSize: 9, color: "#c64545" }}>✗{stats.fail}</span>
-                              {stats.active > 0 && <span style={{ fontSize: 9, color: "#e8a55a" }}>~{stats.active}</span>}
+                              <span style={{ fontSize: 9, color: "#5db872" }}>✓{success}</span>
+                              <span style={{ fontSize: 9, color: "#c64545" }}>✗{fail}</span>
+                              {active > 0 && <span style={{ fontSize: 9, color: "#e8a55a" }}>~{active}</span>}
                             </>
                           )}
                         </div>
@@ -851,59 +856,159 @@ function AgentHealthPanel({ agentCounts, isDark }: { agentCounts: { active: numb
 
 // ────────────────────────────────────────────────────────────────────────────
 
-function CostGaugePanel({
+// ── Feature 3: Token Usage Panel ───────────────────────────────────────────
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
+}
+
+function TokenUsagePanel({
+  tokensToday,
   todaySpendCents,
-  monthSpendCents,
-  monthBudgetCents,
-  monthUtilizationPercent,
   isDark,
 }: {
+  tokensToday: { inputTokens: number; outputTokens: number; cachedInputTokens: number };
   todaySpendCents: number;
-  monthSpendCents: number;
-  monthBudgetCents: number;
-  monthUtilizationPercent: number;
   isDark: boolean;
 }) {
   const tk = tokens(isDark);
-  const pct = Math.min(100, Math.max(0, monthUtilizationPercent));
-  const gaugeColor = pct > 85 ? "#c64545" : pct > 65 ? "#e8a55a" : "#5db872";
-  const gaugeData = [{ value: pct, fill: gaugeColor }];
+  const total = tokensToday.inputTokens + tokensToday.outputTokens;
+  const cacheRate = total > 0 ? ((tokensToday.cachedInputTokens / tokensToday.inputTokens) * 100) : 0;
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <PanelHeader title="Budget Utilization" tk={tk} />
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px 12px 12px" }}>
-        <div style={{ width: "100%", height: 110 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart innerRadius="55%" outerRadius="90%" data={gaugeData} startAngle={200} endAngle={-20} cx="50%" cy="100%">
-              <RadialBar background={{ fill: tk.barBg }} dataKey="value" cornerRadius={4} />
-            </RadialBarChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={{ textAlign: "center", marginTop: -8 }}>
-          <div style={{ fontSize: 26, fontWeight: 700, color: gaugeColor, letterSpacing: "-0.03em", lineHeight: 1 }}>{pct.toFixed(0)}%</div>
-          <div style={{ fontSize: 10, color: tk.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>of month budget</div>
-        </div>
-        <div style={{ display: "flex", gap: 16, marginTop: 14 }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#e8a55a" }}>{formatCents(todaySpendCents)}</div>
-            <div style={{ fontSize: 9, color: tk.textDim, textTransform: "uppercase", letterSpacing: "0.07em" }}>Today</div>
+      <PanelHeader title="Token Usage Today" tk={tk} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0, padding: "10px 14px", justifyContent: "center" }}>
+        {[
+          { icon: "↑", label: "Sent", value: formatTokens(tokensToday.inputTokens), color: "#5b8af0" },
+          { icon: "↓", label: "Received", value: formatTokens(tokensToday.outputTokens), color: "#5db8a6" },
+          { icon: "💾", label: "Cached", value: formatTokens(tokensToday.cachedInputTokens), color: "#5db872" },
+        ].map((row) => (
+          <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${tk.divider}` }}>
+            <span style={{ fontSize: 13, width: 20, textAlign: "center" }}>{row.icon}</span>
+            <span style={{ flex: 1, fontSize: 11, color: tk.textMuted }}>{row.label}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: row.color, letterSpacing: "-0.02em" }}>{row.value}</span>
+            <span style={{ fontSize: 10, color: tk.textDim }}>tokens</span>
           </div>
-          <div style={{ width: 1, background: tk.divider, alignSelf: "stretch" }} />
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: tk.text }}>{formatCents(monthSpendCents)}</div>
-            <div style={{ fontSize: 9, color: tk.textDim, textTransform: "uppercase", letterSpacing: "0.07em" }}>This Month</div>
+        ))}
+        <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 10, color: tk.textDim }}>
+            Cache hit {cacheRate.toFixed(1)}%
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#e8a55a" }}>{formatCents(todaySpendCents)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Feature 4: Pull Requests Panel ─────────────────────────────────────────
+
+function PullRequestsPanel({
+  pulls,
+  isLoading,
+  noRepo,
+  noProject,
+  isDark,
+}: {
+  pulls: PullRequestEntry[];
+  isLoading: boolean;
+  noRepo: boolean;
+  noProject: boolean;
+  isDark: boolean;
+}) {
+  const tk = tokens(isDark);
+
+  const prMap = new Map(pulls.map((p) => [p.number, p]));
+
+  const stateColor = (state: string) =>
+    state === "ready" ? "#5db872" : state === "draft" ? "#6c6a64" : "#5b8af0";
+  const stateLabel = (state: string) =>
+    state === "ready" ? "✓ Ready" : state === "draft" ? "◌ Draft" : "● Open";
+
+  function formatPrTimeAgo(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  }
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <PanelHeader title="Pull Requests" badge={pulls.length} badgeColor="#818cf8" tk={tk} />
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        {noProject ? (
+          <div style={{ padding: 16, color: tk.textDim, fontSize: 11, textAlign: "center" }}>
+            Select a project to view pull requests
           </div>
-          {monthBudgetCents > 0 && (
-            <>
-              <div style={{ width: 1, background: tk.divider, alignSelf: "stretch" }} />
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: tk.textMuted }}>{formatCents(monthBudgetCents)}</div>
-                <div style={{ fontSize: 9, color: tk.textDim, textTransform: "uppercase", letterSpacing: "0.07em" }}>Budget</div>
+        ) : noRepo ? (
+          <div style={{ padding: 16, color: tk.textDim, fontSize: 11, textAlign: "center" }}>
+            Connect a GitHub repo in Project Settings
+          </div>
+        ) : isLoading ? (
+          <div style={{ padding: 16, color: tk.textDim, fontSize: 11, textAlign: "center" }}>Loading…</div>
+        ) : pulls.length === 0 ? (
+          <div style={{ padding: 16, color: tk.textDim, fontSize: 11, textAlign: "center" }}>
+            No open pull requests
+          </div>
+        ) : (
+          pulls.map((pr) => {
+            const deps = pr.referencedPrNumbers.filter((n) => prMap.has(n));
+            return (
+              <div key={pr.number} style={{ padding: "9px 12px", borderBottom: `1px solid ${tk.divider}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                  <img
+                    src={pr.authorAvatar}
+                    alt={pr.author}
+                    style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, objectFit: "cover" }}
+                  />
+                  <span style={{ fontSize: 10, color: tk.textDim, flexShrink: 0 }}>#{pr.number}</span>
+                  <span style={{
+                    flex: 1, fontSize: 11, fontWeight: 600, color: tk.text,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>{pr.title}</span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 8, flexShrink: 0,
+                    background: `${stateColor(pr.state)}22`, color: stateColor(pr.state),
+                  }}>{stateLabel(pr.state)}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: tk.textDim }}>
+                  <span>{pr.author}</span>
+                  <span>·</span>
+                  <span>{formatPrTimeAgo(pr.updatedAt)}</span>
+                  <span>·</span>
+                  <span style={{ color: tk.textMuted }}>{pr.baseRef}←{pr.headRef}</span>
+                  <div style={{ flex: 1 }} />
+                  <a
+                    href={pr.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => { e.stopPropagation(); }}
+                    style={{ color: "#818cf8", display: "flex", alignItems: "center", gap: 2, textDecoration: "none" }}
+                  >
+                    <ExternalLink style={{ width: 10, height: 10 }} />
+                  </a>
+                </div>
+                {deps.length > 0 && (
+                  <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 9, color: tk.textDim }}>depends on:</span>
+                    {deps.map((n) => (
+                      <span key={n} style={{
+                        fontSize: 9, padding: "0 5px", borderRadius: 6,
+                        background: "rgba(129,140,248,0.12)", color: "#818cf8",
+                      }}>#{n}</span>
+                    ))}
+                  </div>
+                )}
               </div>
-            </>
-          )}
-        </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -919,10 +1024,19 @@ export function Dashboard() {
   const { openChatWithAgent, setIsChatOpen } = useChat();
   const isDark = theme === "dark";
   const queryClient = useQueryClient();
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectPickerOpen, setProjectPickerOpen] = useState(false);
 
   useEffect(() => {
     setBreadcrumbs([{ label: "Dashboard" }]);
   }, [setBreadcrumbs]);
+
+  useEffect(() => {
+    if (!projectPickerOpen) return;
+    const close = () => setProjectPickerOpen(false);
+    document.addEventListener("click", close, { capture: true });
+    return () => document.removeEventListener("click", close, { capture: true });
+  }, [projectPickerOpen]);
 
   const { data: agents } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId!),
@@ -931,11 +1045,25 @@ export function Dashboard() {
     refetchInterval: 10_000,
   });
 
+  const { data: projects } = useQuery({
+    queryKey: queryKeys.projects.list(selectedCompanyId!),
+    queryFn: () => projectsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.dashboard(selectedCompanyId!),
-    queryFn: () => dashboardApi.summary(selectedCompanyId!),
+    queryKey: queryKeys.dashboard(selectedCompanyId!, selectedProjectId),
+    queryFn: () => dashboardApi.summary(selectedCompanyId!, selectedProjectId),
     enabled: !!selectedCompanyId,
     refetchInterval: 15_000,
+  });
+
+  const { data: pulls, isLoading: pullsLoading, error: pullsErrorRaw } = useQuery({
+    queryKey: queryKeys.githubPulls(selectedCompanyId!, selectedProjectId ?? ""),
+    queryFn: () => githubIntegrationApi.listPullRequests(selectedCompanyId!, selectedProjectId!),
+    enabled: !!selectedCompanyId && !!selectedProjectId,
+    refetchInterval: 30_000,
+    retry: false,
   });
 
   const { data: liveRuns } = useQuery({
@@ -980,6 +1108,20 @@ export function Dashboard() {
     );
   }, [liveRuns]);
 
+  // Build run stats map for AgentGlobe tooltip
+  const agentRunStats = useMemo(() => {
+    const map = new Map<string, { succeeded: number; failed: number; total: number; status: string }>();
+    for (const burn of data?.agentBurnToday ?? []) {
+      map.set(burn.agentId, {
+        succeeded: burn.succeededToday,
+        failed: burn.failedToday,
+        total: burn.runsToday,
+        status: burn.status,
+      });
+    }
+    return map;
+  }, [data?.agentBurnToday]);
+
   const blockedAgentIds = useMemo(() => {
     if (!agents) return new Set<string>();
     return new Set(
@@ -1017,6 +1159,11 @@ export function Dashboard() {
   const approvalsList = data?.pendingApprovalsList ?? [];
   const recentActivity = data?.recentCompleted ?? [];
   const blockedCount = data?.tasks?.blocked ?? 0;
+  const selectedProject = projects?.find((p) => p.id === selectedProjectId) ?? null;
+  // 404 = no repo connected; any other error = API/auth failure
+  const pullsIsNoRepo = pullsErrorRaw != null && (pullsErrorRaw as { status?: number }).status === 404;
+  const noRepoPulls = pullsIsNoRepo || (!pullsLoading && pulls === undefined && !!selectedProjectId && !pullsErrorRaw);
+  const pullsList = pulls ?? [];
 
   const tk = tokens(isDark);
   const hasBudgetIncident = (data?.budgets?.activeIncidents ?? 0) > 0;
@@ -1062,6 +1209,64 @@ export function Dashboard() {
       flexDirection: "column",
       gap: 10,
     }}>
+
+      {/* ── Project picker ───────────────────────────────────────────── */}
+      {projects && projects.length > 0 && (
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 10, color: tk.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>Project</span>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setProjectPickerOpen(!projectPickerOpen)}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "5px 10px", borderRadius: 8,
+                background: selectedProject ? "rgba(129,140,248,0.12)" : tk.cardBg,
+                border: `1px solid ${selectedProject ? "rgba(129,140,248,0.3)" : tk.cardBorder}`,
+                color: selectedProject ? "#818cf8" : tk.textMuted,
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              {selectedProject ? selectedProject.name : "All Projects"}
+              <ChevronDown style={{ width: 12, height: 12 }} />
+            </button>
+            {projectPickerOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+                background: isDark ? "#1c1a18" : "#fff",
+                border: `1px solid ${tk.cardBorder}`,
+                borderRadius: 8, overflow: "hidden", minWidth: 160,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+              }}>
+                <button
+                  onMouseDown={(e) => { e.stopPropagation(); setSelectedProjectId(null); setProjectPickerOpen(false); }}
+                  style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    padding: "8px 12px", fontSize: 11, cursor: "pointer", border: "none",
+                    background: !selectedProjectId ? "rgba(255,255,255,0.05)" : "transparent",
+                    color: !selectedProjectId ? "#818cf8" : tk.text,
+                  }}
+                >All Projects</button>
+                {projects.map((p) => (
+                  <button
+                    key={p.id}
+                    onMouseDown={(e) => { e.stopPropagation(); setSelectedProjectId(p.id); setProjectPickerOpen(false); }}
+                    style={{
+                      display: "block", width: "100%", textAlign: "left",
+                      padding: "8px 12px", fontSize: 11, cursor: "pointer", border: "none",
+                      background: selectedProjectId === p.id ? "rgba(129,140,248,0.1)" : "transparent",
+                      color: selectedProjectId === p.id ? "#818cf8" : tk.text,
+                    }}
+                  >{p.name}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedProject && (
+            <span style={{ fontSize: 10, color: tk.textDim }}>showing stats scoped to project</span>
+          )}
+        </div>
+      )}
 
       {/* ── Budget incident banner ────────────────────────────────────── */}
       {hasBudgetIncident && (
@@ -1119,6 +1324,7 @@ export function Dashboard() {
             workingAgentIds={workingAgentIds}
             blockedAgentIds={blockedAgentIds}
             agentTaskMap={agentTaskMap}
+            agentRunStats={agentRunStats}
             onSelectAgent={handleSelectAgent}
             isDark={isDark}
           />
@@ -1194,17 +1400,24 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ── Row 5: Agent Burndown + Budget Gauge ─────────────────────── */}
+      {/* ── Row 5: Task Pipeline + Token Usage + PR Panel ───────────── */}
       <div style={{ display: "flex", gap: 10, height: 240, flexShrink: 0 }}>
         <div style={{ flex: 1, overflow: "hidden", ...glassmorphismStyle }}>
           <TaskPipelinePanel tasks={data?.tasks ?? { open: 0, inProgress: 0, blocked: 0, done: 0 }} isDark={isDark} />
         </div>
-        <div style={{ flex: "0 0 230px", overflow: "hidden", ...glassmorphismStyle }}>
-          <CostGaugePanel
+        <div style={{ flex: "0 0 220px", overflow: "hidden", ...glassmorphismStyle }}>
+          <TokenUsagePanel
+            tokensToday={data?.costs.tokensToday ?? { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 }}
             todaySpendCents={data?.costs.todaySpendCents ?? 0}
-            monthSpendCents={data?.costs.monthSpendCents ?? 0}
-            monthBudgetCents={data?.costs.monthBudgetCents ?? 0}
-            monthUtilizationPercent={data?.costs.monthUtilizationPercent ?? 0}
+            isDark={isDark}
+          />
+        </div>
+        <div style={{ flex: "0 0 300px", overflow: "hidden", ...glassmorphismStyle }}>
+          <PullRequestsPanel
+            pulls={pullsList}
+            isLoading={pullsLoading}
+            noRepo={!!noRepoPulls}
+            noProject={!selectedProjectId}
             isDark={isDark}
           />
         </div>

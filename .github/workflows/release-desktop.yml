@@ -45,6 +45,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Build workspace packages
+        run: pnpm -r --filter '!crewspace-desktop' build
+
       - name: Build renderer
         working-directory: desktop-electron
         run: pnpm run build:renderer
@@ -86,6 +89,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Build workspace packages
+        run: pnpm -r --filter '!crewspace-desktop' build
+
       - name: Build renderer
         working-directory: desktop-electron
         run: pnpm run build:renderer
@@ -102,7 +108,7 @@ jobs:
           retention-days: 7
 
   release:
-    if: ${{ !inputs.dry_run && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ inputs.dry_run != true && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -139,18 +145,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.tag.outputs.tag }}"
+          printf '## CrewSpace Desktop %s\n\n### Downloads\n| Platform | File |\n|----------|------|\n| Windows (installer) | `CrewSpace-Setup-*.exe` |\n| Windows (MSI) | `CrewSpace-Setup-*.msi` |\n| macOS | `CrewSpace-*.dmg` |\n\n### Installation\n**Windows:** Run the `.exe` installer (recommended) or `.msi` for enterprise deployment.\n**macOS:** Open the `.dmg`, drag CrewSpace to Applications.' "$tag" > /tmp/release-notes.md
           gh release create "$tag" dist/*.exe dist/*.msi dist/*.dmg \
             --title "CrewSpace Desktop $tag" \
-            --notes "## CrewSpace Desktop $tag
-
-### Downloads
-| Platform | File |
-|----------|------|
-| Windows (installer) | \`CrewSpace-Setup-*.exe\` |
-| Windows (MSI) | \`CrewSpace-Setup-*.msi\` |
-| macOS | \`CrewSpace-*.dmg\` |
-
-### Installation
-**Windows:** Run the \`.exe\` installer (recommended) or \`.msi\` for enterprise deployment.
-**macOS:** Open the \`.dmg\`, drag CrewSpace to Applications." \
+            --notes-file /tmp/release-notes.md \
             --latest
