@@ -499,9 +499,7 @@ function createWindow() {
   // Remove default menu
   mainWindow.setMenuBarVisibility(false);
 
-  const isFirstRun = !isFirstRunComplete();
-  const startPage = isFirstRun ? "onboarding.html" : "index.html";
-  mainWindow.loadFile(path.join(__dirname, "src", startPage));
+  mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
@@ -825,6 +823,8 @@ ipcMain.handle("get-theme-preference", () => {
     return "system";
   }
 });
+
+ipcMain.handle("is-first-run", () => !isFirstRunComplete());
 
 ipcMain.handle("mark-first-run-complete", () => {
   try {

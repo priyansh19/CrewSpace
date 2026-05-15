@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   saveThemePreference: (theme) => ipcRenderer.invoke("save-theme-preference", theme),
   getThemePreference: () => ipcRenderer.invoke("get-theme-preference"),
   markFirstRunComplete: () => ipcRenderer.invoke("mark-first-run-complete"),
+  isFirstRun: () => ipcRenderer.invoke("is-first-run"),
   completeOnboarding: (payload) => ipcRenderer.invoke("complete-onboarding", payload),
 
   // Secure API request channel (main process attaches auth headers)
