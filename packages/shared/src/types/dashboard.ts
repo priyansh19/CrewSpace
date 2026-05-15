@@ -3,6 +3,9 @@ export interface AgentBurnEntry {
   agentName: string;
   costCents: number;
   runsToday: number;
+  succeededToday: number;
+  failedToday: number;
+  status: string;
 }
 
 export interface RecentActivityEntry {
@@ -42,6 +45,11 @@ export interface DashboardSummary {
     monthBudgetCents: number;
     monthUtilizationPercent: number;
     todaySpendCents: number;
+    tokensToday: {
+      inputTokens: number;
+      outputTokens: number;
+      cachedInputTokens: number;
+    };
   };
   pendingApprovals: number;
   pendingApprovalsList: PendingApprovalEntry[];
