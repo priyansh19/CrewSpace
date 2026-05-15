@@ -627,41 +627,41 @@ function ApprovalsPanel({ approvals, isDark, onApprove, onReject, approvePending
 
 // ────────────────────────────────────────────────────────────────────────────
 
-interface AgentBurndownPanelProps {
-  agentBurnToday: AgentBurnEntry[];
-  isDark: boolean;
-}
-
-function AgentBurndownPanel({ agentBurnToday, isDark }: AgentBurndownPanelProps) {
+function TaskPipelinePanel({ tasks, isDark }: { tasks: { open: number; inProgress: number; blocked: number; done: number }; isDark: boolean }) {
   const tk = tokens(isDark);
 
-  const chartData = agentBurnToday.map(e => ({
-    name: e.agentName.length > 11 ? e.agentName.slice(0, 11) + "…" : e.agentName,
-    runs: e.runsToday,
-    cost: parseFloat((e.costCents / 100).toFixed(2)),
-  }));
+  const data = [
+    { name: "Open",        value: tasks.open,       fill: "#a09d96" },
+    { name: "In Progress", value: tasks.inProgress,  fill: "#5da8d8" },
+    { name: "Blocked",     value: tasks.blocked,     fill: "#c64545" },
+    { name: "Done",        value: tasks.done,        fill: "#5db872" },
+  ];
+
+  const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <PanelHeader title="Agent Burndown — Runs & Cost Today" tk={tk} />
+      <PanelHeader title="Task Pipeline" tk={tk} />
       <div style={{ flex: 1, minHeight: 0, padding: "10px 8px 6px 0" }}>
-        {chartData.length === 0 ? (
+        {total === 0 ? (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: tk.textDim, fontSize: 11 }}>
-            No agent activity today
+            No tasks yet
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 0, right: 48, bottom: 0, left: 0 }} barGap={3}>
+            <BarChart data={data} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} stroke={tk.divider} />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: tk.textMuted }} axisLine={false} tickLine={false} interval={0} />
-              <YAxis yAxisId="runs" tick={{ fontSize: 9, fill: "#5db8a6" }} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
-              <YAxis yAxisId="cost" orientation="right" tick={{ fontSize: 9, fill: "#e8a55a" }} axisLine={false} tickLine={false} unit="$" width={36} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: tk.textMuted }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: tk.textMuted }} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
               <Tooltip
                 contentStyle={{ background: isDark ? "#1c1a18" : "#fff", border: `1px solid ${tk.cardBorder}`, borderRadius: 8, fontSize: 11 }}
                 cursor={{ fill: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" }}
               />
-              <Bar yAxisId="runs" dataKey="runs" name="Runs" fill="#5db8a6" radius={[4, 4, 0, 0]} maxBarSize={30} />
-              <Bar yAxisId="cost" dataKey="cost" name="Cost ($)" fill="#e8a55a" radius={[4, 4, 0, 0]} maxBarSize={30} />
+              <Bar dataKey="value" name="Tasks" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -806,51 +806,41 @@ function VelocityPanel({ recentCompleted, isDark }: { recentCompleted: RecentAct
 
 // ────────────────────────────────────────────────────────────────────────────
 
-function SessionSuccessPanel({ liveRuns, agents, isDark }: { liveRuns: LiveRunForIssue[]; agents: Agent[]; isDark: boolean }) {
+function AgentHealthPanel({ agentCounts, isDark }: { agentCounts: { active: number; running: number; paused: number; error: number }; isDark: boolean }) {
   const tk = tokens(isDark);
 
-  const agentMap = new Map<string, { name: string; success: number; fail: number; running: number }>();
-  for (const agent of agents) {
-    agentMap.set(agent.id, { name: agent.name, success: 0, fail: 0, running: 0 });
-  }
-  for (const run of liveRuns) {
-    const entry = agentMap.get(run.agentId);
-    if (!entry) continue;
-    if (run.status === "completed") entry.success++;
-    else if (run.status === "failed") entry.fail++;
-    else if (run.status === "running" || run.status === "in_progress") entry.running++;
-  }
+  const data = [
+    { name: "Active",  value: agentCounts.active,  fill: "#5db872" },
+    { name: "Running", value: agentCounts.running,  fill: "#e8a55a" },
+    { name: "Paused",  value: agentCounts.paused,   fill: "#a09d96" },
+    { name: "Error",   value: agentCounts.error,    fill: "#c64545" },
+  ];
 
-  const data = [...agentMap.values()]
-    .filter(e => e.success + e.fail + e.running > 0)
-    .map(e => ({
-      name: e.name.length > 9 ? e.name.slice(0, 9) + "…" : e.name,
-      success: e.success,
-      fail: e.fail,
-      running: e.running,
-    }));
+  const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <PanelHeader title="Session Results — Success vs Fail" tk={tk} />
+      <PanelHeader title="Agent Health" tk={tk} />
       <div style={{ flex: 1, minHeight: 0, padding: "10px 8px 6px 0" }}>
-        {data.length === 0 ? (
+        {total === 0 ? (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: tk.textDim, fontSize: 11 }}>
-            No session data yet
+            No agents configured
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} stroke={tk.divider} />
-              <XAxis dataKey="name" tick={{ fontSize: 9, fill: tk.textMuted }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: tk.textMuted }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: tk.textMuted }} axisLine={false} tickLine={false} allowDecimals={false} width={24} />
               <Tooltip
                 contentStyle={{ background: isDark ? "#1c1a18" : "#fff", border: `1px solid ${tk.cardBorder}`, borderRadius: 8, fontSize: 11 }}
                 cursor={{ fill: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" }}
               />
-              <Bar dataKey="success" name="Success" stackId="a" fill="#5db872" maxBarSize={32} />
-              <Bar dataKey="running" name="Running" stackId="a" fill="#e8a55a" maxBarSize={32} />
-              <Bar dataKey="fail" name="Failed" stackId="a" fill="#c64545" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="value" name="Agents" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -1200,14 +1190,14 @@ export function Dashboard() {
           <VelocityPanel recentCompleted={recentActivity} isDark={isDark} />
         </div>
         <div style={{ flex: 1, overflow: "hidden", ...glassmorphismStyle }}>
-          <SessionSuccessPanel liveRuns={liveRuns ?? []} agents={agents ?? []} isDark={isDark} />
+          <AgentHealthPanel agentCounts={data?.agents ?? { active: 0, running: 0, paused: 0, error: 0 }} isDark={isDark} />
         </div>
       </div>
 
       {/* ── Row 5: Agent Burndown + Budget Gauge ─────────────────────── */}
       <div style={{ display: "flex", gap: 10, height: 240, flexShrink: 0 }}>
         <div style={{ flex: 1, overflow: "hidden", ...glassmorphismStyle }}>
-          <AgentBurndownPanel agentBurnToday={data?.agentBurnToday ?? []} isDark={isDark} />
+          <TaskPipelinePanel tasks={data?.tasks ?? { open: 0, inProgress: 0, blocked: 0, done: 0 }} isDark={isDark} />
         </div>
         <div style={{ flex: "0 0 230px", overflow: "hidden", ...glassmorphismStyle }}>
           <CostGaugePanel

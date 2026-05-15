@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5175,
+    port: 5285,
     proxy: {
       "/api": {
         // In dev, proxy to the embedded server. Defaults to 3150 (Electron embedded server).
