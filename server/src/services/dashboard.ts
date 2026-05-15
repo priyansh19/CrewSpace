@@ -7,7 +7,7 @@ import { budgetService } from "./budgets.js";
 export function dashboardService(db: Db) {
   const budgets = budgetService(db);
   return {
-    summary: async (companyId: string, _projectId?: string) => {
+    summary: async (companyId: string, projectId?: string) => {
       const company = await db
         .select()
         .from(companies)
@@ -25,7 +25,11 @@ export function dashboardService(db: Db) {
       const taskRows = await db
         .select({ status: issues.status, count: sql<number>`count(*)` })
         .from(issues)
-        .where(eq(issues.companyId, companyId))
+        .where(
+          projectId
+            ? and(eq(issues.companyId, companyId), eq(issues.projectId, projectId))
+            : eq(issues.companyId, companyId),
+        )
         .groupBy(issues.status);
 
       const pendingApprovals = await db
@@ -132,11 +136,9 @@ export function dashboardService(db: Db) {
         .select({ todayDone: sql<number>`count(*)::int` })
         .from(issues)
         .where(
-          and(
-            eq(issues.companyId, companyId),
-            eq(issues.status, "done"),
-            gte(issues.completedAt, todayStart),
-          ),
+          projectId
+            ? and(eq(issues.companyId, companyId), eq(issues.projectId, projectId), eq(issues.status, "done"), gte(issues.completedAt, todayStart))
+            : and(eq(issues.companyId, companyId), eq(issues.status, "done"), gte(issues.completedAt, todayStart)),
         );
 
       // Recent completed tasks (last 24h)
@@ -149,11 +151,9 @@ export function dashboardService(db: Db) {
         })
         .from(issues)
         .where(
-          and(
-            eq(issues.companyId, companyId),
-            eq(issues.status, "done"),
-            gte(issues.completedAt, yesterday),
-          ),
+          projectId
+            ? and(eq(issues.companyId, companyId), eq(issues.projectId, projectId), eq(issues.status, "done"), gte(issues.completedAt, yesterday))
+            : and(eq(issues.companyId, companyId), eq(issues.status, "done"), gte(issues.completedAt, yesterday)),
         )
         .orderBy(desc(issues.completedAt))
         .limit(10);

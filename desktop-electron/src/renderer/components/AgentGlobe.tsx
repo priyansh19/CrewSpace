@@ -393,7 +393,7 @@ export function AgentGlobe({
           const task = agentTaskMap.get(node.id);
           const cardW = 180;
           const cardH = runStat ? 82 : (task ? 52 : 36);
-          const cardX = Math.max(8, Math.min(node.x - cardW / 2, w - cardW - 8));
+          const cardX = Math.max(-cx + 8, Math.min(node.x - cardW / 2, cx - cardW - 8));
           const cardY = node.y - r - cardH - 10;
           const safeCardY = cardY < 8 ? node.y + r + 14 : cardY;
 
@@ -517,15 +517,24 @@ export function AgentGlobe({
       rotXRef.current = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, rotXRef.current));
       lastMouse.current = { x: ev.clientX, y: ev.clientY };
     };
-    const onUp = () => {
+    const onUp = (upEv: MouseEvent) => {
       dragging.current = false;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      // If the user just clicked (no drag) and hit a node, keep globe stopped.
+      // Otherwise resume auto-rotate after 3s.
+      if (!hasDragged.current) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          const hitId = hitTest(upEv.clientX - rect.left, upEv.clientY - rect.top);
+          if (hitId) return; // clicked a node → stay stopped
+        }
+      }
       autoRotateTimerRef.current = setTimeout(() => { autoRotateRef.current = true; }, 3000);
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, []);
+  }, [hitTest]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (dragging.current) return;

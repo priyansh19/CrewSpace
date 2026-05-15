@@ -245,7 +245,11 @@ export async function listOpenPullRequests(
       eq(projectGithubRepos.projectId, projectId),
     ),
   });
-  if (!repo) return [];
+  if (!repo) {
+    const err = new Error("No GitHub repo connected to this project");
+    (err as Error & { code: string }).code = "NO_REPO";
+    throw err;
+  }
 
   if (!cfg) return [];
 

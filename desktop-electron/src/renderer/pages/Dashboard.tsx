@@ -1058,7 +1058,7 @@ export function Dashboard() {
     refetchInterval: 15_000,
   });
 
-  const { data: pulls, isLoading: pullsLoading, isError: pullsError } = useQuery({
+  const { data: pulls, isLoading: pullsLoading, error: pullsErrorRaw } = useQuery({
     queryKey: queryKeys.githubPulls(selectedCompanyId!, selectedProjectId ?? ""),
     queryFn: () => githubIntegrationApi.listPullRequests(selectedCompanyId!, selectedProjectId!),
     enabled: !!selectedCompanyId && !!selectedProjectId,
@@ -1160,7 +1160,9 @@ export function Dashboard() {
   const recentActivity = data?.recentCompleted ?? [];
   const blockedCount = data?.tasks?.blocked ?? 0;
   const selectedProject = projects?.find((p) => p.id === selectedProjectId) ?? null;
-  const noRepoPulls = pullsError || (!pullsLoading && pulls === undefined && !!selectedProjectId);
+  // 404 = no repo connected; any other error = API/auth failure
+  const pullsIsNoRepo = pullsErrorRaw != null && (pullsErrorRaw as { status?: number }).status === 404;
+  const noRepoPulls = pullsIsNoRepo || (!pullsLoading && pulls === undefined && !!selectedProjectId && !pullsErrorRaw);
   const pullsList = pulls ?? [];
 
   const tk = tokens(isDark);
@@ -1237,7 +1239,7 @@ export function Dashboard() {
                 boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
               }}>
                 <button
-                  onClick={() => { setSelectedProjectId(null); setProjectPickerOpen(false); }}
+                  onMouseDown={(e) => { e.stopPropagation(); setSelectedProjectId(null); setProjectPickerOpen(false); }}
                   style={{
                     display: "block", width: "100%", textAlign: "left",
                     padding: "8px 12px", fontSize: 11, cursor: "pointer", border: "none",
@@ -1248,7 +1250,7 @@ export function Dashboard() {
                 {projects.map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => { setSelectedProjectId(p.id); setProjectPickerOpen(false); }}
+                    onMouseDown={(e) => { e.stopPropagation(); setSelectedProjectId(p.id); setProjectPickerOpen(false); }}
                     style={{
                       display: "block", width: "100%", textAlign: "left",
                       padding: "8px 12px", fontSize: 11, cursor: "pointer", border: "none",

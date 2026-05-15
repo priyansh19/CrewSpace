@@ -63,7 +63,7 @@ interface MemNode {
 interface GraphData {
   agents: AgentNode[];
   mems: MemNode[];
-  edges: Array<{ source: string; target: string; type: "link"; relType?: string; weight?: string }>;
+  edges: Array<{ source: string; target: string; type: "link" | "agent-mem"; relType?: string; weight?: string }>;
 }
 
 // 2D force-directed live positions
@@ -145,8 +145,9 @@ function buildGraphData(
     };
   });
 
-  // Build edges: only link-type (mem → mem), no orbit edges
+  // Build edges: mem-to-mem links + agent-to-memory ownership edges
   const memSet = new Set(mems.map((m) => m.id));
+  const agentSet = new Set(agents.map((a) => a.id));
   const edges: GraphData["edges"] = [];
   for (const link of links) {
     if (memSet.has(link.sourceMemoryId) && memSet.has(link.targetMemoryId)) {
@@ -157,6 +158,12 @@ function buildGraphData(
         relType: link.relationshipType ?? "related_to",
         weight: link.weight ?? "1",
       });
+    }
+  }
+  // Agent-to-memory edges so agent nodes are visually connected to their memories
+  for (const mem of mems) {
+    if (mem.agentId && agentSet.has(mem.agentId)) {
+      edges.push({ source: mem.agentId, target: mem.id, type: "agent-mem" });
     }
   }
 
@@ -549,8 +556,13 @@ function use2DRenderer({
         Math.max(baseR, Math.min(24, baseR + (degree.get(id) ?? 0) * 2));
 
       // ── Visible edges ─────────────────────────────────────────────────────────
+      const drawAgentIds = new Set(agents.map((a) => a.id));
       const linksForDraw = edges.filter(
-        (e) => visibleMems.has(e.source) && visibleMems.has(e.target),
+        (e) =>
+          // mem→mem links: both endpoints must be visible memories
+          (e.type === "link" && visibleMems.has(e.source) && visibleMems.has(e.target)) ||
+          // agent→mem edges: agent always shown, target memory must be visible
+          (e.type === "agent-mem" && drawAgentIds.has(e.source) && visibleMems.has(e.target)),
       );
 
       // ── Background ────────────────────────────────────────────────────────────
@@ -623,6 +635,25 @@ function use2DRenderer({
         const sp = positions.get(edge.source);
         const tp = positions.get(edge.target);
         if (!sp || !tp) continue;
+
+        // Agent-to-memory ownership edge: faint dashed line in agent color
+        if (edge.type === "agent-mem") {
+          const agentNode = agents.find((a) => a.id === edge.source);
+          const agentColor = agentNode?.color ?? "#94a3b8";
+          const memAlpha = nodeAlpha(edge.target);
+          const isActive = edge.source === (hov ?? sel) || edge.target === (hov ?? sel);
+          ctx.globalAlpha = (isActive ? 0.65 : 0.32) * memAlpha;
+          ctx.setLineDash([4, 7]);
+          ctx.beginPath();
+          ctx.moveTo(sp.x, sp.y);
+          ctx.lineTo(tp.x, tp.y);
+          ctx.strokeStyle = agentColor;
+          ctx.lineWidth = isActive ? 1.5 : 1.0;
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+          continue;
+        }
 
         const style = LINK_STYLES[edge.relType ?? "related_to"] ?? LINK_STYLES.related_to;
         const isActive = edge.source === (hov ?? sel) || edge.target === (hov ?? sel);

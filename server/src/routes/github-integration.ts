@@ -557,6 +557,10 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
       );
       res.json(pulls);
     } catch (err) {
+      if (err instanceof Error && (err as Error & { code?: string }).code === "NO_REPO") {
+        res.status(404).json({ error: "No GitHub repo connected to this project" });
+        return;
+      }
       res.status(500).json({ error: err instanceof Error ? err.message : "Failed to list pull requests" });
     }
   });
