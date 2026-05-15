@@ -4,6 +4,4 @@ packages:
   - packages/plugins/*
   - packages/plugins/examples/*
   - server
-  - cli
-  - desktop
   - desktop-electron
