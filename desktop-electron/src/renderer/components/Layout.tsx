@@ -39,7 +39,8 @@ const INSTANCE_SETTINGS_MEMORY_KEY = "crewspace.lastInstanceSettingsPath";
 
 /** Pages that need full height with no padding — they manage their own layout */
 function isFullPageRoute(pathname: string): boolean {
-  return /\/(memory|agent-chat|office|terminal|workspace|blockers|taskboard|org|dashboard|control)$/.test(pathname);
+  // Only match top-level routes (e.g. /ABC/dashboard) — not nested ones like /agents/ceo/dashboard
+  return /\/[^/]+\/(memory|agent-chat|office|terminal|workspace|blockers|taskboard|org|dashboard|control)$/.test(pathname);
 }
 
 function readRememberedInstanceSettingsPath(): string {

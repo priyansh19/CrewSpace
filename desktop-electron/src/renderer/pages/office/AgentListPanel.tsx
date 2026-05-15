@@ -29,8 +29,14 @@ export function AgentListPanel({
 }: AgentListPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const activeAgents = useMemo(() => {
-    return agents.filter((a) => a.status !== "sleeping");
+  const sortedAgents = useMemo(() => {
+    // Show all agents; sort active first, then by name
+    return [...agents].sort((a, b) => {
+      const aActive = a.status !== "sleeping" ? 1 : 0;
+      const bActive = b.status !== "sleeping" ? 1 : 0;
+      if (bActive !== aActive) return bActive - aActive;
+      return a.name.localeCompare(b.name);
+    });
   }, [agents]);
 
   return (
@@ -75,7 +81,7 @@ export function AgentListPanel({
           {isLoading
             ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
             : <Users className="h-4 w-4" />}
-          <span>{isLoading ? "…" : activeAgents.length}</span>
+          <span>{isLoading ? "…" : agents.length}</span>
         </button>
       )}
 
@@ -158,7 +164,7 @@ export function AgentListPanel({
                 <Loader2 style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />
                 Loading agents…
               </div>
-            ) : activeAgents.length === 0 ? (
+            ) : sortedAgents.length === 0 ? (
               <div
                 style={{
                   padding: "16px 12px",
@@ -170,7 +176,7 @@ export function AgentListPanel({
                 No agents
               </div>
             ) : (
-              activeAgents.map((agent) => {
+              sortedAgents.map((agent) => {
                 const isSelected = selectedAgentId === agent.id;
                 const roleColor =
                   ROLE_COLORS[agent.role.toLowerCase()] || "#999999";
@@ -251,19 +257,32 @@ export function AgentListPanel({
                       </div>
                     </div>
 
-                    {/* Role color indicator */}
-                    <div
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        borderRadius: "50%",
-                        background: roleColor,
-                        opacity: isSelected ? 1 : 0.6,
-                        boxShadow: isSelected
-                          ? `0 0 8px ${roleColor}80`
-                          : "none",
-                      }}
-                    />
+                    {/* Status + role indicators */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        title={agent.status}
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: agent.status === "sleeping" ? "#64748b" : "#22c55e",
+                          opacity: isSelected ? 1 : 0.8,
+                          boxShadow: agent.status === "sleeping" ? "none" : "0 0 4px #22c55e80",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: roleColor,
+                          opacity: isSelected ? 1 : 0.6,
+                          boxShadow: isSelected
+                            ? `0 0 8px ${roleColor}80`
+                            : "none",
+                        }}
+                      />
+                    </div>
                   </div>
                 );
               })
