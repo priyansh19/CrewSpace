@@ -223,6 +223,44 @@ PUT /api/issues/{issueId}/documents/plan
 
 If `plan` already exists, fetch the current document first and send its latest `baseRevisionId` when you update it.
 
+## Proposals (Board-Review Required)
+
+When you are asked to create proposals — alternative approaches, implementation options, or plans that require the board to review and approve before work starts — submit them as formal approval entries of type `proposal`. This makes them visible in the board's **Proposals** section and enables the approve/reject workflow.
+
+**When to use proposals (not just documents):**
+- The task description says "create proposals for me to validate" or "I'll approve before you implement"
+- You are presenting multiple approaches and the board needs to pick one
+- Work cannot start until the human confirms
+
+**How to create a proposal:**
+
+```bash
+curl -sS -X POST "$CREWSPACE_API_URL/api/companies/$CREWSPACE_COMPANY_ID/approvals" \
+  -H "Authorization: Bearer $CREWSPACE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "proposal",
+    "requestedByAgentId": "'"$CREWSPACE_AGENT_ID"'",
+    "issueIds": ["<source-issue-id>"],
+    "payload": {
+      "title": "Proposal A: Enhanced electron-builder Installers",
+      "scope": "Windows + Mac installers with NSIS slideshow",
+      "summary": "Leverage and extend the existing electron-builder setup.\n\n- Upgrade NSIS sidebar to multi-page slideshow\n- Add Mac DMG target\n- 4-5 installer pages with feature screenshots",
+      "options": [
+        { "label": "Option A (Recommended)", "description": "Extend electron-builder; least risk." },
+        { "label": "Option B", "description": "Electron Forge migration; more work." }
+      ]
+    }
+  }'
+```
+
+**Rules:**
+- Create one approval entry per distinct proposal option (if options are mutually exclusive), or one entry with an `options` array (if presenting alternatives from a single plan).
+- Always link the source issue via `issueIds` so the board can navigate back to the task.
+- After submitting, post a comment on the issue with links to each proposal: `/<prefix>/approvals/<approval-id>`.
+- Do NOT start implementation until `CREWSPACE_APPROVAL_STATUS=approved` is delivered on a wakeup, or until the board explicitly comments approval.
+- When the board approves, close the linked issue or leave a comment explaining next steps.
+
 ## Setting Agent Instructions Path
 
 Use the dedicated route instead of generic `PATCH /api/agents/:id` when you need to set an agent's instructions markdown path (for example `AGENTS.md`).
@@ -265,12 +303,14 @@ PATCH /api/agents/{agentId}/instructions-path
 | Create/update issue document              | `PUT /api/issues/:issueId/documents/:key`                                                  |
 | Get issue document revisions              | `GET /api/issues/:issueId/documents/:key/revisions`                                        |
 | Get compact heartbeat context             | `GET /api/issues/:issueId/heartbeat-context`                                               |
-| Get comments                              | `GET /api/issues/:issueId/comments`                                                        |
+| Get comments                             | `GET /api/issues/:issueId/comments`                                                        |
 | Get comment delta                         | `GET /api/issues/:issueId/comments?after=:commentId&order=asc`                             |
 | Get specific comment                      | `GET /api/issues/:issueId/comments/:commentId`                                             |
 | Update task                               | `PATCH /api/issues/:issueId` (optional `comment` field)                                    |
 | Add comment                               | `POST /api/issues/:issueId/comments`                                                       |
 | Create subtask                            | `POST /api/companies/:companyId/issues`                                                    |
+| Create proposal (board review)            | `POST /api/companies/:companyId/approvals` with `type: "proposal"`                        |
+| List proposals/approvals                  | `GET /api/companies/:companyId/approvals?status=pending`                                   |
 | Generate OpenClaw invite prompt (CEO)     | `POST /api/companies/:companyId/openclaw/invite-prompt`                                    |
 | Create project                            | `POST /api/companies/:companyId/projects`                                                  |
 | Create project workspace                  | `POST /api/projects/:projectId/workspaces`                                                 |

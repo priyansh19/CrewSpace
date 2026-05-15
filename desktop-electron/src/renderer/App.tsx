@@ -220,24 +220,125 @@ function LegacySettingsRedirect() {
   return <Navigate to={`/instance/settings/general${location.search}${location.hash}`} replace />;
 }
 
+const FIRST_RUN_FEATURES = [
+  {
+    title: "Run Multiple AI Agent Companies",
+    desc: "Create companies with their own agents, tasks, goals, and budgets — all from one dashboard.",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-7 h-7">
+        <rect x="6" y="10" width="36" height="28" rx="4" />
+        <path d="M6 18h36" />
+        <circle cx="14" cy="14" r="1.5" fill="currentColor" stroke="none" />
+        <circle cx="20" cy="14" r="1.5" fill="currentColor" stroke="none" />
+        <circle cx="26" cy="14" r="1.5" fill="currentColor" stroke="none" />
+        <path d="M14 28l6 6 10-10" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    title: "Interactive 3D Office",
+    desc: "Visualise your AI workforce in a real-time 3D office — watch agents work and collaborate live.",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-7 h-7">
+        <path d="M8 40V16l16-10 16 10v24" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 22h16v18H16z" />
+        <path d="M24 22v18" />
+        <circle cx="24" cy="13" r="3" />
+      </svg>
+    ),
+  },
+  {
+    title: "GitHub Integration & Issues",
+    desc: "Connect repositories, delegate issues to AI agents, and track progress with full audit trails.",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-7 h-7">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M24 6C13.5 6 5 14.5 5 25c0 8.4 5.5 15.6 13.1 18.1.95.18 1.3-.41 1.3-.92v-3.2c-5.3 1.2-6.4-2.3-6.4-2.3-.87-2.2-2.1-2.8-2.1-2.8-1.73-1.17.13-1.15.13-1.15 1.9.14 2.9 2 2.9 2 1.7 2.9 4.5 2.1 5.6 1.6.17-1.25.67-2.1 1.22-2.58-4.25-.48-8.72-2.13-8.72-9.48 0-2.1.75-3.81 2-5.15-.2-.49-.87-2.44.18-5.08 0 0 1.62-.52 5.3 1.97A18.5 18.5 0 0 1 24 13.3c1.68.01 3.37.23 4.95.66 3.67-2.49 5.28-1.97 5.28-1.97 1.06 2.64.39 4.59.19 5.08 1.25 1.34 2 3.05 2 5.15 0 7.37-4.48 8.99-8.75 9.46.69.6 1.3 1.78 1.3 3.59v5.33c0 .52.34 1.13 1.32.93C37.52 40.57 43 33.4 43 25c0-10.5-8.5-19-19-19z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Budget Controls & Approvals",
+    desc: "Set spending limits, require human approvals for governed actions, and get hard-stop protection.",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-7 h-7">
+        <circle cx="24" cy="24" r="18" />
+        <path d="M24 12v12l8 5" strokeLinecap="round" />
+        <path d="M10 24h5M33 24h5M24 10v5M24 33v5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+] as const;
+
+export function FirstRunWelcome() {
+  const { openOnboarding } = useDialog();
+
+  return (
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-background overflow-y-auto px-6 py-12">
+      {/* Logo + heading */}
+      <div className="mb-8 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
+          <svg viewBox="0 0 32 32" fill="none" className="h-8 w-8">
+            <circle cx="16" cy="7"  r="3" fill="currentColor" className="text-primary" />
+            <circle cx="6"  cy="25" r="3" fill="currentColor" className="text-primary" />
+            <circle cx="26" cy="25" r="3" fill="currentColor" className="text-primary" />
+            <line x1="16" y1="10" x2="6"  y2="22" stroke="currentColor" strokeWidth="1.5" className="text-primary/50" />
+            <line x1="16" y1="10" x2="26" y2="22" stroke="currentColor" strokeWidth="1.5" className="text-primary/50" />
+            <line x1="6"  y1="25" x2="26" y2="25" stroke="currentColor" strokeWidth="1.5" className="text-primary/50" />
+          </svg>
+        </div>
+        <h1 className="text-3xl font-semibold text-foreground">Welcome to CrewSpace</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Your AI agent company control plane</p>
+      </div>
+
+      {/* Feature grid */}
+      <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 mb-8">
+        {FIRST_RUN_FEATURES.map((f) => (
+          <div key={f.title} className="flex gap-4 items-start rounded-lg border border-border bg-card p-4">
+            <div className="shrink-0 text-primary mt-0.5">{f.icon}</div>
+            <div>
+              <p className="text-sm font-medium text-foreground">{f.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA */}
+      <button
+        onClick={() => openOnboarding()}
+        className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+      >
+        Get Started
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <path d="M3 8h10M9 4l4 4-4 4" />
+        </svg>
+      </button>
+      <p className="mt-3 text-xs text-muted-foreground">Takes about 2 minutes</p>
+    </div>
+  );
+}
+
 function OnboardingRoutePage() {
   const { companies } = useCompany();
   const { openOnboarding } = useDialog();
   const { companyPrefix } = useParams<{ companyPrefix?: string }>();
+
+  // First run: no companies yet → show full-screen feature showcase
+  if (companies.length === 0) {
+    return <FirstRunWelcome />;
+  }
+
+  // Returning user: adding another company or agent
   const matchedCompany = companyPrefix
     ? companies.find((company) => company.issuePrefix.toUpperCase() === companyPrefix.toUpperCase()) ?? null
     : null;
 
   const title = matchedCompany
     ? `Add another agent to ${matchedCompany.name}`
-    : companies.length > 0
-      ? "Create another company"
-      : "Create your first company";
+    : "Create another company";
   const description = matchedCompany
     ? "Run onboarding again to add an agent and a starter task for this company."
-    : companies.length > 0
-      ? "Run onboarding again to create another company and seed its first agent."
-      : "Get started by creating a company and your first agent.";
+    : "Run onboarding again to create another company and seed its first agent.";
 
   return (
     <div className="mx-auto max-w-xl py-10">

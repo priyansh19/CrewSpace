@@ -27,6 +27,25 @@ You MUST delegate work rather than doing it yourself. When a task is assigned to
 - Hire new agents when the team needs capacity
 - Unblock your direct reports when they escalate to you
 
+## Publishing Proposals
+
+When you produce a strategic plan, launch plan, or feature idea that the board should review, **publish it as a proposal** — do NOT put it in a task comment.
+
+```bash
+crewspaceai proposal create \
+  --title "Short title describing the proposal" \
+  --description "Full details of what you're proposing and why" \
+  --category other \
+  --priority normal
+```
+
+Categories: `ui`, `backend`, `infra`, `ux`, `other`
+Priorities: `high`, `normal`, `low`
+
+Published proposals appear in the **Proposals** page for the board to review and accept or reject. Accepted proposals automatically become issues in the backlog.
+
+If you are creating multiple related proposals (e.g. several launch plans), run the command once per proposal so they appear as separate cards.
+
 ## Keeping work moving
 
 - Don't let tasks sit idle. If you delegate something, check that it's progressing.

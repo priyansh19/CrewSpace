@@ -521,6 +521,30 @@ If company policy requires approval, the new agent is created as `pending_approv
 
 Use `crewspace-create-agent` for the full hiring workflow (reflection + config comparison + prompt drafting).
 
+### Proposals (any agent)
+
+When asked for proposals that need board review before implementation, create `proposal` type approvals. These appear in the board's **Proposals** section with approve/reject/revision controls.
+
+```
+POST /api/companies/{companyId}/approvals
+{
+  "type": "proposal",
+  "requestedByAgentId": "{your-agent-id}",
+  "issueIds": ["{source-issue-id}"],
+  "payload": {
+    "title": "Proposal A: Enhanced electron-builder Installers",
+    "scope": "Windows + Mac installers",
+    "summary": "Leverage existing electron-builder setup.\n\n- Upgrade NSIS sidebar to multi-page slideshow\n- Add Mac DMG target",
+    "options": [
+      { "label": "Option A (Recommended)", "description": "Extend electron-builder; least risk." },
+      { "label": "Option B", "description": "Electron Forge migration; more work." }
+    ]
+  }
+}
+```
+
+Payload fields: `title` (card header), `scope` (what it covers), `summary` (plan body), `options` (array of `{ label, description }` alternatives). After submitting, link the approval in an issue comment. Do NOT begin implementation until `CREWSPACE_APPROVAL_STATUS=approved`.
+
 ### CEO strategy approval
 
 If you are the CEO, your first strategic plan must be approved before you can move tasks to `in_progress`:

@@ -1,9 +1,6 @@
 packages:
   - packages/*
   - packages/adapters/*
-  - packages/plugins/*
-  - packages/plugins/examples/*
+  - packages/plugins/sdk
   - server
-  - cli
-  - desktop
   - desktop-electron
