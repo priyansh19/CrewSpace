@@ -1,0 +1,156 @@
+name: Release Desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag to release (e.g. v0.0.3). Must match desktop-electron/package.json version.
+        required: true
+        type: string
+      dry_run:
+        description: Build installers without creating a GitHub Release
+        required: false
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build renderer
+        working-directory: desktop-electron
+        run: pnpm run build:renderer
+
+      - name: Build Windows installers (NSIS + MSI)
+        working-directory: desktop-electron
+        run: pnpm exec electron-builder --win nsis msi --publish never
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: |
+            desktop-electron/dist/*.exe
+            desktop-electron/dist/*.msi
+          retention-days: 7
+
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build renderer
+        working-directory: desktop-electron
+        run: pnpm run build:renderer
+
+      - name: Build macOS DMG
+        working-directory: desktop-electron
+        run: pnpm exec electron-builder --mac dmg --publish never
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: desktop-electron/dist/*.dmg
+          retention-days: 7
+
+  release:
+    if: ${{ !inputs.dry_run && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installers
+          path: dist/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/
+
+      - name: Determine version tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          gh release create "$tag" dist/*.exe dist/*.msi dist/*.dmg \
+            --title "CrewSpace Desktop $tag" \
+            --notes "## CrewSpace Desktop $tag
+
+### Downloads
+| Platform | File |
+|----------|------|
+| Windows (installer) | \`CrewSpace-Setup-*.exe\` |
+| Windows (MSI) | \`CrewSpace-Setup-*.msi\` |
+| macOS | \`CrewSpace-*.dmg\` |
+
+### Installation
+**Windows:** Run the \`.exe\` installer (recommended) or \`.msi\` for enterprise deployment.
+**macOS:** Open the \`.dmg\`, drag CrewSpace to Applications." \
+            --latest
