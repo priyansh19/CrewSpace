@@ -335,10 +335,11 @@ async function spawnVite() {
   const viteBin = path.join(__dirname, "node_modules", ".bin", "vite.cmd");
   const viteConfig = path.join(__dirname, "vite.renderer.config.ts");
   console.log(`[CrewSpace Desktop] Starting Vite dev server on port ${VITE_PORT}...`);
+  const viteIsCmd = path.extname(viteBin).toLowerCase() === ".cmd";
   viteProcess = spawn(viteBin, ["--config", viteConfig, "--port", String(VITE_PORT), "--strictPort"], {
     cwd: __dirname,
     stdio: "pipe",
-    shell: false,
+    shell: viteIsCmd,
     windowsHide: true,
   });
   viteProcess.stdout.on("data", (d) => console.log("[vite]", d.toString().trimEnd()));
