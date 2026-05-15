@@ -8,8 +8,8 @@ import { useTheme } from "@/context/ThemeContext";
 import OfficeFloor from "./OfficeFloor";
 import HumanAgent from "./HumanAgent";
 
-const DEFAULT_CAM:    [number, number, number] = [25, 30, 35];
-const DEFAULT_TARGET: [number, number, number] = [2, 0, 0];
+const DEFAULT_CAM:    [number, number, number] = [14, 14, 20];
+const DEFAULT_TARGET: [number, number, number] = [8, 0, 2];
 
 // Pre-allocated vectors — never recreated per frame
 const _defaultCamVec    = new THREE.Vector3(...DEFAULT_CAM);
@@ -100,7 +100,7 @@ const OfficeScene = () => {
       style={{ background: canvasBg, width: "100%", height: "100%" }}
       onPointerMissed={() => selectAgent(null)}
       frameloop="always"
-      shadows="soft"
+      shadows
     >
       <ambientLight intensity={ambientIntensity} color={ambientColor} />
       <directionalLight
@@ -120,6 +120,11 @@ const OfficeScene = () => {
         args={[hemiSky, hemiGround, isDark ? 0.6 : 0.5]}
       />
 
+      {/* Ambient floor grid for spatial reference */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[10, 0.01, 12]}>
+        <planeGeometry args={[90, 70]} />
+        <meshBasicMaterial color={isDark ? "#4a4540" : "#a09080"} wireframe />
+      </mesh>
       <OfficeFloor />
       {agentIds.map((id) => (
         <HumanAgent key={id} agentId={id} isSelected={id === selectedId} />

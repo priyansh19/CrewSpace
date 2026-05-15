@@ -4,7 +4,7 @@ import { useCompany } from "@/context/CompanyContext";
 import OfficeScene from "./office/OfficeScene";
 import LiveDataBridge from "./office/LiveDataBridge";
 import { AgentListPanel } from "./office/AgentListPanel";
-import { Users, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Users, Wifi, Loader2 } from "lucide-react";
 
 export function Office() {
   const liveMode        = useOfficeStore((s) => s.liveMode);
@@ -53,6 +53,7 @@ export function Office() {
         agents={officeAgents}
         selectedAgentId={selectedAgentId}
         onSelectAgent={selectAgent}
+        isLoading={!liveMode && !!selectedCompanyId}
       />
 
       {/* Selected agent detail card */}

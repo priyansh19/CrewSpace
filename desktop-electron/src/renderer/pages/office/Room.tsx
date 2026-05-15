@@ -28,9 +28,9 @@ function lineMat(color: string): THREE.LineBasicMaterial {
 
 // Shared solid material cache
 const _solidMats = new Map<string, THREE.MeshStandardMaterial>();
-function solidMat(color: string, roughness = 0.7): THREE.MeshStandardMaterial {
-  const key = `${color}|${roughness}`;
-  if (!_solidMats.has(key)) _solidMats.set(key, new THREE.MeshStandardMaterial({ color, roughness }));
+function solidMat(color: string, roughness = 0.7, side?: THREE.Side): THREE.MeshStandardMaterial {
+  const key = `${color}|${roughness}|${side ?? 'front'}`;
+  if (!_solidMats.has(key)) _solidMats.set(key, new THREE.MeshStandardMaterial({ color, roughness, side }));
   return _solidMats.get(key)!;
 }
 
@@ -175,7 +175,7 @@ const Room = ({
       {/* Floor tile */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]} receiveShadow>
         <planeGeometry args={[width, depth]} />
-        <primitive object={solidMat("#8a7a68", 0.92)} attach="material" />
+        <primitive object={solidMat("#8a7a68", 0.92, THREE.DoubleSide)} attach="material" />
       </mesh>
 
       {/* Back wall */}

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import type { OfficeAgent } from "@/stores/officeStore";
-import { Users, X } from "lucide-react";
+import { Users, X, Loader2 } from "lucide-react";
 import { AgentAvatar } from "@/components/AgentAvatar";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -18,17 +18,25 @@ interface AgentListPanelProps {
   agents: OfficeAgent[];
   selectedAgentId: string | null;
   onSelectAgent: (id: string | null) => void;
+  isLoading?: boolean;
 }
 
 export function AgentListPanel({
   agents,
   selectedAgentId,
   onSelectAgent,
+  isLoading = false,
 }: AgentListPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const activeAgents = useMemo(() => {
-    return agents.filter((a) => a.status !== "sleeping");
+  const sortedAgents = useMemo(() => {
+    // Show all agents; sort active first, then by name
+    return [...agents].sort((a, b) => {
+      const aActive = a.status !== "sleeping" ? 1 : 0;
+      const bActive = b.status !== "sleeping" ? 1 : 0;
+      if (bActive !== aActive) return bActive - aActive;
+      return a.name.localeCompare(b.name);
+    });
   }, [agents]);
 
   return (
@@ -70,8 +78,10 @@ export function AgentListPanel({
               "rgba(100,140,220,0.35)";
           }}
         >
-          <Users className="h-4 w-4" />
-          <span>{activeAgents.length}</span>
+          {isLoading
+            ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+            : <Users className="h-4 w-4" />}
+          <span>{isLoading ? "…" : agents.length}</span>
         </button>
       )}
 
@@ -149,7 +159,12 @@ export function AgentListPanel({
               scrollBehavior: "smooth",
             }}
           >
-            {activeAgents.length === 0 ? (
+            {isLoading ? (
+              <div style={{ padding: "16px 12px", textAlign: "center", fontSize: "11px", color: "rgba(192,208,240,0.35)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Loader2 style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />
+                Loading agents…
+              </div>
+            ) : sortedAgents.length === 0 ? (
               <div
                 style={{
                   padding: "16px 12px",
@@ -161,7 +176,7 @@ export function AgentListPanel({
                 No agents
               </div>
             ) : (
-              activeAgents.map((agent) => {
+              sortedAgents.map((agent) => {
                 const isSelected = selectedAgentId === agent.id;
                 const roleColor =
                   ROLE_COLORS[agent.role.toLowerCase()] || "#999999";
@@ -242,19 +257,32 @@ export function AgentListPanel({
                       </div>
                     </div>
 
-                    {/* Role color indicator */}
-                    <div
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        borderRadius: "50%",
-                        background: roleColor,
-                        opacity: isSelected ? 1 : 0.6,
-                        boxShadow: isSelected
-                          ? `0 0 8px ${roleColor}80`
-                          : "none",
-                      }}
-                    />
+                    {/* Status + role indicators */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        title={agent.status}
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: agent.status === "sleeping" ? "#64748b" : "#22c55e",
+                          opacity: isSelected ? 1 : 0.8,
+                          boxShadow: agent.status === "sleeping" ? "none" : "0 0 4px #22c55e80",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: roleColor,
+                          opacity: isSelected ? 1 : 0.6,
+                          boxShadow: isSelected
+                            ? `0 0 8px ${roleColor}80`
+                            : "none",
+                        }}
+                      />
+                    </div>
                   </div>
                 );
               })

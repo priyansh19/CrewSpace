@@ -82,19 +82,19 @@ const BoundaryWall = ({ args, position }: { args: [number,number,number]; positi
 };
 
 // ─── Shared floor / outdoor materials ────────────────────────────────────────
-const FLOOR_MAT       = new THREE.MeshStandardMaterial({ color: "#d8ccb8", roughness: 0.95 });
-const CARPET_MAT      = new THREE.MeshStandardMaterial({ color: "#a89070", roughness: 0.98 });
-const HALLWAY_MAT     = new THREE.MeshStandardMaterial({ color: "#ece4d4", roughness: 0.85 });
-const PLAZA_MAT       = new THREE.MeshStandardMaterial({ color: "#c8c0b0", roughness: 0.88 });
-const PAVEMENT_MAT    = new THREE.MeshStandardMaterial({ color: "#b0a8a0", roughness: 0.90 });
-const GRASS_MAT       = new THREE.MeshStandardMaterial({ color: "#3e7022", roughness: 0.92 });
-const PARK_PATH_MAT   = new THREE.MeshStandardMaterial({ color: "#c0b8a8", roughness: 0.88 });
+const FLOOR_MAT       = new THREE.MeshStandardMaterial({ color: "#d8ccb8", roughness: 0.95, side: THREE.DoubleSide });
+const CARPET_MAT      = new THREE.MeshStandardMaterial({ color: "#a89070", roughness: 0.98, side: THREE.DoubleSide });
+const HALLWAY_MAT     = new THREE.MeshStandardMaterial({ color: "#ece4d4", roughness: 0.85, side: THREE.DoubleSide });
+const PLAZA_MAT       = new THREE.MeshStandardMaterial({ color: "#c8c0b0", roughness: 0.88, side: THREE.DoubleSide });
+const PAVEMENT_MAT    = new THREE.MeshStandardMaterial({ color: "#b0a8a0", roughness: 0.90, side: THREE.DoubleSide });
+const GRASS_MAT       = new THREE.MeshStandardMaterial({ color: "#3e7022", roughness: 0.92, side: THREE.DoubleSide });
+const PARK_PATH_MAT   = new THREE.MeshStandardMaterial({ color: "#c0b8a8", roughness: 0.88, side: THREE.DoubleSide });
 const FENCE_MAT       = new THREE.MeshStandardMaterial({ color: "#6a5a3a", roughness: 0.85 });
-const PARK_SMOKE_MAT  = new THREE.MeshStandardMaterial({ color: "#909088", roughness: 0.92 });
+const PARK_SMOKE_MAT  = new THREE.MeshStandardMaterial({ color: "#909088", roughness: 0.92, side: THREE.DoubleSide });
 const SMOKE_POST_MAT  = new THREE.MeshStandardMaterial({ color: "#555555" });
 const SMOKE_ROPE_MAT  = new THREE.MeshStandardMaterial({ color: "#888888", metalness: 0.6 });
-const PARKING_MAT     = new THREE.MeshStandardMaterial({ color: "#9a9590", roughness: 0.94 });
-const PARKING_LINE_MAT = new THREE.MeshStandardMaterial({ color: "#e8e4d8", roughness: 0.85 });
+const PARKING_MAT     = new THREE.MeshStandardMaterial({ color: "#9a9590", roughness: 0.94, side: THREE.DoubleSide });
+const PARKING_LINE_MAT = new THREE.MeshStandardMaterial({ color: "#e8e4d8", roughness: 0.85, side: THREE.DoubleSide });
 const PARKING_SIGN_MAT = new THREE.MeshStandardMaterial({ color: "#555555", metalness: 0.5 });
 
 // ─── Lamp posts (instanced for performance) ───────────────────────────────────
@@ -557,7 +557,7 @@ const OfficeFloor = () => {
               <>
                 <mesh rotation={[-Math.PI/2,0,0]} position={[pos.x,0.02,pos.z]} receiveShadow>
                   <planeGeometry args={[dims.width, dims.depth]} />
-                  <meshStandardMaterial color="#e8dcc8" roughness={0.85} />
+                  <meshStandardMaterial color="#e8dcc8" roughness={0.85} side={THREE.DoubleSide} />
                 </mesh>
                 <Html position={[pos.x,3.2,pos.z]} center distanceFactor={20} style={{ pointerEvents:"none" }} zIndexRange={[0, 0]}>
                   <div style={{
@@ -572,7 +572,7 @@ const OfficeFloor = () => {
             )}
             <mesh rotation={[-Math.PI/2,0,0]} position={[pos.x,0.035,pos.z]} receiveShadow>
               <planeGeometry args={[dims.width*0.65, dims.depth*0.55]} />
-              <meshStandardMaterial color={room.accentColor} transparent opacity={0.1} roughness={0.95} />
+              <meshStandardMaterial color={room.accentColor} transparent opacity={0.1} roughness={0.95} side={THREE.DoubleSide} />
             </mesh>
             <Furniture roomId={room.id} position={[pos.x,0,pos.z]} />
           </group>
@@ -604,7 +604,7 @@ const OfficeFloor = () => {
             <Room position={[pos.x,0,pos.z]} width={dims.width} depth={dims.depth} accentColor={color} label={label} />
             <mesh rotation={[-Math.PI/2,0,0]} position={[pos.x,0.035,pos.z]} receiveShadow>
               <planeGeometry args={[dims.width*0.65, dims.depth*0.55]} />
-              <meshStandardMaterial color={color} transparent opacity={0.1} roughness={0.95} />
+              <meshStandardMaterial color={color} transparent opacity={0.1} roughness={0.95} side={THREE.DoubleSide} />
             </mesh>
             <Furniture roomId={id} position={[pos.x,0,pos.z]} />
           </group>
