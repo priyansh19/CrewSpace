@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { tryDicebearDataUri } from "../components/AgentAvatar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Link2, Trash2, Search, Brain, RotateCcw } from "lucide-react";
+import { Plus, X, Link2, Trash2, Search, Brain, RotateCcw, SlidersHorizontal, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,17 @@ const MEMORY_TYPE_COLORS: Record<string, string> = {
 };
 function typeColor(t: string) { return MEMORY_TYPE_COLORS[t] ?? "#94a3b8"; }
 const MEMORY_TYPES = ["fact", "insight", "decision", "pattern", "task", "observation", "learning"];
+
+// ── Link type styles ──────────────────────────────────────────────────────────
+
+const LINK_STYLES: Record<string, { color: string; dash: number[]; arrow: boolean }> = {
+  related_to:   { color: "#6b7280", dash: [],     arrow: false },
+  supports:     { color: "#22c55e", dash: [],     arrow: true  },
+  contradicts:  { color: "#ef4444", dash: [6, 4], arrow: false },
+  precedes:     { color: "#3b82f6", dash: [],     arrow: true  },
+  derived_from: { color: "#a855f7", dash: [3, 3], arrow: true  },
+  example_of:   { color: "#f59e0b", dash: [8, 4], arrow: false },
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,16 +63,16 @@ interface MemNode {
 interface GraphData {
   agents: AgentNode[];
   mems: MemNode[];
-  edges: Array<{ source: string; target: string; type: "orbit" | "link" }>;
+  edges: Array<{ source: string; target: string; type: "link"; relType?: string; weight?: string }>;
 }
 
-// Live node positions — updated every frame from 3D sphere positions
+// 2D force-directed live positions
 interface LivePos {
   id: string;
-  x: number; y: number; // perspective-projected 2D (updated each frame)
-  z: number;            // rotated z-depth (for sorting and depth fade)
-  scale: number;        // perspective scale factor = FOV/(FOV+z)
-  vx: number; vy: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
   isAgent: boolean;
   pinned: boolean;
 }
@@ -121,8 +132,6 @@ function buildGraphData(
     };
   });
 
-  const agentById = new Map(agents.map((a) => [a.id, a]));
-
   // Build memory nodes
   const mems: MemNode[] = memories.map((m) => {
     const owner = m.agents.find((a) => a.isOwner) ?? m.agents[0];
@@ -136,15 +145,19 @@ function buildGraphData(
     };
   });
 
-  // Edges: orbit (mem → agent) + link (mem → mem)
+  // Build edges: only link-type (mem → mem), no orbit edges
+  const memSet = new Set(mems.map((m) => m.id));
   const edges: GraphData["edges"] = [];
-  for (const mem of mems) {
-    if (mem.agentId) edges.push({ source: mem.id, target: mem.agentId, type: "orbit" });
-  }
   for (const link of links) {
-    const sm = mems.find((n) => n.id === link.sourceMemoryId);
-    const tm = mems.find((n) => n.id === link.targetMemoryId);
-    if (sm && tm) edges.push({ source: sm.id, target: tm.id, type: "link" });
+    if (memSet.has(link.sourceMemoryId) && memSet.has(link.targetMemoryId)) {
+      edges.push({
+        source: link.sourceMemoryId,
+        target: link.targetMemoryId,
+        type: "link",
+        relType: link.relationshipType ?? "related_to",
+        weight: link.weight ?? "1",
+      });
+    }
   }
 
   return { agents, mems, edges };
@@ -160,20 +173,21 @@ function hexRgb(hex: string) {
 }
 function rgba(hex: string, a: number) { return `rgba(${hexRgb(hex)},${a})`; }
 
-// ── Force simulation ─────────────────────────────────────────────────────────
+// ── Force simulation constants ────────────────────────────────────────────────
 
 const K_REP = 12000;
-const K_SPR_ORBIT = 0.03;
-const K_SPR_LINK = 0.015;
-const REST_ORBIT = 110;
-const REST_LINK = 180;
-const K_GRAV = 0.006;
+const K_CLUSTER = 0.004;
+const K_GRAV = 0.003;
 const DAMP = 0.82;
 
-function tickForces(positions: Map<string, LivePos>, edges: GraphData["edges"]) {
+function tickForces(
+  positions: Map<string, LivePos>,
+  edges: GraphData["edges"],
+  graph: GraphData,
+) {
   const nodes = [...positions.values()];
 
-  // Repulsion
+  // Repulsion: Coulomb-style between every pair
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
@@ -184,12 +198,12 @@ function tickForces(positions: Map<string, LivePos>, edges: GraphData["edges"]) 
       const f = K_REP / d2;
       const fx = (f * dx) / d;
       const fy = (f * dy) / d;
-      a.vx -= fx; a.vy -= fy;
-      b.vx += fx; b.vy += fy;
+      if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
+      if (!b.pinned) { b.vx += fx; b.vy += fy; }
     }
   }
 
-  // Spring attraction
+  // Link spring: Hooke's law with rest length by weight
   for (const edge of edges) {
     const s = positions.get(edge.source);
     const t = positions.get(edge.target);
@@ -197,23 +211,50 @@ function tickForces(positions: Map<string, LivePos>, edges: GraphData["edges"]) 
     const dx = t.x - s.x;
     const dy = t.y - s.y;
     const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
-    const rest = edge.type === "orbit" ? REST_ORBIT : REST_LINK;
-    const k = edge.type === "orbit" ? K_SPR_ORBIT : K_SPR_LINK;
+    const w = parseFloat(edge.weight ?? "1");
+    const rest = 120 + (1 - w) * 60;
+    const k = 0.015;
     const f = k * (d - rest);
     const fx = (f * dx) / d;
     const fy = (f * dy) / d;
-    s.vx += fx; s.vy += fy;
-    t.vx -= fx; t.vy -= fy;
+    if (!s.pinned) { s.vx += fx; s.vy += fy; }
+    if (!t.pinned) { t.vx -= fx; t.vy -= fy; }
   }
 
-  // Center gravity + damping + integrate
+  // Cluster gravity: each memory node pulls toward its agent's centroid
+  const agentCentroids = new Map<string, { x: number; y: number; count: number }>();
+  for (const mem of graph.mems) {
+    if (!mem.agentId) continue;
+    const pos = positions.get(mem.id);
+    if (!pos) continue;
+    const c = agentCentroids.get(mem.agentId) ?? { x: 0, y: 0, count: 0 };
+    c.x += pos.x; c.y += pos.y; c.count++;
+    agentCentroids.set(mem.agentId, c);
+  }
+  for (const mem of graph.mems) {
+    if (!mem.agentId) continue;
+    const pos = positions.get(mem.id);
+    if (!pos || pos.pinned) continue;
+    const c = agentCentroids.get(mem.agentId);
+    if (!c || c.count === 0) continue;
+    const cx = c.x / c.count;
+    const cy = c.y / c.count;
+    pos.vx += K_CLUSTER * (cx - pos.x);
+    pos.vy += K_CLUSTER * (cy - pos.y);
+  }
+
+  // Center gravity + damping + integrate + boundary clamp
   for (const n of nodes) {
+    if (n.pinned) continue;
     n.vx += -K_GRAV * n.x;
     n.vy += -K_GRAV * n.y;
     n.vx *= DAMP;
     n.vy *= DAMP;
     n.x += n.vx;
     n.y += n.vy;
+    // Boundary clamp
+    n.x = Math.max(-1000, Math.min(1000, n.x));
+    n.y = Math.max(-1000, Math.min(1000, n.y));
   }
 }
 
@@ -227,13 +268,13 @@ function kineticEnergy(positions: Map<string, LivePos>) {
 
 interface Particle { x: number; y: number; vx: number; vy: number; r: number; }
 
-function makeParticles(w: number, h: number, count = 70): Particle[] {
+function makeParticles(w: number, h: number, count = 60): Particle[] {
   return Array.from({ length: count }, () => ({
     x: (Math.random() - 0.5) * w * 1.2,
     y: (Math.random() - 0.5) * h * 1.2,
-    vx: (Math.random() - 0.5) * 0.25,
-    vy: (Math.random() - 0.5) * 0.25,
-    r: Math.random() * 1.2 + 0.4,
+    vx: (Math.random() - 0.5) * 0.2,
+    vy: (Math.random() - 0.5) * 0.2,
+    r: Math.random() * 1.1 + 0.3,
   }));
 }
 
@@ -248,20 +289,27 @@ function tickParticles(particles: Particle[], w: number, h: number) {
   }
 }
 
-// ── 3D helpers ────────────────────────────────────────────────────────────────
+// ── Arrowhead helper ──────────────────────────────────────────────────────────
 
-function fibonacciSphere(n: number, i: number, radius: number) {
-  const golden = (1 + Math.sqrt(5)) / 2;
-  const theta = (2 * Math.PI * i) / golden;
-  const phi = Math.acos(1 - 2 * (i + 0.5) / Math.max(n, 1));
-  return {
-    x: radius * Math.sin(phi) * Math.cos(theta),
-    y: radius * Math.cos(phi),
-    z: radius * Math.sin(phi) * Math.sin(theta),
-  };
+function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string, nodeR: number) {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const arrowLen = 9;
+  const arrowAngle = Math.PI / 6;
+  // Place tip at edge of target node
+  const tipX = x2 - Math.cos(angle) * (nodeR + 2);
+  const tipY = y2 - Math.sin(angle) * (nodeR + 2);
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(tipX - arrowLen * Math.cos(angle - arrowAngle), tipY - arrowLen * Math.sin(angle - arrowAngle));
+  ctx.lineTo(tipX - arrowLen * Math.cos(angle + arrowAngle), tipY - arrowLen * Math.sin(angle + arrowAngle));
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
 }
 
-// ── 3D Globe Renderer hook ────────────────────────────────────────────────────
+// ── 2D Renderer hook ──────────────────────────────────────────────────────────
 
 function use2DRenderer({
   graph,
@@ -269,6 +317,10 @@ function use2DRenderer({
   hoveredId,
   filterAgentId,
   search,
+  activeTypes,
+  activeAgentFilter,
+  showOrphans,
+  hopsFilter,
   onSelect,
   onHover,
   isDark,
@@ -278,6 +330,10 @@ function use2DRenderer({
   hoveredId: string | null;
   filterAgentId: string | null;
   search: string;
+  activeTypes: Set<string>;
+  activeAgentFilter: Set<string>;
+  showOrphans: boolean;
+  hopsFilter: number;
   onSelect: (id: string | null) => void;
   onHover: (id: string | null) => void;
   isDark: boolean;
@@ -287,36 +343,41 @@ function use2DRenderer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
 
-  // Pan / zoom / 3D rotation
+  // Pan / zoom
   const panRef = useRef({ x: 0, y: 0 });
   const zoomRef = useRef(1.0);
-  const rotXRef = useRef(0.3); // slight initial tilt for nice default view
-  const rotYRef = useRef(0);
 
-  // 3D sphere positions (fixed per node, set on graph change)
-  const pos3dRef = useRef<Map<string, { x3d: number; y3d: number; z3d: number }>>(new Map());
-
-  // Live 2D projected positions (updated each frame)
+  // 2D live positions
   const posRef = useRef<Map<string, LivePos>>(new Map());
   const particlesRef = useRef<Particle[]>([]);
 
   const rafRef = useRef(0);
   const timeRef = useRef(0);
+  const simulatingRef = useRef(true);
 
-  // Drag
+  // Drag state
   const dragging = useRef(false);
   const hasDragged = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
+  const dragNodeRef = useRef<string | null>(null);
 
   // Live value refs
   const selectedRef = useRef(selectedId);
   const hoveredRef = useRef(hoveredId);
   const filterRef = useRef(filterAgentId);
   const searchRef = useRef(search);
+  const activeTypesRef = useRef(activeTypes);
+  const activeAgentFilterRef = useRef(activeAgentFilter);
+  const showOrphansRef = useRef(showOrphans);
+  const hopsFilterRef = useRef(hopsFilter);
   selectedRef.current = selectedId;
   hoveredRef.current = hoveredId;
   filterRef.current = filterAgentId;
   searchRef.current = search;
+  activeTypesRef.current = activeTypes;
+  activeAgentFilterRef.current = activeAgentFilter;
+  showOrphansRef.current = showOrphans;
+  hopsFilterRef.current = hopsFilter;
 
   // Resize observer
   useEffect(() => {
@@ -344,67 +405,49 @@ function use2DRenderer({
     }
   }, [graph.agents]);
 
-  // Place nodes on 3D Fibonacci sphere when graph changes
+  // Place nodes randomly in 2D when graph changes
   useEffect(() => {
     const { agents, mems } = graph;
-    const R_AGENTS = Math.max(80, Math.min(160, 50 + agents.length * 10));
-    const R_MEMS = R_AGENTS * 1.9;
-
-    const pos3d = new Map<string, { x3d: number; y3d: number; z3d: number }>();
     const positions = new Map<string, LivePos>();
+    const W = 600, H = 400;
 
-    // Agents on inner Fibonacci sphere
-    agents.forEach((a, i) => {
-      const p = fibonacciSphere(agents.length, i, R_AGENTS);
-      pos3d.set(a.id, { x3d: p.x, y3d: p.y, z3d: p.z });
-      positions.set(a.id, { id: a.id, isAgent: true, pinned: true, x: p.x, y: p.y, z: p.z, scale: 1, vx: 0, vy: 0 });
-    });
+    // Try to keep existing positions for nodes that persist
+    const prev = posRef.current;
 
-    // Group memories by agent, cluster on outer sphere around agent direction
-    const memsByAgent = new Map<string | null, MemNode[]>();
+    for (const a of agents) {
+      const existing = prev.get(a.id);
+      if (existing) {
+        positions.set(a.id, { ...existing, isAgent: true });
+      } else {
+        positions.set(a.id, {
+          id: a.id, isAgent: true, pinned: false,
+          x: (Math.random() - 0.5) * W,
+          y: (Math.random() - 0.5) * H,
+          vx: 0, vy: 0,
+        });
+      }
+    }
+
     for (const m of mems) {
-      const key = m.agentId ?? null;
-      if (!memsByAgent.has(key)) memsByAgent.set(key, []);
-      memsByAgent.get(key)!.push(m);
+      const existing = prev.get(m.id);
+      if (existing) {
+        positions.set(m.id, { ...existing, isAgent: false });
+      } else {
+        // Scatter near the agent's current position if possible
+        const agentPos = m.agentId ? positions.get(m.agentId) : null;
+        const bx = agentPos ? agentPos.x : 0;
+        const by = agentPos ? agentPos.y : 0;
+        positions.set(m.id, {
+          id: m.id, isAgent: false, pinned: false,
+          x: bx + (Math.random() - 0.5) * 120,
+          y: by + (Math.random() - 0.5) * 120,
+          vx: 0, vy: 0,
+        });
+      }
     }
 
-    for (const [agentId, agentMems] of memsByAgent) {
-      const agentPos = agentId ? pos3d.get(agentId) : null;
-      agentMems.forEach((m, i) => {
-        let x3d: number, y3d: number, z3d: number;
-        if (agentPos) {
-          // Cluster memories around agent direction on outer sphere
-          const { x3d: ax, y3d: ay, z3d: az } = agentPos;
-          const aN = Math.sqrt(ax * ax + ay * ay + az * az) + 0.001;
-          const nx = ax / aN, ny = ay / aN, nz = az / aN;
-          // Build tangent basis for spreading memories on sphere surface
-          const upX = Math.abs(ny) < 0.9 ? 0 : 1, upY = Math.abs(ny) < 0.9 ? 1 : 0, upZ = 0;
-          const dot = upX * nx + upY * ny + upZ * nz;
-          const tx = upX - dot * nx, ty = upY - dot * ny, tz = upZ - dot * nz;
-          const tN = Math.sqrt(tx * tx + ty * ty + tz * tz) + 0.001;
-          const ux = tx / tN, uy = ty / tN, uz = tz / tN;
-          const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
-          const count = agentMems.length;
-          const maxSpread = Math.min(Math.PI * 0.4, 0.2 + count * 0.1);
-          const angle = (i / Math.max(count, 1)) * Math.PI * 2;
-          const tilt = maxSpread * (0.3 + (i % 4) * 0.18);
-          const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
-          const cosA = Math.cos(angle), sinA = Math.sin(angle);
-          const tangX = ux * cosA + vx * sinA, tangY = uy * cosA + vy * sinA, tangZ = uz * cosA + vz * sinA;
-          x3d = (nx * cosT + tangX * sinT) * R_MEMS;
-          y3d = (ny * cosT + tangY * sinT) * R_MEMS;
-          z3d = (nz * cosT + tangZ * sinT) * R_MEMS;
-        } else {
-          const p = fibonacciSphere(mems.length, mems.indexOf(m), R_MEMS);
-          x3d = p.x; y3d = p.y; z3d = p.z;
-        }
-        pos3d.set(m.id, { x3d, y3d, z3d });
-        positions.set(m.id, { id: m.id, isAgent: false, pinned: false, x: x3d, y: y3d, z: z3d, scale: 1, vx: 0, vy: 0 });
-      });
-    }
-
-    pos3dRef.current = pos3d;
     posRef.current = positions;
+    simulatingRef.current = true;
   }, [graph]);
 
   // Initialize particles when size changes
@@ -430,37 +473,87 @@ function use2DRenderer({
       const cx = w / 2, cy = h / 2;
       const pan = panRef.current;
       const zoom = zoomRef.current;
-      const rotX = rotXRef.current;
-      const rotY = rotYRef.current;
       const sel = selectedRef.current;
       const hov = hoveredRef.current;
       const fAgent = filterRef.current;
       const q = searchRef.current.toLowerCase();
-      const activeId = hov ?? sel;
+      const typesFilter = activeTypesRef.current;
+      const agentFilter = activeAgentFilterRef.current;
+      const orphans = showOrphansRef.current;
+      const hops = hopsFilterRef.current;
       const positions = posRef.current;
-      const FOV = 800;
-      const R_AGENTS = Math.max(80, Math.min(160, 50 + agents.length * 10));
-      const R_MEMS = R_AGENTS * 1.9;
-      const R_DEPTH = R_MEMS + 60;
 
-      // ── Project all 3D positions → 2D (runs every frame) ──────────────────────
-      const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
-      for (const [id, p3d] of pos3dRef.current) {
-        const { x3d, y3d, z3d } = p3d;
-        const rx = x3d * cosY + z3d * sinY;
-        const rz1 = -x3d * sinY + z3d * cosY;
-        const ry = y3d * cosX - rz1 * sinX;
-        const rz = y3d * sinX + rz1 * cosX;
-        const perspScale = FOV / (FOV + rz + 50);
-        const lp = positions.get(id);
-        if (lp) { lp.x = rx * perspScale; lp.y = ry * perspScale; lp.z = rz; lp.scale = perspScale; }
+      // Tick simulation if still active
+      if (simulatingRef.current) {
+        tickForces(positions, edges, graph);
+        const ke = kineticEnergy(positions);
+        if (ke < 0.01 * positions.size) simulatingRef.current = false;
       }
 
-      // ── Tick particles ─────────────────────────────────────────────────────────
-      tickParticles(particlesRef.current, w, h);
+      // ── Build node visibility set ─────────────────────────────────────────────
+      const linkedMemIds = new Set<string>();
+      for (const e of edges) {
+        linkedMemIds.add(e.source);
+        linkedMemIds.add(e.target);
+      }
 
-      // ── Background ─────────────────────────────────────────────────────────────
+      const visibleMems = new Set<string>();
+      for (const mem of mems) {
+        // Type filter
+        if (!typesFilter.has(mem.memoryType)) continue;
+        // Agent filter (from filters panel)
+        if (agentFilter.size > 0 && mem.agentId && !agentFilter.has(mem.agentId)) continue;
+        // Agent filter (from toolbar chips)
+        if (fAgent && mem.agentId !== fAgent) continue;
+        // Orphan filter
+        if (!orphans && !linkedMemIds.has(mem.id)) continue;
+        visibleMems.add(mem.id);
+      }
+
+      // ── Neighborhood BFS for local graph view ─────────────────────────────────
+      let neighborhood: Set<string> | null = null;
+      if (sel) {
+        neighborhood = new Set<string>([sel]);
+        for (let hop = 0; hop < hops; hop++) {
+          for (const edge of edges) {
+            if (neighborhood.has(edge.source)) neighborhood.add(edge.target);
+            if (neighborhood.has(edge.target)) neighborhood.add(edge.source);
+          }
+          // Also include the selected node's agent
+          const selMem = memById.get(sel);
+          if (selMem?.agentId) neighborhood.add(selMem.agentId);
+          // And all mems of a selected agent
+          const selAgent = agentById.get(sel);
+          if (selAgent) {
+            for (const m of mems) if (m.agentId === sel) neighborhood.add(m.id);
+          }
+        }
+      }
+
+      const nodeAlpha = (id: string) => neighborhood && !neighborhood.has(id) ? 0.1 : 1.0;
+
+      // Search match
+      const matchesSearch = (id: string) => {
+        if (!q) return true;
+        const mem = memById.get(id);
+        return mem ? mem.title.toLowerCase().includes(q) : true;
+      };
+
+      // ── Degree map for node sizing ─────────────────────────────────────────────
+      const degree = new Map<string, number>();
+      for (const edge of edges) {
+        degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1);
+        degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1);
+      }
+      const nodeRadius = (id: string, baseR: number) =>
+        Math.max(baseR, Math.min(24, baseR + (degree.get(id) ?? 0) * 2));
+
+      // ── Visible edges ─────────────────────────────────────────────────────────
+      const linksForDraw = edges.filter(
+        (e) => visibleMems.has(e.source) && visibleMems.has(e.target),
+      );
+
+      // ── Background ────────────────────────────────────────────────────────────
       ctx.clearRect(0, 0, w, h);
       const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
       if (isDark) {
@@ -475,7 +568,8 @@ function use2DRenderer({
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
 
-      // ── Particles (2D background layer) ────────────────────────────────────────
+      // ── Particles ─────────────────────────────────────────────────────────────
+      tickParticles(particlesRef.current, w, h);
       const particles = particlesRef.current;
       const CONN_DIST = 90;
       ctx.save();
@@ -485,14 +579,14 @@ function use2DRenderer({
         const p = particles[i];
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = isDark ? "rgba(204,120,92,0.25)" : "rgba(204,120,92,0.15)";
+        ctx.fillStyle = isDark ? "rgba(204,120,92,0.2)" : "rgba(204,120,92,0.12)";
         ctx.fill();
         for (let j = i + 1; j < particles.length; j++) {
           const q2 = particles[j];
-          const dx = q2.x - p.x, dy = q2.y - p.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
+          const ddx = q2.x - p.x, ddy = q2.y - p.y;
+          const d = Math.sqrt(ddx * ddx + ddy * ddy);
           if (d < CONN_DIST) {
-            const alpha = (1 - d / CONN_DIST) * 0.12;
+            const alpha = (1 - d / CONN_DIST) * 0.10;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q2.x, q2.y);
@@ -504,246 +598,235 @@ function use2DRenderer({
       }
       ctx.restore();
 
-      // ── 3D Globe scene ─────────────────────────────────────────────────────────
       ctx.save();
       ctx.translate(cx + pan.x, cy + pan.y);
       ctx.scale(zoom, zoom);
 
-      // Draw orbit edges (mem → agent) with depth fade
-      ctx.setLineDash([4, 5]);
-      for (const edge of edges) {
-        if (edge.type !== "orbit") continue;
+      // ── Agent cluster blobs (before nodes) ───────────────────────────────────
+      for (const agent of agents) {
+        const agentMems = mems.filter((m) => m.agentId === agent.id && visibleMems.has(m.id));
+        if (agentMems.length === 0) continue;
+        const blobCx = agentMems.reduce((s, m) => s + (positions.get(m.id)?.x ?? 0), 0) / agentMems.length;
+        const blobCy = agentMems.reduce((s, m) => s + (positions.get(m.id)?.y ?? 0), 0) / agentMems.length;
+        const blobR = Math.max(60, agentMems.length * 20);
+        const grad = ctx.createRadialGradient(blobCx, blobCy, 0, blobCx, blobCy, blobR);
+        grad.addColorStop(0, rgba(agent.color, 0.10));
+        grad.addColorStop(1, rgba(agent.color, 0));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(blobCx, blobCy, blobR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // ── Links ─────────────────────────────────────────────────────────────────
+      for (const edge of linksForDraw) {
         const sp = positions.get(edge.source);
         const tp = positions.get(edge.target);
         if (!sp || !tp) continue;
-        const mem = memById.get(edge.source);
-        if (!mem) continue;
-        const visFilter = !fAgent || mem.agentId === fAgent;
-        const visSearch = !q || mem.title.toLowerCase().includes(q);
-        if (!visFilter && !visSearch) continue;
-        const isActive = edge.source === activeId || edge.target === activeId;
-        const midZ = (sp.z + tp.z) / 2;
-        const dAlpha = Math.min(1, Math.max(0.03, 1 - midZ / R_DEPTH * 0.75));
+
+        const style = LINK_STYLES[edge.relType ?? "related_to"] ?? LINK_STYLES.related_to;
+        const isActive = edge.source === (hov ?? sel) || edge.target === (hov ?? sel);
+        const sa = nodeAlpha(edge.source) * nodeAlpha(edge.target);
+        const lineAlpha = (isActive ? 0.85 : 0.35) * sa;
+        const lw = 1 + parseFloat(edge.weight ?? "1") * 0.8;
+
+        ctx.globalAlpha = lineAlpha;
+        ctx.setLineDash(style.dash);
         ctx.beginPath();
         ctx.moveTo(sp.x, sp.y);
         ctx.lineTo(tp.x, tp.y);
-        ctx.strokeStyle = rgba(mem.agentColor, (isActive ? 0.45 : 0.12) * dAlpha);
-        ctx.lineWidth = isActive ? 1.5 : 0.6;
+        ctx.strokeStyle = style.color;
+        ctx.lineWidth = isActive ? lw + 0.5 : lw;
         ctx.stroke();
-      }
-      ctx.setLineDash([]);
+        ctx.setLineDash([]);
 
-      // Draw link edges (mem → mem)
-      for (const edge of edges) {
-        if (edge.type !== "link") continue;
-        const sp = positions.get(edge.source);
-        const tp = positions.get(edge.target);
-        if (!sp || !tp) continue;
-        const sm = memById.get(edge.source);
-        const tm = memById.get(edge.target);
-        if (!sm || !tm) continue;
-        const isActive = edge.source === activeId || edge.target === activeId;
-        const midZ = (sp.z + tp.z) / 2;
-        const dAlpha = Math.min(1, Math.max(0.03, 1 - midZ / R_DEPTH * 0.75));
-        const grad = ctx.createLinearGradient(sp.x, sp.y, tp.x, tp.y);
-        grad.addColorStop(0, rgba(sm.agentColor, (isActive ? 0.7 : 0.25) * dAlpha));
-        grad.addColorStop(1, rgba(tm.agentColor, (isActive ? 0.7 : 0.25) * dAlpha));
+        if (style.arrow) {
+          const tm = memById.get(edge.target);
+          const tR = tm ? nodeRadius(edge.target, tm.r) : 8;
+          ctx.globalAlpha = lineAlpha;
+          drawArrow(ctx, sp.x, sp.y, tp.x, tp.y, style.color, tR);
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      // ── Memory nodes ─────────────────────────────────────────────────────────
+      for (const mem of mems) {
+        if (!visibleMems.has(mem.id)) continue;
+        const pos = positions.get(mem.id);
+        if (!pos) continue;
+
+        const isHov = hov === mem.id;
+        const isSel = sel === mem.id;
+        const alpha = nodeAlpha(mem.id);
+        const searchMatch = matchesSearch(mem.id);
+        const nodeAlphaFinal = searchMatch ? alpha : alpha * 0.15;
+        const color = typeColor(mem.memoryType);
+        const r = nodeRadius(mem.id, mem.r);
+
+        ctx.globalAlpha = nodeAlphaFinal;
+
+        // Glow
+        const glowR = r * (isHov || isSel ? 4 : 2.5);
+        const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowR);
+        glow.addColorStop(0, rgba(color, isHov || isSel ? 0.35 : 0.12));
+        glow.addColorStop(1, rgba(color, 0));
         ctx.beginPath();
-        ctx.moveTo(sp.x, sp.y);
-        ctx.lineTo(tp.x, tp.y);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = isActive ? 2 : 1;
+        ctx.arc(pos.x, pos.y, glowR, 0, Math.PI * 2);
+        ctx.fillStyle = glow;
+        ctx.fill();
+
+        // Main circle
+        ctx.shadowBlur = isHov || isSel ? 18 : 6;
+        ctx.shadowColor = color;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = rgba(color, 0.25);
+        ctx.strokeStyle = rgba(color, isSel ? 1 : isHov ? 0.9 : 0.65);
+        ctx.lineWidth = isSel ? 2.5 : 1.2;
+        ctx.fill();
         ctx.stroke();
-      }
+        ctx.shadowBlur = 0;
 
-      // Draw all nodes sorted back-to-front (painter's algorithm for correct occlusion)
-      const drawOrder: Array<{ type: "agent"; node: AgentNode } | { type: "mem"; node: MemNode }> = [
-        ...agents.map((a) => ({ type: "agent" as const, node: a })),
-        ...mems.map((m) => ({ type: "mem" as const, node: m })),
-      ];
-      drawOrder.sort((a, b) => (positions.get(b.node.id)?.z ?? 0) - (positions.get(a.node.id)?.z ?? 0));
+        // Inner dot
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = rgba(color, 0.9);
+        ctx.fill();
 
-      for (const item of drawOrder) {
-        if (item.type === "mem") {
-          const mem = item.node;
-          const pos = positions.get(mem.id);
-          if (!pos) continue;
-          const visFilter = !fAgent || mem.agentId === fAgent;
-          const visSearch = !q || mem.title.toLowerCase().includes(q);
-          const vis = visFilter && visSearch;
-          const isHov = hov === mem.id;
-          const isSel = sel === mem.id;
-          const isDimmed = !vis || (!!activeId && activeId !== mem.id && activeId !== mem.agentId);
-          const dAlpha = Math.min(1, Math.max(0.08, 1 - pos.z / R_DEPTH * 0.72));
-          const alpha = (isDimmed ? 0.15 : 0.95) * dAlpha;
-          const color = typeColor(mem.memoryType);
-          const r = mem.r * pos.scale; // perspective-scaled radius
-
-          ctx.globalAlpha = alpha;
-
-          const glowR = r * (isHov || isSel ? 4 : 2.5);
-          const glow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowR);
-          glow.addColorStop(0, rgba(color, isHov || isSel ? 0.35 : 0.15));
-          glow.addColorStop(1, rgba(color, 0));
+        // Search ring (yellow) when matches search
+        if (searchMatch && q) {
           ctx.beginPath();
-          ctx.arc(pos.x, pos.y, glowR, 0, Math.PI * 2);
-          ctx.fillStyle = glow;
-          ctx.fill();
+          ctx.arc(pos.x, pos.y, r + 3, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(250,204,21,0.9)";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
 
-          ctx.shadowBlur = isHov || isSel ? 18 : 8;
-          ctx.shadowColor = color;
+        // Label on hover/select
+        if (isHov || isSel) {
+          const lbl = mem.title.length > 28 ? mem.title.slice(0, 28) + "…" : mem.title;
+          ctx.font = `500 11px Inter, system-ui, sans-serif`;
+          const tw = ctx.measureText(lbl).width;
+          const lx = pos.x - tw / 2;
+          const ly = pos.y - r - 10;
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = isDark ? "rgba(24,23,21,0.92)" : "rgba(250,249,245,0.95)";
+          ctx.beginPath();
+          (ctx as CanvasRenderingContext2D & { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void }).roundRect?.(lx - 6, ly - 13, tw + 12, 18, 4);
+          ctx.fill();
+          ctx.fillStyle = color;
+          ctx.textAlign = "center";
+          ctx.fillText(lbl, pos.x, ly);
+          ctx.textAlign = "left";
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      // ── Agent nodes ───────────────────────────────────────────────────────────
+      for (const agent of agents) {
+        const pos = positions.get(agent.id);
+        if (!pos) continue;
+        const isHov = hov === agent.id;
+        const isSel = sel === agent.id;
+        const alpha = nodeAlpha(agent.id);
+        const pulse = 1 + Math.sin(t * 2.2 + agents.indexOf(agent)) * 0.05;
+        const r = nodeRadius(agent.id, agent.r) * pulse;
+        const color = agent.color;
+
+        ctx.globalAlpha = alpha;
+
+        // Halo
+        const haloR = r * (isSel || isHov ? 3.2 : 2.4);
+        const halo = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, haloR);
+        halo.addColorStop(0, rgba(color, isSel ? 0.3 : 0.12));
+        halo.addColorStop(1, rgba(color, 0));
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, haloR, 0, Math.PI * 2);
+        ctx.fillStyle = halo;
+        ctx.fill();
+
+        const avatarImg = avatarImgRef.current.get(agent.id);
+        const hasAvatar = avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0;
+
+        if (hasAvatar) {
+          ctx.save();
           ctx.beginPath();
           ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-          ctx.fillStyle = rgba(color, 0.25);
-          ctx.strokeStyle = rgba(color, isSel ? 1 : isHov ? 0.9 : 0.65);
-          ctx.lineWidth = isSel ? 2 : 1.2;
-          ctx.fill();
-          ctx.stroke();
-          ctx.shadowBlur = 0;
-
+          ctx.clip();
+          ctx.drawImage(avatarImg, pos.x - r, pos.y - r, r * 2, r * 2);
+          ctx.restore();
           ctx.beginPath();
-          ctx.arc(pos.x, pos.y, r * 0.4, 0, Math.PI * 2);
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+          ctx.strokeStyle = rgba(color, isSel ? 1 : isHov ? 0.9 : 0.65);
+          ctx.lineWidth = isSel ? 2.5 : 1.5;
+          ctx.stroke();
+        } else if (!agent.hasMemories) {
+          ctx.save();
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+          ctx.strokeStyle = rgba(color, isSel || isHov ? 0.9 : 0.45);
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        } else {
+          ctx.shadowBlur = isSel || isHov ? 40 : 22;
+          ctx.shadowColor = color;
+          const sphere = ctx.createRadialGradient(
+            pos.x - r * 0.3, pos.y - r * 0.3, 0,
+            pos.x, pos.y, r,
+          );
+          sphere.addColorStop(0, rgba(color, 0.95));
+          sphere.addColorStop(0.6, rgba(color, 0.55));
+          sphere.addColorStop(1, rgba(color, 0.2));
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = sphere;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+          ctx.strokeStyle = rgba(color, isSel ? 1 : 0.7);
+          ctx.lineWidth = isSel ? 2.5 : 1.5;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r * 0.3, 0, Math.PI * 2);
           ctx.fillStyle = rgba(color, 0.9);
           ctx.fill();
-
-          if (isHov || isSel) {
-            const lbl = mem.title.length > 28 ? mem.title.slice(0, 28) + "…" : mem.title;
-            ctx.font = `500 11px Inter, system-ui, sans-serif`;
-            const tw = ctx.measureText(lbl).width;
-            const lx = pos.x - tw / 2;
-            const ly = pos.y - r - 10;
-            ctx.fillStyle = isDark ? "rgba(24,23,21,0.9)" : "rgba(250,249,245,0.95)";
-            ctx.beginPath();
-            (ctx as any).roundRect?.(lx - 6, ly - 13, tw + 12, 18, 4);
-            ctx.fill();
-            ctx.fillStyle = color;
-            ctx.textAlign = "center";
-            ctx.fillText(lbl, pos.x, ly);
-            ctx.textAlign = "left";
-          }
-
-          ctx.globalAlpha = 1;
-        } else {
-          const agent = item.node;
-          const pos = positions.get(agent.id);
-          if (!pos) continue;
-          const isHov = hov === agent.id;
-          const isSel = sel === agent.id;
-          const isActive = activeId === agent.id || (activeId ? memById.get(activeId)?.agentId === agent.id : false);
-          const isDimmed = !!activeId && !isActive;
-          const pulse = 1 + Math.sin(t * 2.2 + agents.indexOf(agent)) * 0.06;
-          const dAlpha = Math.min(1, Math.max(0.12, 1 - pos.z / R_DEPTH * 0.7));
-          const r = agent.r * pos.scale * pulse;
-          const color = agent.color;
-
-          ctx.globalAlpha = (isDimmed ? 0.2 : 1) * dAlpha;
-
-          const haloR = r * (isSel || isHov ? 3.2 : 2.5);
-          const halo = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, haloR);
-          halo.addColorStop(0, rgba(color, isSel ? 0.3 : 0.15));
-          halo.addColorStop(1, rgba(color, 0));
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, haloR, 0, Math.PI * 2);
-          ctx.fillStyle = halo;
-          ctx.fill();
-
-          const avatarImg = avatarImgRef.current.get(agent.id);
-          const hasAvatar = avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0;
-
-          if (hasAvatar) {
-            // Draw clipped avatar image
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-            ctx.clip();
-            ctx.drawImage(avatarImg, pos.x - r, pos.y - r, r * 2, r * 2);
-            ctx.restore();
-
-            // Border
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-            ctx.strokeStyle = rgba(color, isSel ? 1 : isHov ? 0.9 : 0.65);
-            ctx.lineWidth = isSel ? 2.5 : 1.5;
-            ctx.stroke();
-          } else if (!agent.hasMemories) {
-            ctx.save();
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-            ctx.strokeStyle = rgba(color, isSel || isHov ? 0.9 : 0.45);
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.restore();
-          } else {
-            ctx.shadowBlur = isSel || isHov ? 40 : 25;
-            ctx.shadowColor = color;
-            const sphere = ctx.createRadialGradient(
-              pos.x - r * 0.3, pos.y - r * 0.3, 0,
-              pos.x, pos.y, r,
-            );
-            sphere.addColorStop(0, rgba(color, 0.95));
-            sphere.addColorStop(0.6, rgba(color, 0.55));
-            sphere.addColorStop(1, rgba(color, 0.2));
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-            ctx.fillStyle = sphere;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-            ctx.strokeStyle = rgba(color, isSel ? 1 : 0.7);
-            ctx.lineWidth = isSel ? 2.5 : 1.5;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r * 0.3, 0, Math.PI * 2);
-            ctx.fillStyle = rgba(color, 0.9);
-            ctx.fill();
-          }
-
-          // Draw agent initial as fallback when no avatar
-          if (!hasAvatar) {
-            const initial = agent.name.trim().charAt(0).toUpperCase() || "?";
-            ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = isDark ? "#faf9f5" : "#141413";
-            ctx.fillText(initial, pos.x, pos.y);
-            ctx.textBaseline = "alphabetic";
-          }
-
-          ctx.globalAlpha = (isDimmed ? 0.15 : 1) * dAlpha;
-
-          ctx.font = `700 12px Inter, system-ui, sans-serif`;
-          ctx.textAlign = "center";
-          const lbl = agent.name;
-          const tw = ctx.measureText(lbl).width;
-          ctx.fillStyle = isDark ? "rgba(24,23,21,0.75)" : "rgba(250,249,245,0.9)";
-          ctx.beginPath();
-          (ctx as any).roundRect?.(pos.x - tw / 2 - 5, pos.y + r + 5, tw + 10, 16, 3);
-          ctx.fill();
-          ctx.fillStyle = isSel || isHov ? (isDark ? "#faf9f5" : "#141413") : rgba(color, 0.95);
-          ctx.fillText(lbl, pos.x, pos.y + r + 17);
-          ctx.textAlign = "left";
-
-          if (agent.hasMemories) {
-            ctx.font = `400 10px Inter, system-ui, sans-serif`;
-            ctx.fillStyle = rgba(color, 0.5);
-            ctx.textAlign = "center";
-            ctx.fillText(`${agent.memCount} mem`, pos.x, pos.y + r + 31);
-            ctx.textAlign = "left";
-          } else {
-            ctx.font = `400 10px Inter, system-ui, sans-serif`;
-            ctx.fillStyle = rgba(color, 0.35);
-            ctx.textAlign = "center";
-            ctx.fillText("no memories", pos.x, pos.y + r + 31);
-            ctx.textAlign = "left";
-          }
-
-          ctx.globalAlpha = 1;
         }
+
+        // Initial letter fallback
+        if (!hasAvatar) {
+          const initial = agent.name.trim().charAt(0).toUpperCase() || "?";
+          ctx.font = `bold ${Math.max(10, r * 0.6)}px Inter, system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = isDark ? "#faf9f5" : "#141413";
+          ctx.fillText(initial, pos.x, pos.y);
+          ctx.textBaseline = "alphabetic";
+        }
+
+        // Agent name label
+        ctx.font = `700 12px Inter, system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        const lbl = agent.name;
+        const tw = ctx.measureText(lbl).width;
+        ctx.fillStyle = isDark ? "rgba(24,23,21,0.80)" : "rgba(250,249,245,0.92)";
+        ctx.beginPath();
+        (ctx as CanvasRenderingContext2D & { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void }).roundRect?.(pos.x - tw / 2 - 5, pos.y + r + 5, tw + 10, 16, 3);
+        ctx.fill();
+        ctx.fillStyle = isSel || isHov ? (isDark ? "#faf9f5" : "#141413") : rgba(color, 0.95);
+        ctx.fillText(lbl, pos.x, pos.y + r + 17);
+
+        ctx.font = `400 10px Inter, system-ui, sans-serif`;
+        ctx.fillStyle = rgba(color, agent.hasMemories ? 0.5 : 0.35);
+        ctx.fillText(agent.hasMemories ? `${agent.memCount} mem` : "no memories", pos.x, pos.y + r + 31);
+        ctx.textAlign = "left";
+
+        ctx.globalAlpha = 1;
       }
 
       ctx.restore();
@@ -753,7 +836,7 @@ function use2DRenderer({
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [graph, size]);
+  }, [graph, size, isDark]);
 
   // ── Hit testing (in world coords) ─────────────────────────────────────────────
 
@@ -763,7 +846,6 @@ function use2DRenderer({
     const pan = panRef.current;
     const zoom = zoomRef.current;
     const positions = posRef.current;
-    // pos.x/y are already perspective-projected; just undo translate+scale
     const wx = (canvasX - w / 2 - pan.x) / zoom;
     const wy = (canvasY - h / 2 - pan.y) / zoom;
 
@@ -773,7 +855,7 @@ function use2DRenderer({
       if (!pos) continue;
       const dx = wx - pos.x, dy = wy - pos.y;
       const d2 = dx * dx + dy * dy;
-      const hitR = a.r * pos.scale + 6;
+      const hitR = a.r + 6;
       if (d2 <= hitR * hitR && (!best || d2 < best.d2)) best = { id: a.id, d2 };
     }
     for (const m of mems) {
@@ -781,7 +863,7 @@ function use2DRenderer({
       if (!pos) continue;
       const dx = wx - pos.x, dy = wy - pos.y;
       const d2 = dx * dx + dy * dy;
-      const hitR = Math.max(m.r * pos.scale + 5, 8);
+      const hitR = Math.max(m.r + 5, 10);
       if (d2 <= hitR * hitR && (!best || d2 < best.d2)) best = { id: m.id, d2 };
     }
     return best?.id ?? null;
@@ -790,28 +872,63 @@ function use2DRenderer({
   // ── Mouse events ──────────────────────────────────────────────────────────────
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0 && e.button !== 1) return;
     dragging.current = true;
     hasDragged.current = false;
     lastMouse.current = { x: e.clientX, y: e.clientY };
+
+    // Try to hit a node for individual dragging
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+      if (hit) {
+        dragNodeRef.current = hit;
+        // Pin the node while dragging
+        const pos = posRef.current.get(hit);
+        if (pos) pos.pinned = true;
+      } else {
+        dragNodeRef.current = null;
+      }
+    }
 
     const onMove = (ev: MouseEvent) => {
       const dx = ev.clientX - lastMouse.current.x;
       const dy = ev.clientY - lastMouse.current.y;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged.current = true;
-      // Drag rotates the 3D globe: horizontal → yaw, vertical → pitch
-      const ROT_SPEED = 0.005;
-      rotYRef.current += dx * ROT_SPEED;
-      rotXRef.current += dy * ROT_SPEED;
+
+      if (dragNodeRef.current) {
+        // Move the dragged node directly
+        const pos = posRef.current.get(dragNodeRef.current);
+        if (pos) {
+          pos.x += dx / zoomRef.current;
+          pos.y += dy / zoomRef.current;
+          pos.vx = 0; pos.vy = 0;
+          simulatingRef.current = true;
+        }
+      } else {
+        // Pan canvas
+        panRef.current.x += dx;
+        panRef.current.y += dy;
+      }
       lastMouse.current = { x: ev.clientX, y: ev.clientY };
     };
+
     const onUp = () => {
       dragging.current = false;
+      // Unpin node (let simulation take over from dropped position)
+      if (dragNodeRef.current) {
+        const pos = posRef.current.get(dragNodeRef.current);
+        if (pos) { pos.pinned = false; pos.vx = 0; pos.vy = 0; }
+        dragNodeRef.current = null;
+        simulatingRef.current = true;
+      }
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, []);
+  }, [hitTest]);
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (hasDragged.current) return;
@@ -833,17 +950,15 @@ function use2DRenderer({
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 0.89;
-    zoomRef.current = Math.max(0.2, Math.min(4, zoomRef.current * factor));
+    zoomRef.current = Math.max(0.15, Math.min(5, zoomRef.current * factor));
   }, []);
 
   const resetView = useCallback(() => {
     panRef.current = { x: 0, y: 0 };
     zoomRef.current = 1.0;
-    rotXRef.current = 0.3;
-    rotYRef.current = 0;
   }, []);
 
-  return { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView };
+  return { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView, posRef };
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────────────────
@@ -902,12 +1017,21 @@ function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, 
 
   if (mem) {
     const ownerAgent = graph.agents.find((a) => a.id === mem.agentId);
-    const connected = allLinks
-      .filter((l) => l.sourceMemoryId === mem.id || l.targetMemoryId === mem.id)
+
+    // Backlinks: split into inbound (reference TO this) and outbound (this references)
+    const referencedBy = allLinks
+      .filter((l) => l.targetMemoryId === mem.id)
       .map((l) => {
-        const id = l.sourceMemoryId === mem.id ? l.targetMemoryId : l.sourceMemoryId;
-        return allMemories.find((m) => m.id === id);
-      }).filter(Boolean) as AgentMemory[];
+        const m = allMemories.find((mm) => mm.id === l.sourceMemoryId);
+        return m ? { mem: m, link: l } : null;
+      }).filter(Boolean) as Array<{ mem: AgentMemory; link: AgentMemoryLink }>;
+
+    const references = allLinks
+      .filter((l) => l.sourceMemoryId === mem.id)
+      .map((l) => {
+        const m = allMemories.find((mm) => mm.id === l.targetMemoryId);
+        return m ? { mem: m, link: l } : null;
+      }).filter(Boolean) as Array<{ mem: AgentMemory; link: AgentMemoryLink }>;
 
     return (
       <aside className="w-72 shrink-0 border-l border-border flex flex-col bg-background/95 backdrop-blur">
@@ -935,18 +1059,57 @@ function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, 
               <p className="text-foreground/75 leading-relaxed whitespace-pre-wrap">{mem.content}</p>
             </div>
           )}
-          {connected.length > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Linked ({connected.length})</p>
-              <div className="flex flex-col gap-1">
-                {connected.map((c) => (
-                  <button key={c.id} onClick={() => onSelectNode(c.id)}
-                    className="flex items-center gap-2 rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors text-left">
-                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: typeColor(c.memoryType) }} />
-                    <span className="truncate text-foreground/70">{c.title}</span>
-                  </button>
-                ))}
-              </div>
+
+          {/* Connections — backlinks in/out */}
+          {(referencedBy.length > 0 || references.length > 0) && (
+            <div className="flex flex-col gap-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Connections</p>
+
+              {references.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground/50 mb-1 flex items-center gap-1">
+                    <ChevronRight className="h-2.5 w-2.5" />References ({references.length})
+                  </p>
+                  <div className="flex flex-col gap-0.5">
+                    {references.map(({ mem: c, link: l }) => {
+                      const ls = LINK_STYLES[l.relationshipType ?? "related_to"] ?? LINK_STYLES.related_to;
+                      return (
+                        <button key={c.id} onClick={() => onSelectNode(c.id)}
+                          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors text-left">
+                          <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: typeColor(c.memoryType) }} />
+                          <span className="truncate flex-1 text-foreground/70">{c.title}</span>
+                          <span className="text-[9px] shrink-0 rounded px-1 py-0.5 font-mono" style={{ color: ls.color, background: `${ls.color}18` }}>
+                            {(l.relationshipType ?? "related_to").replace(/_/g, " ")}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {referencedBy.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground/50 mb-1 flex items-center gap-1">
+                    <ChevronRight className="h-2.5 w-2.5 rotate-180" />Referenced by ({referencedBy.length})
+                  </p>
+                  <div className="flex flex-col gap-0.5">
+                    {referencedBy.map(({ mem: c, link: l }) => {
+                      const ls = LINK_STYLES[l.relationshipType ?? "related_to"] ?? LINK_STYLES.related_to;
+                      return (
+                        <button key={c.id} onClick={() => onSelectNode(c.id)}
+                          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors text-left">
+                          <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: typeColor(c.memoryType) }} />
+                          <span className="truncate flex-1 text-foreground/70">{c.title}</span>
+                          <span className="text-[9px] shrink-0 rounded px-1 py-0.5 font-mono" style={{ color: ls.color, background: `${ls.color}18` }}>
+                            {(l.relationshipType ?? "related_to").replace(/_/g, " ")}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -965,6 +1128,128 @@ function DetailPanel({ nodeId, graph, allMemories, allLinks, onClose, onDelete, 
   }
 
   return null;
+}
+
+// ── Filters Panel ─────────────────────────────────────────────────────────────
+
+function FiltersPanel({
+  agents,
+  activeTypes,
+  setActiveTypes,
+  activeAgentFilter,
+  setActiveAgentFilter,
+  showOrphans,
+  setShowOrphans,
+  onClose,
+}: {
+  agents: AgentNode[];
+  activeTypes: Set<string>;
+  setActiveTypes: (s: Set<string>) => void;
+  activeAgentFilter: Set<string>;
+  setActiveAgentFilter: (s: Set<string>) => void;
+  showOrphans: boolean;
+  setShowOrphans: (v: boolean) => void;
+  onClose: () => void;
+}) {
+  const toggleType = (t: string) => {
+    const next = new Set(activeTypes);
+    next.has(t) ? next.delete(t) : next.add(t);
+    setActiveTypes(next);
+  };
+  const toggleAgent = (id: string) => {
+    const next = new Set(activeAgentFilter);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setActiveAgentFilter(next);
+  };
+
+  return (
+    <div className="absolute right-0 top-0 bottom-0 z-20 w-56 border-l border-border bg-background/97 backdrop-blur flex flex-col shadow-xl">
+      <header className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <span className="text-xs font-semibold">Filters</span>
+        <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4">
+        {/* Memory types */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Memory Type</p>
+          <div className="flex flex-col gap-1">
+            {MEMORY_TYPES.map((t) => {
+              const active = activeTypes.has(t);
+              return (
+                <label key={t} className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent transition-colors">
+                  <input type="checkbox" checked={active} onChange={() => toggleType(t)} className="sr-only" />
+                  <div className={cn(
+                    "h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                    active ? "border-transparent" : "border-border bg-muted"
+                  )} style={active ? { background: typeColor(t) } : {}}>
+                    {active && <svg viewBox="0 0 8 8" className="h-2 w-2 text-white fill-current"><path d="M1 4l2 2 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>}
+                  </div>
+                  <span className="text-xs capitalize" style={{ color: active ? typeColor(t) : undefined }}>{t}</span>
+                  <div className="h-1.5 w-1.5 rounded-full ml-auto shrink-0" style={{ background: typeColor(t) }} />
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Agents */}
+        {agents.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Agents</p>
+            <p className="text-[10px] text-muted-foreground/50 mb-1.5">Leave all unchecked to show all agents</p>
+            <div className="flex flex-col gap-1">
+              {agents.map((a) => {
+                const active = activeAgentFilter.has(a.id);
+                return (
+                  <label key={a.id} className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent transition-colors">
+                    <input type="checkbox" checked={active} onChange={() => toggleAgent(a.id)} className="sr-only" />
+                    <div className={cn(
+                      "h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                      active ? "border-transparent" : "border-border bg-muted"
+                    )} style={active ? { background: a.color } : {}}>
+                      {active && <svg viewBox="0 0 8 8" className="h-2 w-2 text-white fill-current"><path d="M1 4l2 2 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>}
+                    </div>
+                    <div className="h-2 w-2 rounded-full shrink-0" style={{ background: a.color }} />
+                    <span className="text-xs truncate flex-1">{a.name}</span>
+                    <span className="text-[10px] text-muted-foreground/50 shrink-0">{a.memCount}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Show orphans */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Visibility</p>
+          <label className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent transition-colors">
+            <input type="checkbox" checked={showOrphans} onChange={() => setShowOrphans(!showOrphans)} className="sr-only" />
+            <div className={cn(
+              "h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0 transition-colors",
+              showOrphans ? "bg-primary border-transparent" : "border-border bg-muted"
+            )}>
+              {showOrphans && <svg viewBox="0 0 8 8" className="h-2 w-2 text-white fill-current"><path d="M1 4l2 2 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>}
+            </div>
+            <span className="text-xs">Show isolated nodes</span>
+          </label>
+        </div>
+
+        {/* Reset filters */}
+        <button
+          onClick={() => {
+            setActiveTypes(new Set(MEMORY_TYPES));
+            setActiveAgentFilter(new Set());
+            setShowOrphans(true);
+          }}
+          className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors text-left px-2 underline underline-offset-2"
+        >
+          Reset all filters
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ── Modals ────────────────────────────────────────────────────────────────────
@@ -1010,7 +1295,9 @@ function LinkModal({ sourceMemory, memories, onClose, onLink }: {
   sourceMemory: AgentMemory; memories: AgentMemory[];
   onClose: () => void; onLink: (targetId: string, rel: string, label: string) => void;
 }) {
-  const [targetId, setTargetId] = useState(""); const [relType, setRelType] = useState("related_to"); const [label, setLabel] = useState("");
+  const [targetId, setTargetId] = useState("");
+  const [relType, setRelType] = useState("related_to");
+  const [label, setLabel] = useState("");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60" onClick={onClose}>
       <div className="bg-background border border-border rounded-lg shadow-2xl w-[420px] p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
@@ -1024,7 +1311,9 @@ function LinkModal({ sourceMemory, memories, onClose, onLink }: {
           {memories.filter((m) => m.id !== sourceMemory.id).map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
         </select>
         <select value={relType} onChange={(e) => setRelType(e.target.value)} className="w-full text-sm bg-muted/40 border border-border rounded-md px-3 py-2 outline-none">
-          {["related_to","supports","contradicts","precedes","derived_from","example_of"].map((r) => <option key={r} value={r}>{r.replace(/_/g," ")}</option>)}
+          {["related_to", "supports", "contradicts", "precedes", "derived_from", "example_of"].map((r) => (
+            <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+          ))}
         </select>
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
@@ -1045,8 +1334,16 @@ export function MemoryGraph() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [filterAgentId, setFilterAgentId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [linkSourceId, setLinkSourceId] = useState<string | null>(null);
+
+  // Filter panel state
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(MEMORY_TYPES));
+  const [activeAgentFilter, setActiveAgentFilter] = useState<Set<string>>(() => new Set());
+  const [showOrphans, setShowOrphans] = useState(true);
+  const [hopsFilter, setHopsFilter] = useState(2);
 
   const { data: graph, isLoading } = useQuery({
     queryKey: queryKeys.memories.graph(selectedCompanyId!),
@@ -1073,7 +1370,14 @@ export function MemoryGraph() {
   const isDark = theme === "dark";
 
   const { canvasRef, containerRef, size, handleMouseDown, handleClick, handleMouseMove, handleMouseLeave, handleWheel, resetView } =
-    use2DRenderer({ graph: graphData, selectedId, hoveredId, filterAgentId, search, onSelect: setSelectedId, onHover: setHoveredId, isDark });
+    use2DRenderer({
+      graph: graphData,
+      selectedId, hoveredId, filterAgentId, search,
+      activeTypes, activeAgentFilter, showOrphans, hopsFilter,
+      onSelect: setSelectedId,
+      onHover: setHoveredId,
+      isDark,
+    });
 
   const addMutation = useMutation({
     mutationFn: (d: { title: string; content: string; memoryType: string }) => agentMemoriesApi.create(selectedCompanyId!, d),
@@ -1098,6 +1402,12 @@ export function MemoryGraph() {
   const showPanel = selectedId && (agents.some((a) => a.id === selectedId) || graphData.mems.some((m) => m.id === selectedId));
   const isEmpty = memories.length === 0 && allAgents.length === 0;
 
+  // Count active filters
+  const filterCount =
+    (MEMORY_TYPES.length - activeTypes.size) +
+    activeAgentFilter.size +
+    (!showOrphans ? 1 : 0);
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       {/* Toolbar */}
@@ -1114,12 +1424,25 @@ export function MemoryGraph() {
 
         {agents.length > 0 && (
           <>
-            <div className="relative max-w-48">
+            {/* Search input */}
+            <div className="relative max-w-44">
               <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search memories…"
-                className="w-full rounded-md border border-border bg-muted/40 pl-7 pr-3 py-1.5 text-xs outline-none placeholder:text-muted-foreground/40 focus:border-primary/50" />
+              <input
+                ref={searchInputRef}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search memories…"
+                className="w-full rounded-md border border-border bg-muted/40 pl-7 pr-3 py-1.5 text-xs outline-none placeholder:text-muted-foreground/40 focus:border-primary/50"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
-            <ScrollArea className="max-w-full" type="scroll">
+
+            {/* Agent chips */}
+            <ScrollArea className="max-w-xs" type="scroll">
               <div className="flex items-center gap-1.5 w-max pb-0.5">
                 <button
                   onClick={() => setFilterAgentId(null)}
@@ -1128,8 +1451,7 @@ export function MemoryGraph() {
                     !filterAgentId
                       ? "bg-primary/15 text-primary border-primary/40"
                       : "bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )}
-                >
+                  )}>
                   All
                 </button>
                 {agents.map((a) => {
@@ -1141,20 +1463,11 @@ export function MemoryGraph() {
                       onClick={() => setFilterAgentId(isActive ? null : a.id)}
                       className={cn(
                         "flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium border transition-colors shrink-0",
-                        isActive
-                          ? ""
-                          : "bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                        isActive ? "" : "bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground"
                       )}
-                      style={
-                        isActive
-                          ? { color: a.color, background: `${a.color}18`, borderColor: `${a.color}60` }
-                          : {}
-                      }
-                    >
-                      <span
-                        className="flex items-center justify-center rounded-full text-[9px] font-bold w-4 h-4 shrink-0"
-                        style={{ background: `${a.color}40`, color: a.color, border: `1px solid ${a.color}60` }}
-                      >
+                      style={isActive ? { color: a.color, background: `${a.color}18`, borderColor: `${a.color}60` } : {}}>
+                      <span className="flex items-center justify-center rounded-full text-[9px] font-bold w-4 h-4 shrink-0"
+                        style={{ background: `${a.color}40`, color: a.color, border: `1px solid ${a.color}60` }}>
                         {initials}
                       </span>
                       {a.name.split(" ")[0]}
@@ -1164,10 +1477,43 @@ export function MemoryGraph() {
               </div>
               <ScrollBar orientation="horizontal" className="h-1" />
             </ScrollArea>
+
+            {/* Hops slider — only when something is selected */}
+            {selectedId && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] text-muted-foreground/70">Hops:</span>
+                <input
+                  type="range" min={1} max={4} value={hopsFilter}
+                  onChange={(e) => setHopsFilter(parseInt(e.target.value))}
+                  className="w-16 accent-primary h-1"
+                />
+                <span className="text-[11px] font-medium text-primary w-3">{hopsFilter}</span>
+              </div>
+            )}
           </>
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Filters button */}
+          {agents.length > 0 && (
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] transition-colors",
+                showFilters
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+              )}>
+              <SlidersHorizontal className="h-3 w-3" />
+              Filters
+              {filterCount > 0 && (
+                <span className="rounded-full bg-primary text-primary-foreground text-[9px] w-4 h-4 flex items-center justify-center font-bold">
+                  {filterCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {(agents.length > 0 || memories.length > 0) && (
             <button onClick={resetView} title="Reset view"
               className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
@@ -1211,22 +1557,50 @@ export function MemoryGraph() {
             />
           )}
 
+          {/* Filters panel (overlay on right, within canvas area) */}
+          {showFilters && !isEmpty && (
+            <FiltersPanel
+              agents={agents}
+              activeTypes={activeTypes}
+              setActiveTypes={setActiveTypes}
+              activeAgentFilter={activeAgentFilter}
+              setActiveAgentFilter={setActiveAgentFilter}
+              showOrphans={showOrphans}
+              setShowOrphans={setShowOrphans}
+              onClose={() => setShowFilters(false)}
+            />
+          )}
+
           {!isEmpty && (
             <>
+              {/* Legend */}
               <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-lg border border-border bg-background/90 px-3 py-2.5 text-[10px] backdrop-blur">
                 <p className="font-semibold text-foreground/70 mb-0.5">Legend</p>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-3 w-3 rounded-full border border-primary bg-primary/30" /><span>Agent (with memories)</span>
+                  <div className="h-3 w-3 rounded-full border border-primary bg-primary/30" /><span>Agent</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-3 w-3 rounded-full border border-dashed border-muted-foreground" /><span>Agent (no memories)</span>
+                  <div className="h-2 w-2 rounded-full border border-muted-foreground/60 bg-muted/30 ml-0.5" /><span>Memory node</span>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-2 w-2 rounded-full border border-primary bg-primary/20" /><span>Memory node</span>
-                </div>
+                <div className="h-px bg-border/60 my-0.5" />
+                {Object.entries(LINK_STYLES).map(([rel, style]) => (
+                  <div key={rel} className="flex items-center gap-2 text-muted-foreground">
+                    <div className="w-5 h-px relative flex items-center">
+                      <svg width="20" height="8" viewBox="0 0 20 8">
+                        <line x1="0" y1="4" x2={style.arrow ? "14" : "20"} y2="4"
+                          stroke={style.color} strokeWidth="1.5"
+                          strokeDasharray={style.dash.length > 0 ? style.dash.join(",") : undefined} />
+                        {style.arrow && (
+                          <polygon points="14,1 20,4 14,7" fill={style.color} />
+                        )}
+                      </svg>
+                    </div>
+                    <span className="capitalize" style={{ color: style.color }}>{rel.replace(/_/g, " ")}</span>
+                  </div>
+                ))}
               </div>
               <p className="pointer-events-none absolute bottom-3 right-3 text-[10px] text-muted-foreground/40">
-                Drag nodes · Scroll to zoom · Click to inspect
+                Drag nodes · Scroll to zoom · Middle-drag to pan · Click to inspect
               </p>
             </>
           )}
@@ -1250,4 +1624,3 @@ export function MemoryGraph() {
     </div>
   );
 }
-

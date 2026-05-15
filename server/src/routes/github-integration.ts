@@ -12,6 +12,7 @@ import {
   isPatMode,
   generateStateToken,
   resolveGithubConfig,
+  listOpenPullRequests,
 } from "../services/github-integration.js";
 import {
   exchangeManifestCode,
@@ -542,6 +543,22 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
         ),
       );
     res.status(204).end();
+  });
+
+  // List open pull requests for a project's connected repo
+  router.get("/companies/:companyId/projects/:projectId/github/pulls", async (req, res) => {
+    assertCompanyAccess(req, req.params.companyId);
+    try {
+      const pulls = await listOpenPullRequests(
+        db,
+        req.params.companyId,
+        req.params.projectId,
+        config,
+      );
+      res.json(pulls);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : "Failed to list pull requests" });
+    }
   });
 
   return router;

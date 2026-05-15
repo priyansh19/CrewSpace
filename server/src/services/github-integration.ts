@@ -1,4 +1,7 @@
 import { createSign, randomBytes } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import type { Db } from "@crewspaceai/db";
+import { projectGithubRepos } from "@crewspaceai/db";
 import { readManifestResult } from "./github-manifest.js";
 
 export interface GithubAppConfig {
@@ -189,6 +192,95 @@ export async function getRepoBranches(
 
 export function generateStateToken(): string {
   return randomBytes(32).toString("hex");
+}
+
+// ── Pull requests ─────────────────────────────────────────────────────────────
+
+interface GithubPrRaw {
+  number: number;
+  title: string;
+  html_url: string;
+  draft: boolean;
+  mergeable_state: string;
+  updated_at: string;
+  head: { ref: string };
+  base: { ref: string };
+  user: { login: string; avatar_url: string };
+  labels: Array<{ name: string }>;
+  body: string | null;
+}
+
+export interface PullRequestEntry {
+  number: number;
+  title: string;
+  url: string;
+  author: string;
+  authorAvatar: string;
+  state: "ready" | "open" | "draft";
+  updatedAt: string;
+  labels: string[];
+  referencedPrNumbers: number[];
+  headRef: string;
+  baseRef: string;
+  repoOwner: string;
+  repoName: string;
+}
+
+function extractPrRefs(body: string): number[] {
+  const matches = body.matchAll(/#(\d+)/g);
+  return [...new Set([...matches].map((m) => parseInt(m[1], 10)))];
+}
+
+export async function listOpenPullRequests(
+  db: Db,
+  companyId: string,
+  projectId: string,
+  config?: GithubAppConfig,
+): Promise<PullRequestEntry[]> {
+  const cfg = resolveGithubConfig(config);
+
+  const repo = await db.query.projectGithubRepos.findFirst({
+    where: and(
+      eq(projectGithubRepos.companyId, companyId),
+      eq(projectGithubRepos.projectId, projectId),
+    ),
+  });
+  if (!repo) return [];
+
+  if (!cfg) return [];
+
+  const token = await getAuthToken(cfg, repo.installationId || undefined);
+
+  const resp = await fetch(
+    `https://api.github.com/repos/${repo.repoOwner}/${repo.repoName}/pulls?state=open&per_page=30&sort=updated&direction=desc`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "CrewSpace",
+      },
+    },
+  );
+  if (!resp.ok) {
+    throw new Error(`GitHub API error: ${resp.status} ${resp.statusText}`);
+  }
+  const prs = await resp.json() as GithubPrRaw[];
+
+  return prs.map((pr) => ({
+    number: pr.number,
+    title: pr.title,
+    url: pr.html_url,
+    author: pr.user.login,
+    authorAvatar: pr.user.avatar_url,
+    state: pr.draft ? "draft" : pr.mergeable_state === "clean" ? "ready" : "open",
+    updatedAt: pr.updated_at,
+    labels: pr.labels.map((l) => l.name),
+    referencedPrNumbers: extractPrRefs(pr.body ?? ""),
+    headRef: pr.head.ref,
+    baseRef: pr.base.ref,
+    repoOwner: repo.repoOwner,
+    repoName: repo.repoName,
+  }));
 }
 
 /** Resolve a usable GitHub config from explicit config or manifest temp file. */

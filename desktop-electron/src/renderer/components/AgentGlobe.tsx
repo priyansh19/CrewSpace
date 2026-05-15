@@ -66,11 +66,19 @@ function tickParticles(particles: Particle[], w: number, h: number) {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
+export interface AgentRunStat {
+  succeeded: number;
+  failed: number;
+  total: number;
+  status: string;
+}
+
 export interface AgentGlobeProps {
   agents: Agent[];
   workingAgentIds?: Set<string>;
   blockedAgentIds?: Set<string>;
   agentTaskMap?: Map<string, string>;
+  agentRunStats?: Map<string, AgentRunStat>;
   onSelectAgent?: (agentId: string) => void;
   isDark?: boolean;
 }
@@ -82,6 +90,7 @@ export function AgentGlobe({
   workingAgentIds = new Set(),
   blockedAgentIds = new Set(),
   agentTaskMap = new Map(),
+  agentRunStats = new Map(),
   onSelectAgent,
   isDark = true,
 }: AgentGlobeProps) {
@@ -378,22 +387,87 @@ export function AgentGlobe({
         ctx.fillStyle = isHov ? (isDark ? "#faf9f5" : "#141413") : rgba(color, 0.95);
         ctx.fillText(lbl, node.x, node.y + r + 15);
 
-        // Task label (only on hover)
+        // Rich tooltip card on hover
         if (isHov) {
+          const runStat = agentRunStats.get(node.id);
           const task = agentTaskMap.get(node.id);
-          if (task) {
-            const taskShort = task.length > 28 ? task.slice(0, 28) + "…" : task;
+          const cardW = 180;
+          const cardH = runStat ? 82 : (task ? 52 : 36);
+          const cardX = Math.max(8, Math.min(node.x - cardW / 2, w - cardW - 8));
+          const cardY = node.y - r - cardH - 10;
+          const safeCardY = cardY < 8 ? node.y + r + 14 : cardY;
+
+          const roundRect = (ctx as unknown as { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void }).roundRect;
+
+          // Card background
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = isDark ? "rgba(20,19,17,0.97)" : "rgba(250,249,245,0.97)";
+          ctx.strokeStyle = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          roundRect?.call(ctx, cardX, safeCardY, cardW, cardH, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.globalAlpha = 1;
+
+          // Status dot + agent name
+          const agentStatus = runStat?.status ?? "idle";
+          const dotColor = agentStatus === "running" || agentStatus === "idle" ? "#5db872"
+            : agentStatus === "error" ? "#c64545"
+            : agentStatus === "paused" ? "#e8a55a"
+            : "#6c6a64";
+
+          ctx.beginPath();
+          ctx.arc(cardX + 12, safeCardY + 14, 4, 0, Math.PI * 2);
+          ctx.fillStyle = dotColor;
+          ctx.fill();
+
+          ctx.font = `600 11px Inter, system-ui, sans-serif`;
+          ctx.textAlign = "left";
+          ctx.fillStyle = isDark ? "#faf9f5" : "#141413";
+          const nameLabel = node.name.length > 18 ? node.name.slice(0, 18) + "…" : node.name;
+          ctx.fillText(nameLabel, cardX + 22, safeCardY + 17);
+
+          // Status badge
+          ctx.font = `500 9px Inter, system-ui, sans-serif`;
+          ctx.fillStyle = dotColor;
+          const statusText = agentStatus.charAt(0).toUpperCase() + agentStatus.slice(1);
+          ctx.fillText(statusText, cardX + cardW - ctx.measureText(statusText).width - 8, safeCardY + 17);
+
+          // Divider
+          ctx.fillStyle = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+          ctx.fillRect(cardX + 8, safeCardY + 23, cardW - 16, 1);
+
+          if (runStat) {
+            // Runs today
             ctx.font = `400 10px Inter, system-ui, sans-serif`;
-            const tw2 = ctx.measureText(taskShort).width;
-            ctx.fillStyle = isDark ? "rgba(24,23,21,0.65)" : "rgba(250,249,245,0.8)";
-            ctx.beginPath();
-            (ctx as unknown as { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void }).roundRect?.(
-              node.x - tw2 / 2 - 5, node.y + r + 22, tw2 + 10, 14, 3,
-            );
-            ctx.fill();
             ctx.fillStyle = isDark ? "#a09d96" : "#6c6a64";
-            ctx.fillText(taskShort, node.x, node.y + r + 32);
+            ctx.fillText("Today:", cardX + 10, safeCardY + 39);
+            ctx.fillStyle = isDark ? "#faf9f5" : "#141413";
+            ctx.font = `600 10px Inter, system-ui, sans-serif`;
+            ctx.fillText(`${runStat.total} run${runStat.total !== 1 ? "s" : ""}`, cardX + 48, safeCardY + 39);
+
+            // Succeeded
+            ctx.fillStyle = "#5db872";
+            ctx.font = `400 10px Inter, system-ui, sans-serif`;
+            ctx.fillText(`✓  ${runStat.succeeded} succeeded`, cardX + 10, safeCardY + 55);
+
+            // Failed
+            ctx.fillStyle = "#c64545";
+            ctx.fillText(`✗  ${runStat.failed} failed`, cardX + 10, safeCardY + 70);
+          } else if (task) {
+            ctx.font = `400 10px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = isDark ? "#a09d96" : "#6c6a64";
+            const taskShort = task.length > 24 ? task.slice(0, 24) + "…" : task;
+            ctx.fillText(taskShort, cardX + 10, safeCardY + 39);
+          } else {
+            ctx.font = `400 10px Inter, system-ui, sans-serif`;
+            ctx.fillStyle = isDark ? "#6c6a64" : "#8e8b82";
+            ctx.fillText("No runs today", cardX + 10, safeCardY + 39);
           }
+
+          ctx.textAlign = "center";
         }
 
         ctx.textAlign = "left";
@@ -406,7 +480,7 @@ export function AgentGlobe({
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [agents, workingAgentIds, blockedAgentIds, agentTaskMap, size, isDark]);
+  }, [agents, workingAgentIds, blockedAgentIds, agentTaskMap, agentRunStats, size, isDark]);
 
   // Hit test
   const hitTest = useCallback((canvasX: number, canvasY: number): string | null => {
