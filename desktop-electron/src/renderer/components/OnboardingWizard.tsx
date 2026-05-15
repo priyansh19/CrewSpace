@@ -602,6 +602,9 @@ export function OnboardingWizard() {
           ? `/${createdCompanyPrefix}/issues/${issueRef}`
           : `/issues/${issueRef}`
       );
+      // Mark first run complete in Electron desktop (no-op in browser)
+      (window as Window & { electronAPI?: { completeOnboarding?: (p: Record<string, unknown>) => void } })
+        .electronAPI?.completeOnboarding?.({});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task");
     } finally {

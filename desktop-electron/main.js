@@ -65,6 +65,7 @@ let mainWindow = null;
 let tray = null;
 let serverProcess = null;
 let viteProcess = null; // Dev-mode Vite renderer server
+let viteReady = false; // Set to true once spawnVite() confirms Vite is up
 let serverUrl = null; // URL for Electron window (localhost)
 let isQuitting = false;
 let normalBounds = null; // Pre-maximize bounds for frameless window restore
@@ -172,7 +173,7 @@ ipcMain.handle("load-renderer", async () => {
 
   // In dev mode, prefer Vite (hot reload). Fall back to renderer-dist if Vite is down.
   if (isDev) {
-    const viteAvailable = await isViteRunning();
+    const viteAvailable = viteReady || await isViteRunning();
     if (viteAvailable) {
       console.log(`[CrewSpace Desktop] load-renderer: Vite at 5175 available, using dev server`);
       mainWindow.loadURL("http://localhost:5175/");
@@ -333,6 +334,7 @@ async function spawnVite() {
   if (!isDev) return;
   if (await isViteRunning()) {
     console.log(`[CrewSpace Desktop] Vite already running on port ${VITE_PORT}`);
+    viteReady = true;
     return;
   }
   const viteBin = path.join(__dirname, "node_modules", ".bin", "vite.cmd");
@@ -357,6 +359,7 @@ async function spawnVite() {
     await new Promise((r) => setTimeout(r, 500));
     if (await isViteRunning()) {
       console.log(`[CrewSpace Desktop] Vite ready on port ${VITE_PORT}`);
+      viteReady = true;
       return;
     }
   }
@@ -496,9 +499,7 @@ function createWindow() {
   // Remove default menu
   mainWindow.setMenuBarVisibility(false);
 
-  const isFirstRun = !isFirstRunComplete();
-  const startPage = isFirstRun ? "onboarding.html" : "index.html";
-  mainWindow.loadFile(path.join(__dirname, "src", startPage));
+  mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
@@ -822,6 +823,8 @@ ipcMain.handle("get-theme-preference", () => {
     return "system";
   }
 });
+
+ipcMain.handle("is-first-run", () => !isFirstRunComplete());
 
 ipcMain.handle("mark-first-run-complete", () => {
   try {
