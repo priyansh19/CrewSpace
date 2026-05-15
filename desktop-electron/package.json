@@ -1,6 +1,6 @@
 {
   "name": "crewspace-desktop",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "CrewSpace — AI agent company control plane",
   "author": "CrewSpace AI <hello@crewspace.ai>",
   "main": "main.js",
@@ -118,6 +118,7 @@
       "unicode": true,
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": false,
+      "include": "scripts/installer.nsh",
       "license": "../LICENSE",
       "artifactName": "CrewSpace-Setup-${version}.exe"
     },
