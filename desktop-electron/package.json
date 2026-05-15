@@ -1,6 +1,6 @@
 {
   "name": "crewspace-desktop",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "CrewSpace — AI agent company control plane",
   "author": "CrewSpace AI <hello@crewspace.ai>",
   "main": "main.js",
@@ -90,9 +90,6 @@
       "preload.js",
       "desktop-config.js",
       "src/index.html",
-      "src/onboarding.html",
-      "src/onboarding.js",
-      "src/onboarding.css",
       "src/styles.css",
       "src/renderer.js",
       "renderer-dist/**/*",
@@ -118,10 +115,10 @@
       "installerHeaderIcon": "assets/icon.ico",
       "installerSidebar": "assets/installer/installerSidebar.bmp",
       "installerHeader": "assets/installer/installerHeader.bmp",
-      "include": "scripts/installer.nsh",
       "unicode": true,
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": false,
+      "include": "scripts/installer.nsh",
       "license": "../LICENSE",
       "artifactName": "CrewSpace-Setup-${version}.exe"
     },
@@ -130,6 +127,15 @@
       "warningsAsErrors": false,
       "upgradeCode": "{C1EE4A7B-8F23-4B5A-9D8E-1A2B3C4D5E6F}",
       "artifactName": "CrewSpace-Setup-${version}.msi"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.icns"
+    },
+    "dmg": {
+      "background": "assets/installer/dmgBackground.png",
+      "window": { "width": 540, "height": 380 },
+      "artifactName": "CrewSpace-${version}.dmg"
     }
   }
 }
