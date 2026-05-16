@@ -64,15 +64,6 @@ import {
   GripVertical,
 } from "lucide-react";
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      openGithubWindow?: (url: string) => void;
-      [key: string]: unknown;
-    };
-  }
-}
-
 // ── Theme tokens ────────────────────────────────────────────────────────────
 
 function tokens(isDark: boolean) {
@@ -1372,7 +1363,7 @@ function IssuesPanelDashboard({ issues, isLoading, isDark, selectedProjectId, on
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>{issue.title}</span>
                   {/* Priority dot */}
-                  {issue.priority && issue.priority !== "none" && (
+                  {issue.priority && (issue.priority as string) !== "none" && (
                     <div style={{
                       width: 6, height: 6, borderRadius: "50%",
                       background: priorityDot(issue.priority),

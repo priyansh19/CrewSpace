@@ -534,9 +534,9 @@ export function IntelligenceProposals() {
                   )}
 
                   {/* Agent footer */}
-                  {activeCard.requestedById && (() => {
-                    const agent = agentMap.get(activeCard.requestedById);
-                    const avatar = agent ? tryDicebearDataUri(agent) : null;
+                  {activeCard.requestedByAgentId && (() => {
+                    const agent = agentMap.get(activeCard.requestedByAgentId!);
+                    const avatar = agent ? tryDicebearDataUri(agent.id, 20) : null;
                     return (
                       <div className="flex items-center gap-2 pt-3 border-t border-border/60">
                         {avatar ? (
