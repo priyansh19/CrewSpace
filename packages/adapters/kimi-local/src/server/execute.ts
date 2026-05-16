@@ -347,7 +347,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       const outLines: string[] = [];
       for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.startsWith("--- Logging error in Loguru") || trimmed === "Traceback (most recent call last):") {
+        if (trimmed.startsWith("--- Logging error in Loguru")) {
           inLoguruBlock = true;
           continue;
         }

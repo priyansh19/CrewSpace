@@ -2,7 +2,7 @@ export interface ProjectGithubRepo {
   id: string;
   projectId: string;
   companyId: string;
-  installationId: number;
+  installationId: number | null;
   repoOwner: string;
   repoName: string;
   defaultBranch: string;
@@ -21,7 +21,7 @@ export interface ProjectRepoPermission {
 }
 
 export interface GithubConnectRequest {
-  installationId: number;
+  installationId?: number;
   repoFullName: string;
   defaultBranch?: string;
 }

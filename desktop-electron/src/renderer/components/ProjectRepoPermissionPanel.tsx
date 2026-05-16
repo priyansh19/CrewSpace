@@ -27,8 +27,13 @@ export function ProjectRepoPermissionPanel({ companyId, projectId, agents }: Pro
   const setPermMutation = useMutation({
     mutationFn: (data: { agentId: string; canRead: boolean; canPush: boolean; canCreateBranch: boolean }) =>
       githubIntegrationApi.setAgentPermission(companyId, projectId, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["github-repo-perms", companyId, projectId] });
+      setLocalPerms(prev => {
+        const next = new Map(prev);
+        next.delete(variables.agentId);
+        return next;
+      });
     },
   });
 
@@ -54,7 +59,6 @@ export function ProjectRepoPermissionPanel({ companyId, projectId, agents }: Pro
     for (const [agentId, perm] of localPerms) {
       setPermMutation.mutate({ agentId, ...perm });
     }
-    setLocalPerms(new Map());
   };
 
   return (

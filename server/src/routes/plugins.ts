@@ -48,6 +48,7 @@ import type { PluginToolDispatcher } from "../services/plugin-tool-dispatcher.js
 import type { ToolRunContext } from "@crewspaceai/plugin-sdk";
 import { JsonRpcCallError, PLUGIN_RPC_ERROR_CODES } from "@crewspaceai/plugin-sdk";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
+import { unauthorized } from "../errors.js";
 import { validateInstanceConfig } from "../services/plugin-config-validator.js";
 
 /** UI slot declaration extracted from plugin manifest */
@@ -440,7 +441,10 @@ export function pluginRoutes(
    * Response: PluginUiContribution[]
    */
   router.get("/plugins/ui-contributions", async (req, res) => {
-    assertBoard(req);
+    // This endpoint is fetched by the host UI renderer (user session or
+    // local_implicit actor in desktop mode), NOT only by board agents.
+    // Allow any authenticated actor; only reject fully anonymous requests.
+    if (req.actor.type === "none") throw unauthorized();
     const plugins = await registry.listByStatus("ready");
 
     const contributions: PluginUiContribution[] = plugins
@@ -457,7 +461,7 @@ export function pluginRoutes(
           pluginKey: plugin.pluginKey,
           displayName: manifest.displayName,
           version: plugin.version,
-          updatedAt: plugin.updatedAt.toISOString(),
+          updatedAt: (plugin.updatedAt ?? new Date()).toISOString(),
           uiEntryFile: uiMetadata.uiEntryFile,
           slots: uiMetadata.slots,
           launchers: uiMetadata.launchers,

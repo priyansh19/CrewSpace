@@ -100,8 +100,10 @@ function getThemePreference() {
 
 function saveAuthConfig(auth) {
   const config = readConfig() || {};
-  config.github = auth.github || {};
-  config.kimi = auth.kimi || {};
+  // Only overwrite keys that are explicitly provided in the auth object.
+  // This prevents github saves from wiping kimi (and vice-versa).
+  if (auth.github !== undefined) config.github = auth.github || {};
+  if (auth.kimi !== undefined) config.kimi = auth.kimi || {};
   writeConfig(config);
 }
 
@@ -136,6 +138,50 @@ function authConfigToEnv(config) {
   return env;
 }
 
+// ── Per-agent JWT tokens ─────────────────────────────────────────────
+
+function saveAgentToken(agentId, token) {
+  const config = readConfig() || {};
+  if (!config.agentTokens) config.agentTokens = {};
+  config.agentTokens[agentId] = token;
+  writeConfig(config);
+}
+
+function getAgentToken(agentId) {
+  const config = readConfig();
+  return config?.agentTokens?.[agentId] ?? null;
+}
+
+function clearAgentToken(agentId) {
+  const config = readConfig() || {};
+  if (config.agentTokens) {
+    delete config.agentTokens[agentId];
+    writeConfig(config);
+  }
+}
+
+// ── Board session tokens ─────────────────────────────────────────────
+
+function saveBoardSessionToken(boardId, token) {
+  const config = readConfig() || {};
+  if (!config.boardSessionTokens) config.boardSessionTokens = {};
+  config.boardSessionTokens[boardId] = token;
+  writeConfig(config);
+}
+
+function getBoardSessionToken(boardId) {
+  const config = readConfig();
+  return config?.boardSessionTokens?.[boardId] ?? null;
+}
+
+function clearBoardSessionToken(boardId) {
+  const config = readConfig() || {};
+  if (config.boardSessionTokens) {
+    delete config.boardSessionTokens[boardId];
+    writeConfig(config);
+  }
+}
+
 module.exports = {
   readConfig,
   writeConfig,
@@ -147,4 +193,10 @@ module.exports = {
   saveAuthConfig,
   getAuthConfig,
   authConfigToEnv,
+  saveAgentToken,
+  getAgentToken,
+  clearAgentToken,
+  saveBoardSessionToken,
+  getBoardSessionToken,
+  clearBoardSessionToken,
 };

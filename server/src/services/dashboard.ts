@@ -87,12 +87,13 @@ export function dashboardService(db: Db) {
         .orderBy(desc(sql`sum(${costEvents.costCents})`))
         .limit(10);
 
-      // Per-agent run outcome counts today (succeeded/failed)
+      // Per-agent run outcome counts today (succeeded/failed/total from heartbeat_runs)
       const runOutcomeRows = await db
         .select({
           agentId: heartbeatRuns.agentId,
           succeeded: sql<number>`count(*) filter (where ${heartbeatRuns.status} = 'succeeded')::int`,
-          failed: sql<number>`count(*) filter (where ${heartbeatRuns.status} = 'failed')::int`,
+          failed: sql<number>`count(*) filter (where ${heartbeatRuns.status} in ('failed', 'timed_out', 'error'))::int`,
+          total: sql<number>`count(*)::int`,
         })
         .from(heartbeatRuns)
         .where(
@@ -103,7 +104,7 @@ export function dashboardService(db: Db) {
         )
         .groupBy(heartbeatRuns.agentId);
       const runOutcomeMap = new Map(
-        runOutcomeRows.map((r) => [r.agentId, { succeeded: Number(r.succeeded), failed: Number(r.failed) }]),
+        runOutcomeRows.map((r) => [r.agentId, { succeeded: Number(r.succeeded), failed: Number(r.failed), total: Number(r.total) }]),
       );
 
       // Token usage today
@@ -121,9 +122,21 @@ export function dashboardService(db: Db) {
           ),
         );
 
-      // Fetch agent names + statuses for burn entries
+      // All-time cumulative token usage
+      const [tokenRowAll] = await db
+        .select({
+          inputTokens: sql<number>`coalesce(sum(${costEvents.inputTokens}), 0)::bigint`,
+          outputTokens: sql<number>`coalesce(sum(${costEvents.outputTokens}), 0)::bigint`,
+          cachedInputTokens: sql<number>`coalesce(sum(${costEvents.cachedInputTokens}), 0)::bigint`,
+        })
+        .from(costEvents)
+        .where(eq(costEvents.companyId, companyId));
+
+      // Fetch agent names + statuses for burn entries + run outcome entries
       const burnAgentIds = agentBurnRows.map((r) => r.agentId).filter(Boolean) as string[];
-      const burnAgents = burnAgentIds.length > 0
+      const runOutcomeAgentIds = runOutcomeRows.map((r) => r.agentId).filter(Boolean) as string[];
+      const allActiveAgentIds = [...new Set([...burnAgentIds, ...runOutcomeAgentIds])];
+      const burnAgents = allActiveAgentIds.length > 0
         ? await db
             .select({ id: agents.id, name: agents.name, status: agents.status })
             .from(agents)
@@ -243,6 +256,11 @@ export function dashboardService(db: Db) {
             outputTokens: Number(tokenRow?.outputTokens ?? 0),
             cachedInputTokens: Number(tokenRow?.cachedInputTokens ?? 0),
           },
+          tokensCumulative: {
+            inputTokens: Number(tokenRowAll?.inputTokens ?? 0),
+            outputTokens: Number(tokenRowAll?.outputTokens ?? 0),
+            cachedInputTokens: Number(tokenRowAll?.cachedInputTokens ?? 0),
+          },
         },
         pendingApprovals,
         pendingApprovalsList: pendingApprovalRows.map((r) => ({
@@ -261,21 +279,45 @@ export function dashboardService(db: Db) {
           pausedAgents: budgetOverview.pausedAgentCount,
           pausedProjects: budgetOverview.pausedProjectCount,
         },
-        agentBurnToday: agentBurnRows
-          .filter((r) => r.agentId != null)
-          .map((r) => {
-            const agentInfo = burnAgentMap.get(r.agentId!);
-            const outcomes = runOutcomeMap.get(r.agentId!) ?? { succeeded: 0, failed: 0 };
-            return {
-              agentId: r.agentId!,
-              agentName: agentInfo?.name ?? "Unknown",
-              costCents: Number(r.costCents),
-              runsToday: Number(r.runsToday),
-              succeededToday: outcomes.succeeded,
-              failedToday: outcomes.failed,
-              status: agentInfo?.status ?? "idle",
-            };
-          }),
+        agentBurnToday: (() => {
+          // Build entries from cost events (agents with billing today)
+          const burnEntries = agentBurnRows
+            .filter((r) => r.agentId != null)
+            .map((r) => {
+              const agentInfo = burnAgentMap.get(r.agentId!);
+              const outcomes = runOutcomeMap.get(r.agentId!) ?? { succeeded: 0, failed: 0, total: 0 };
+              // Use heartbeat_runs total for runsToday so failed-only agents show correct counts
+              const runsFromHeartbeat = outcomes.total;
+              return {
+                agentId: r.agentId!,
+                agentName: agentInfo?.name ?? "Unknown",
+                costCents: Number(r.costCents),
+                runsToday: Math.max(Number(r.runsToday), runsFromHeartbeat),
+                succeededToday: outcomes.succeeded,
+                failedToday: outcomes.failed,
+                status: agentInfo?.status ?? "idle",
+              };
+            });
+
+          // Add agents that have heartbeat runs today but no cost events
+          const burnAgentIdSet = new Set(agentBurnRows.map((r) => r.agentId).filter(Boolean));
+          const extraEntries = runOutcomeRows
+            .filter((r) => r.agentId != null && !burnAgentIdSet.has(r.agentId))
+            .map((r) => {
+              const agentInfo = burnAgentMap.get(r.agentId!);
+              return {
+                agentId: r.agentId!,
+                agentName: agentInfo?.name ?? "Unknown",
+                costCents: 0,
+                runsToday: Number(r.total),
+                succeededToday: Number(r.succeeded),
+                failedToday: Number(r.failed),
+                status: agentInfo?.status ?? "idle",
+              };
+            });
+
+          return [...burnEntries, ...extraEntries];
+        })(),
         recentCompleted: recentCompletedRows.map((r) => ({
           id: r.id,
           title: r.title,

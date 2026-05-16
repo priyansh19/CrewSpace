@@ -388,21 +388,25 @@ function killServer() {
 
 async function waitForServerDeath(timeoutMs = 10000) {
   if (!serverProcess) return true;
-  const start = Date.now();
+  // If the process has already exited (exitCode is set), return immediately
+  if (serverProcess.exitCode !== null) return true;
   return new Promise((resolve) => {
-    const check = () => {
-      if (!serverProcess || serverProcess.killed || (Date.now() - start > timeoutMs)) {
-        resolve(true);
-        return;
-      }
-      try {
-        process.kill(serverProcess.pid, 0);
-        setTimeout(check, 200);
-      } catch {
-        resolve(true);
-      }
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(true);
     };
-    check();
+    // Listen for the OS-level process exit — NOT serverProcess.killed which
+    // is set synchronously by .kill() before the process actually terminates.
+    serverProcess.once("exit", done);
+    serverProcess.once("close", done);
+    const timer = setTimeout(done, timeoutMs);
+
+    // Belt-and-suspenders: if process is already dead by the time we set up
+    // listeners, fire done() now (the exit event won't re-fire for past events).
+    if (serverProcess.exitCode !== null) done();
   });
 }
 
@@ -875,6 +879,17 @@ ipcMain.handle("complete-onboarding", async (_event, payload) => {
 
 ipcMain.on("open-external", (_event, url) => {
   shell.openExternal(url);
+});
+
+ipcMain.on("open-github-window", (_event, url) => {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 900,
+    title: "GitHub",
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+    autoHideMenuBar: true,
+  });
+  win.loadURL(url);
 });
 
 ipcMain.on("quit-app", () => {

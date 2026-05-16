@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { CircleDot, Plus, Filter, ArrowUpDown, Layers, Check, X, ChevronRight, List, Columns3, User, Search } from "lucide-react";
+import { CircleDot, Plus, Filter, ArrowUpDown, Layers, Check, X, ChevronRight, List, Columns3, User, Search, Trash2 } from "lucide-react";
 import { KanbanBoard } from "./KanbanBoard";
 import type { Issue } from "@crewspaceai/shared";
 
@@ -173,6 +173,7 @@ interface IssuesListProps {
   };
   onSearchChange?: (search: string) => void;
   onUpdateIssue: (id: string, data: Record<string, unknown>) => void;
+  onDeleteIssues?: (ids: string[]) => void;
 }
 
 interface IssuesSearchInputProps {
@@ -228,6 +229,7 @@ export function IssuesList({
   searchFilters,
   onSearchChange,
   onUpdateIssue,
+  onDeleteIssues,
 }: IssuesListProps) {
   const { selectedCompanyId } = useCompany();
   const { openNewIssue } = useDialog();
@@ -249,6 +251,7 @@ export function IssuesList({
   const [assigneePickerIssueId, setAssigneePickerIssueId] = useState<string | null>(null);
   const [assigneeSearch, setAssigneeSearch] = useState("");
   const [issueSearch, setIssueSearch] = useState(initialSearch ?? "");
+  const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set());
   const normalizedIssueSearch = issueSearch.trim();
 
   useEffect(() => {
@@ -363,6 +366,32 @@ export function IssuesList({
     setAssigneeSearch("");
   };
 
+  const toggleIssueSelection = useCallback((id: string) => {
+    setSelectedIssueIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIssueIds((prev) => {
+      const allIds = filtered.map((i) => i.id);
+      if (prev.size === allIds.length) return new Set();
+      return new Set(allIds);
+    });
+  }, [filtered]);
+
+  const handleBulkDelete = useCallback(() => {
+    const ids = [...selectedIssueIds];
+    if (!onDeleteIssues || ids.length === 0) return;
+    if (window.confirm(`Delete ${ids.length} issue${ids.length > 1 ? "s" : ""}? This cannot be undone.`)) {
+      onDeleteIssues(ids);
+      setSelectedIssueIds(new Set());
+    }
+  }, [selectedIssueIds, onDeleteIssues]);
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -379,6 +408,19 @@ export function IssuesList({
         </div>
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          {/* Bulk delete */}
+          {selectedIssueIds.size > 0 && onDeleteIssues && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="text-xs mr-1"
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Delete ({selectedIssueIds.size})</span>
+              <span className="sm:hidden">{selectedIssueIds.size}</span>
+            </Button>
+          )}
           {/* View mode toggle */}
           <div className="flex items-center border border-border rounded-md overflow-hidden mr-1">
             <button
@@ -698,10 +740,26 @@ export function IssuesList({
             )}
             <CollapsibleContent>
               {group.items.map((issue) => (
+                <div key={issue.id} className="relative group/row">
+                  {/* Checkbox overlay — sits outside the Link to avoid navigation on click */}
+                  <div
+                    className="absolute left-1.5 top-1/2 -translate-y-1/2 z-10 hidden sm:flex items-center justify-center w-5 h-5 cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleIssueSelection(issue.id);
+                    }}
+                  >
+                    <Checkbox
+                      checked={selectedIssueIds.has(issue.id)}
+                      className="h-4 w-4 border-muted-foreground/50 data-[state=checked]:border-primary"
+                      aria-label={`Select issue ${issue.identifier ?? issue.id}`}
+                    />
+                  </div>
                 <IssueRow
-                  key={issue.id}
                   issue={issue}
                   issueLinkState={issueLinkState}
+                  selected={selectedIssueIds.has(issue.id)}
                   desktopLeadingSpacer
                   mobileLeading={(
                     <span
@@ -878,6 +936,7 @@ export function IssuesList({
                   )}
                   trailingMeta={formatDate(issue.createdAt)}
                 />
+                </div>
               ))}
             </CollapsibleContent>
           </Collapsible>

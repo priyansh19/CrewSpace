@@ -67,7 +67,7 @@ export const IssueRow = memo(function IssueRow({
         </span>
         <span className="flex items-center gap-2 sm:order-1 sm:shrink-0">
           {desktopLeadingSpacer ? (
-            <span className="hidden w-3.5 shrink-0 sm:block" />
+            <span className="hidden w-8 shrink-0 sm:block" />
           ) : null}
           {desktopMetaLeading ?? (
             <>
