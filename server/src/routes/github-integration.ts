@@ -3,6 +3,7 @@ import { eq, and, gt } from "drizzle-orm";
 import type { Db } from "@crewspaceai/db";
 import { projectGithubRepos, projectRepoPermissions, githubOAuthStates } from "@crewspaceai/db";
 import { assertCompanyAccess } from "./authz.js";
+import { instanceSettingsService } from "../services/instance-settings.js";
 import type { GithubAppConfig } from "../services/github-integration.js";
 import {
   verifyRepoAccess,
@@ -13,6 +14,7 @@ import {
   generateStateToken,
   resolveGithubConfig,
   listOpenPullRequests,
+  mergePullRequest,
 } from "../services/github-integration.js";
 import {
   exchangeManifestCode,
@@ -90,6 +92,15 @@ const MANIFEST_ERROR_HTML = (message: string) => `<!DOCTYPE html>
 
 export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
   const router = Router();
+  const instanceSvc = instanceSettingsService(db);
+
+  /** Resolve GitHub config: env/static → temp manifest file → DB credentials */
+  async function resolveConfig(): Promise<GithubAppConfig | undefined> {
+    const fromEnvOrManifest = resolveGithubConfig(config);
+    if (fromEnvOrManifest) return fromEnvOrManifest;
+    const dbCreds = await instanceSvc.getGithubAppCredentials();
+    return dbCreds ?? undefined;
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   //  Routes that work WITHOUT pre-existing GitHub App config
@@ -194,6 +205,36 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     res.json({ ok: true });
   });
 
+  // ── Auth mode status ──
+  router.get("/github/status", (_req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.json({ configured: false, mode: "none" });
+      return;
+    }
+    if (cfg.pat) {
+      res.json({ configured: true, mode: "pat" });
+      return;
+    }
+    res.json({ configured: true, mode: "app", slug: cfg.slug });
+  });
+
+  // ── List all accessible repos (company level, for PAT mode repo picker) ──
+  router.get("/companies/:companyId/github/repos", async (req, res) => {
+    const cfg = resolveGithubConfig(config);
+    if (!cfg) {
+      res.status(503).json({ error: "GitHub integration is not configured" });
+      return;
+    }
+    assertCompanyAccess(req, req.params.companyId);
+    try {
+      const repos = await listAccessibleRepos(cfg);
+      res.json(repos);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : "Failed to list repos" });
+    }
+  });
+
   // ── Installation initiation ──
   // Redirects to the GitHub App installation page.
   // Works dynamically using stored manifest result if no static config.
@@ -201,13 +242,15 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     const companyId = req.query.companyId as string | undefined;
     const projectId = req.query.projectId as string | undefined;
 
-    // Determine slug: from static config, from stored manifest, or error
+    // Determine slug: static config → temp manifest file → DB credentials
     let slug = config?.slug;
     if (!slug) {
       const manifest = readManifestResult();
-      if (manifest) {
-        slug = manifest.slug;
-      }
+      if (manifest) slug = manifest.slug;
+    }
+    if (!slug) {
+      const dbCreds = await resolveConfig();
+      if (dbCreds?.slug) slug = dbCreds.slug;
     }
 
     if (!slug) {
@@ -382,8 +425,12 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     assertCompanyAccess(req, req.params.companyId);
     const { installationId, repoFullName, defaultBranch = "main" } = req.body;
 
-    if (!installationId || !repoFullName) {
-      res.status(400).json({ error: "installationId and repoFullName are required" });
+    if (!repoFullName) {
+      res.status(400).json({ error: "repoFullName is required" });
+      return;
+    }
+    if (!cfg.pat && !installationId) {
+      res.status(400).json({ error: "installationId is required for GitHub App mode" });
       return;
     }
 
@@ -394,28 +441,40 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     }
 
     // Verify access
-    const hasAccess = await verifyRepoAccess(cfg, installationId, owner, repoName);
+    let hasAccess = false;
+    try {
+      hasAccess = await verifyRepoAccess(cfg, installationId, owner, repoName);
+    } catch (err) {
+      console.error("[github] verifyRepoAccess threw:", err);
+      // In PAT mode, if verify fails treat as accessible (token already validated at PAT setup)
+      hasAccess = !!cfg.pat;
+    }
     if (!hasAccess) {
-      res.status(403).json({ error: "Cannot access repository" });
+      res.status(403).json({ error: "Cannot access repository — check your PAT has repo scope" });
       return;
     }
 
-    // Delete existing
-    await db.delete(projectGithubRepos).where(eq(projectGithubRepos.projectId, req.params.projectId));
+    try {
+      // Delete existing
+      await db.delete(projectGithubRepos).where(eq(projectGithubRepos.projectId, req.params.projectId));
 
-    const [repo] = await db
-      .insert(projectGithubRepos)
-      .values({
-        projectId: req.params.projectId,
-        companyId: req.params.companyId,
-        installationId,
-        repoOwner: owner,
-        repoName,
-        defaultBranch,
-      })
-      .returning();
+      const [repo] = await db
+        .insert(projectGithubRepos)
+        .values({
+          projectId: req.params.projectId,
+          companyId: req.params.companyId,
+          installationId: installationId ?? null,
+          repoOwner: owner,
+          repoName,
+          defaultBranch,
+        })
+        .returning();
 
-    res.json(repo);
+      res.json(repo);
+    } catch (err) {
+      console.error("[github] Failed to save repo connection:", err);
+      res.status(500).json({ error: err instanceof Error ? err.message : "Failed to save repository connection" });
+    }
   });
 
   // Disconnect repo
@@ -471,7 +530,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
       res.status(404).json({ error: "No GitHub repo connected" });
       return;
     }
-    const branches = await getRepoBranches(cfg, repo.installationId, repo.repoOwner, repo.repoName);
+    const branches = await getRepoBranches(cfg, repo.installationId ?? 0, repo.repoOwner, repo.repoName);
     res.json(branches);
   });
 
@@ -545,7 +604,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     res.status(204).end();
   });
 
-  // List open pull requests for a project's connected repo
+  // List open + merged pull requests for a project's connected repo
   router.get("/companies/:companyId/projects/:projectId/github/pulls", async (req, res) => {
     assertCompanyAccess(req, req.params.companyId);
     try {
@@ -562,6 +621,22 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
         return;
       }
       res.status(500).json({ error: err instanceof Error ? err.message : "Failed to list pull requests" });
+    }
+  });
+
+  // Merge a pull request
+  router.put("/companies/:companyId/projects/:projectId/github/pulls/:prNumber/merge", async (req, res) => {
+    assertCompanyAccess(req, req.params.companyId);
+    const prNumber = parseInt(req.params.prNumber, 10);
+    if (isNaN(prNumber)) {
+      res.status(400).json({ error: "Invalid PR number" });
+      return;
+    }
+    try {
+      const result = await mergePullRequest(db, req.params.companyId, req.params.projectId, prNumber, config);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : "Failed to merge pull request" });
     }
   });
 

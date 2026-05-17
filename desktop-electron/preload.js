@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // External Links
   openExternal: (url) => ipcRenderer.send("open-external", url),
+  openGithubWindow: (url) => ipcRenderer.send("open-github-window", url),
 
   // App Lifecycle
   quitApp: () => ipcRenderer.send("quit-app"),

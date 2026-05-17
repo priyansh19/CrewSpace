@@ -6,7 +6,7 @@ export const projectGithubRepos = pgTable("project_github_repos", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   companyId: uuid("company_id").notNull().references(() => companies.id),
-  installationId: integer("installation_id").notNull(),
+  installationId: integer("installation_id"),
   repoOwner: text("repo_owner").notNull(),
   repoName: text("repo_name").notNull(),
   defaultBranch: text("default_branch").notNull().default("main"),

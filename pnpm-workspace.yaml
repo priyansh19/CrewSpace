@@ -4,3 +4,4 @@ packages:
   - packages/plugins/sdk
   - server
   - desktop-electron
+  - desktop-electron/installer

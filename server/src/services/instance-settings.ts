@@ -133,5 +133,31 @@ export function instanceSettingsService(db: Db) {
         .select({ id: companies.id })
         .from(companies)
         .then((rows) => rows.map((row) => row.id)),
+
+    getGithubAppCredentials: async (): Promise<{ appId: string; privateKey: string; clientId: string; clientSecret: string; slug: string } | null> => {
+      const row = await getOrCreateRow();
+      const raw = row.general as Record<string, unknown> | null;
+      const g = raw?._githubApp as { appId?: unknown; privateKey?: unknown; clientId?: unknown; clientSecret?: unknown; slug?: unknown } | undefined;
+      if (!g || typeof g.appId !== "string" || typeof g.privateKey !== "string") return null;
+      return {
+        appId: g.appId,
+        privateKey: g.privateKey,
+        clientId: typeof g.clientId === "string" ? g.clientId : "",
+        clientSecret: typeof g.clientSecret === "string" ? g.clientSecret : "",
+        slug: typeof g.slug === "string" ? g.slug : "",
+      };
+    },
+
+    saveGithubAppCredentials: async (creds: { appId: string; privateKey: string; clientId: string; clientSecret: string; slug: string }): Promise<void> => {
+      const current = await getOrCreateRow();
+      const now = new Date();
+      await db
+        .update(instanceSettings)
+        .set({
+          general: { ...(current.general as Record<string, unknown> ?? {}), _githubApp: creds },
+          updatedAt: now,
+        })
+        .where(eq(instanceSettings.id, current.id));
+    },
   };
 }

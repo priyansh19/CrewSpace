@@ -7,7 +7,7 @@ export interface PullRequestEntry {
   url: string;
   author: string;
   authorAvatar: string;
-  state: "ready" | "open" | "draft";
+  state: "ready" | "open" | "draft" | "merged";
   updatedAt: string;
   labels: string[];
   referencedPrNumbers: number[];
@@ -18,6 +18,12 @@ export interface PullRequestEntry {
 }
 
 export const githubIntegrationApi = {
+  getStatus: () =>
+    api.get<{ configured: boolean; mode: "pat" | "app" | "none"; slug?: string }>("/github/status"),
+
+  listCompanyRepos: (companyId: string) =>
+    api.get<GithubRepoSummary[]>(`/companies/${companyId}/github/repos`),
+
   getRepo: (companyId: string, projectId: string) =>
     api.get<ProjectGithubRepo>(`/companies/${companyId}/projects/${projectId}/github/repo`),
 
@@ -44,4 +50,10 @@ export const githubIntegrationApi = {
 
   listPullRequests: (companyId: string, projectId: string) =>
     api.get<PullRequestEntry[]>(`/companies/${companyId}/projects/${projectId}/github/pulls`),
+
+  mergePr: (companyId: string, projectId: string, prNumber: number) =>
+    api.put<{ merged: boolean; message: string }>(
+      `/companies/${companyId}/projects/${projectId}/github/pulls/${prNumber}/merge`,
+      {},
+    ),
 };

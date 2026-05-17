@@ -25,6 +25,7 @@ import {
 } from "@crewspaceai/adapter-utils/server-utils";
 import { cleanKimiStderr, detectKimiLoginRequired, isKimiUnknownSessionError, isKimiMaxTurnsResult, parseKimiJsonl } from "./parse.js";
 import { ensureKimiSkillsInjected } from "./skills.js";
+import { readKimiAuthInfo, isKimiAuthValid, refreshKimiCredentials } from "./auth.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -145,6 +146,26 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   // outputting Unicode characters (emojis, CJK text, etc.).
   env.PYTHONIOENCODING = "utf-8";
   env.PYTHONUTF8 = "1";
+
+  // If using native kimi credentials (no API key configured), proactively refresh
+  // the access token when it has expired or is about to expire. The kimi CLI does
+  // NOT auto-refresh in --print (non-interactive) mode, so we do it here before
+  // copying credentials into the per-agent KIMI_SHARE_DIR.
+  if (!hasNonEmptyEnvValue(env, "KIMI_API_KEY") && !hasNonEmptyEnvValue(env, "MOONSHOT_API_KEY")) {
+    const nativeAuth = await readKimiAuthInfo().catch(() => null);
+    if (nativeAuth && !isKimiAuthValid(nativeAuth)) {
+      await onLog("stdout", "[crewspace] Kimi access token expired; refreshing credentials...\n");
+      const refreshResult = await refreshKimiCredentials(command);
+      if (refreshResult.success) {
+        await onLog("stdout", "[crewspace] Kimi credentials refreshed successfully.\n");
+      } else {
+        await onLog(
+          "stdout",
+          `[crewspace] Kimi credential refresh failed: ${refreshResult.errorMessage ?? "unknown error"}. Run will proceed with existing credentials.\n`,
+        );
+      }
+    }
+  }
 
   // Isolate Kimi share dir per agent to avoid concurrent write conflicts on
   // ~/.kimi/kimi.json when multiple agents run simultaneously.
@@ -347,7 +368,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       const outLines: string[] = [];
       for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.startsWith("--- Logging error in Loguru") || trimmed === "Traceback (most recent call last):") {
+        if (trimmed.startsWith("--- Logging error in Loguru")) {
           inLoguruBlock = true;
           continue;
         }

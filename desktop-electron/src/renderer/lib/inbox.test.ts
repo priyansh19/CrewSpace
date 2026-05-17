@@ -191,6 +191,7 @@ const dashboard: DashboardSummary = {
     monthUtilizationPercent: 90,
     todaySpendCents: 0,
     tokensToday: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 },
+    tokensCumulative: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 },
   },
   pendingApprovals: 1,
   pendingApprovalsList: [],

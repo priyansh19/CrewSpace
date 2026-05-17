@@ -50,6 +50,11 @@ export interface DashboardSummary {
       outputTokens: number;
       cachedInputTokens: number;
     };
+    tokensCumulative: {
+      inputTokens: number;
+      outputTokens: number;
+      cachedInputTokens: number;
+    };
   };
   pendingApprovals: number;
   pendingApprovalsList: PendingApprovalEntry[];

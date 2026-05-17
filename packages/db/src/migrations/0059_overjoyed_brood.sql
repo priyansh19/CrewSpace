@@ -1,0 +1,1 @@
+ALTER TABLE "project_github_repos" ALTER COLUMN "installation_id" DROP NOT NULL;

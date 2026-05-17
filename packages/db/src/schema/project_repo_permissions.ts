@@ -1,4 +1,4 @@
-import { pgTable, uuid, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { projects } from "./projects.js";
 import { agents } from "./agents.js";
 
@@ -10,4 +10,6 @@ export const projectRepoPermissions = pgTable("project_repo_permissions", {
   canPush: boolean("can_push").notNull().default(false),
   canCreateBranch: boolean("can_create_branch").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  uniqueIndex("project_repo_permissions_project_agent_idx").on(t.projectId, t.agentId),
+]);
