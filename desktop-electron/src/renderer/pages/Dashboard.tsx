@@ -842,6 +842,7 @@ function OpenPRsPanel({
   isLoading,
   noRepo,
   noProject,
+  noConfig,
   isDark,
   companyId,
   projectId,
@@ -850,6 +851,7 @@ function OpenPRsPanel({
   isLoading: boolean;
   noRepo: boolean;
   noProject: boolean;
+  noConfig: boolean;
   isDark: boolean;
   companyId: string;
   projectId: string | null;
@@ -929,6 +931,11 @@ function OpenPRsPanel({
           <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: 16 }}>
             <GitPullRequest style={{ width: 28, height: 28, color: tk.textDim, opacity: 0.4 }} />
             <p style={{ fontSize: 11, color: tk.textDim, textAlign: "center" }}>Select a project to view pull requests</p>
+          </div>
+        ) : noConfig ? (
+          <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: 16 }}>
+            <GitPullRequest style={{ width: 28, height: 28, color: "#e8a55a", opacity: 0.6 }} />
+            <p style={{ fontSize: 11, color: tk.textDim, textAlign: "center" }}>GitHub credentials expired — reconnect in Project Settings</p>
           </div>
         ) : noRepo ? (
           <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: 16 }}>
@@ -1842,8 +1849,10 @@ export function Dashboard() {
   const recentActivity = data?.recentCompleted ?? [];
   const blockedCount = data?.tasks?.blocked ?? 0;
   const selectedProject = projects?.find((p) => p.id === selectedProjectId) ?? null;
-  // 404 = no repo connected; any other error = API/auth failure
-  const pullsIsNoRepo = pullsErrorRaw != null && (pullsErrorRaw as { status?: number }).status === 404;
+  // 404 = no repo connected; 503 = GitHub credentials expired (reconnect needed)
+  const pullsStatus = (pullsErrorRaw as { status?: number } | null)?.status;
+  const pullsIsNoRepo = pullsStatus === 404;
+  const pullsIsNoConfig = pullsStatus === 503;
   const noRepoPulls = pullsIsNoRepo || (!pullsLoading && pulls === undefined && !!selectedProjectId && !pullsErrorRaw);
   const pullsList = pulls ?? [];
 
@@ -2146,6 +2155,7 @@ export function Dashboard() {
                       isLoading={pullsLoading}
                       noRepo={!!noRepoPulls}
                       noProject={!selectedProjectId}
+                      noConfig={!!pullsIsNoConfig}
                       isDark={isDark}
                       companyId={selectedCompanyId!}
                       projectId={selectedProjectId}

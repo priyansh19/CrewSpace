@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version tag to release (e.g. v0.0.3). Must match desktop-electron/package.json version.
+        description: Version tag (e.g. v0.1.0). Must match desktop-electron/package.json version.
         required: true
         type: string
       dry_run:
-        description: Build installers without creating a GitHub Release
+        description: Build without creating a GitHub Release
         required: false
         type: boolean
         default: false
@@ -21,9 +21,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ── Windows: build main app + installer wizard ──────────────────────────────
   build-windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -42,32 +43,56 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install dependencies
+      - name: Install monorepo dependencies
         run: pnpm install --no-frozen-lockfile
 
+      # Build all workspace packages (server, shared, adapters, db)
       - name: Build workspace packages
         run: pnpm -r --filter '!crewspace-desktop' build
 
-      - name: Build renderer
+      # Build the Electron renderer (React UI)
+      - name: Build desktop renderer
         working-directory: desktop-electron
         run: pnpm run build:renderer
 
-      - name: Build Windows installers (NSIS + MSI)
+      # Package the main app as an unpacked directory (no NSIS yet —
+      # we'll zip it and hand it to the installer wizard)
+      - name: Build desktop app (unpacked)
         working-directory: desktop-electron
-        run: pnpm exec electron-builder --win nsis msi --publish never
+        run: pnpm exec electron-builder --win --dir --publish never
 
-      - name: Upload Windows artifacts
+      # Zip the unpacked app as the installer payload
+      - name: Create installer payload (app.zip)
+        shell: pwsh
+        run: |
+          $src = "desktop-electron\dist\win-unpacked"
+          $dst = "desktop-electron\installer\assets\payload\app.zip"
+          New-Item -ItemType Directory -Force -Path (Split-Path $dst)
+          Compress-Archive -Path "$src\*" -DestinationPath $dst -CompressionLevel Optimal
+          $mb = [math]::Round((Get-Item $dst).Length / 1MB, 1)
+          Write-Host "Payload size: $mb MB"
+
+      # Build the installer wizard renderer
+      - name: Build installer wizard renderer
+        working-directory: desktop-electron/installer
+        run: pnpm run build
+
+      # Package the installer wizard as a portable exe
+      - name: Build installer wizard portable exe
+        working-directory: desktop-electron/installer
+        run: pnpm run build:app
+
+      - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installers
-          path: |
-            desktop-electron/dist/*.exe
-            desktop-electron/dist/*.msi
-          retention-days: 7
+          name: windows-installer-wizard
+          path: desktop-electron/installer/dist/CrewSpace-Setup-*.exe
+          retention-days: 30
 
+  # ── macOS: build DMG ────────────────────────────────────────────────────────
   build-macos:
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -86,13 +111,13 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install dependencies
+      - name: Install monorepo dependencies
         run: pnpm install --no-frozen-lockfile
 
       - name: Build workspace packages
         run: pnpm -r --filter '!crewspace-desktop' build
 
-      - name: Build renderer
+      - name: Build desktop renderer
         working-directory: desktop-electron
         run: pnpm run build:renderer
 
@@ -105,8 +130,9 @@ jobs:
         with:
           name: macos-dmg
           path: desktop-electron/dist/*.dmg
-          retention-days: 7
+          retention-days: 30
 
+  # ── GitHub Release ───────────────────────────────────────────────────────────
   release:
     if: ${{ inputs.dry_run != true && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     needs: [build-windows, build-macos]
@@ -119,13 +145,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Windows artifacts
+      - name: Download Windows installer
         uses: actions/download-artifact@v4
         with:
-          name: windows-installers
+          name: windows-installer-wizard
           path: dist/
 
-      - name: Download macOS artifact
+      - name: Download macOS DMG
         uses: actions/download-artifact@v4
         with:
           name: macos-dmg
@@ -145,8 +171,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.tag.outputs.tag }}"
-          printf '## CrewSpace Desktop %s\n\n### Downloads\n| Platform | File |\n|----------|------|\n| Windows (installer) | `CrewSpace-Setup-*.exe` |\n| Windows (MSI) | `CrewSpace-Setup-*.msi` |\n| macOS | `CrewSpace-*.dmg` |\n\n### Installation\n**Windows:** Run the `.exe` installer (recommended) or `.msi` for enterprise deployment.\n**macOS:** Open the `.dmg`, drag CrewSpace to Applications.' "$tag" > /tmp/release-notes.md
-          gh release create "$tag" dist/*.exe dist/*.msi dist/*.dmg \
+          cat > /tmp/release-notes.md << 'EOF'
+          ## CrewSpace Desktop
+
+          Your AI company control plane — multi-agent orchestration, budget policies, approval gates, and a plugin ecosystem, all from a single desktop app.
+
+          ### Downloads
+          | Platform | File | Notes |
+          |----------|------|-------|
+          | Windows | `CrewSpace-Setup-*.exe` | Self-contained installer wizard |
+          | macOS | `CrewSpace-*.dmg` | Drag to Applications |
+
+          ### Installation
+          **Windows:** Run `CrewSpace-Setup-*.exe`. The wizard will install the app and create desktop + Start Menu shortcuts. Your existing data (companies, agents, projects) is preserved across updates.
+
+          **macOS:** Open the `.dmg` and drag CrewSpace to your Applications folder.
+
+          ### What's new
+          - First public release
+          - Multi-agent org chart with role-based hierarchy
+          - Budget policies and cost tracking per agent
+          - Approval gates for human-in-the-loop oversight
+          - Plugin ecosystem with built-in plugin manager
+          - Local-first: all data stays on your machine
+          EOF
+          gh release create "$tag" dist/*.exe dist/*.dmg \
             --title "CrewSpace Desktop $tag" \
             --notes-file /tmp/release-notes.md \
             --latest

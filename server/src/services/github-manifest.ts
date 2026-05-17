@@ -18,7 +18,7 @@ const TEMP_DIR = process.env.CREWSPACE_HOME
 const MANIFEST_FILE = join(TEMP_DIR, "github-manifest-result.json");
 const INSTALLATION_FILE = join(TEMP_DIR, "github-installation-result.json");
 const STATE_FILE = join(TEMP_DIR, "github-oauth-states.json");
-const TEMP_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const TEMP_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 year — credentials are long-lived, not truly ephemeral
 
 function ensureDir() {
   mkdirSync(TEMP_DIR, { recursive: true });

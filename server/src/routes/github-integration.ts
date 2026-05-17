@@ -3,6 +3,7 @@ import { eq, and, gt } from "drizzle-orm";
 import type { Db } from "@crewspaceai/db";
 import { projectGithubRepos, projectRepoPermissions, githubOAuthStates } from "@crewspaceai/db";
 import { assertCompanyAccess } from "./authz.js";
+import { instanceSettingsService } from "../services/instance-settings.js";
 import type { GithubAppConfig } from "../services/github-integration.js";
 import {
   verifyRepoAccess,
@@ -91,6 +92,15 @@ const MANIFEST_ERROR_HTML = (message: string) => `<!DOCTYPE html>
 
 export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
   const router = Router();
+  const instanceSvc = instanceSettingsService(db);
+
+  /** Returns resolved GitHub config, falling back to DB-persisted credentials when env vars aren't set. */
+  async function resolveConfig(): Promise<GithubAppConfig | undefined> {
+    const fromEnvOrManifest = resolveGithubConfig(config);
+    if (fromEnvOrManifest) return fromEnvOrManifest;
+    const dbCreds = await instanceSvc.getGithubAppCredentials();
+    return dbCreds ?? undefined;
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   //  Routes that work WITHOUT pre-existing GitHub App config
@@ -164,6 +174,14 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
       }
 
       storeManifestResult(result);
+      // Persist credentials to DB so they survive the 30-min temp file TTL
+      instanceSvc.saveGithubAppCredentials({
+        appId: String(result.id),
+        privateKey: result.pem,
+        clientId: result.clientId,
+        clientSecret: result.clientSecret,
+        slug: result.slug,
+      }).catch((err) => console.error("[github-manifest] Failed to persist credentials to DB:", err));
       console.log(`[github-manifest] App created: ${result.slug} (id=${result.id})`);
 
       res.setHeader("Content-Type", "text/html");
@@ -196,8 +214,8 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
   });
 
   // ── Auth mode status ──
-  router.get("/github/status", (_req, res) => {
-    const cfg = resolveGithubConfig(config);
+  router.get("/github/status", async (_req, res) => {
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.json({ configured: false, mode: "none" });
       return;
@@ -211,7 +229,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // ── List all accessible repos (company level, for PAT mode repo picker) ──
   router.get("/companies/:companyId/github/repos", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -232,13 +250,16 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     const companyId = req.query.companyId as string | undefined;
     const projectId = req.query.projectId as string | undefined;
 
-    // Determine slug: from static config, from stored manifest, or error
+    // Determine slug: from static config → temp manifest file → DB credentials
     let slug = config?.slug;
     if (!slug) {
       const manifest = readManifestResult();
-      if (manifest) {
-        slug = manifest.slug;
-      }
+      if (manifest) slug = manifest.slug;
+    }
+    if (!slug) {
+      // Fall back to DB-persisted credentials (saved after manifest flow completes)
+      const dbCreds = await resolveConfig();
+      if (dbCreds?.slug) slug = dbCreds.slug;
     }
 
     if (!slug) {
@@ -320,7 +341,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
     // Try to fetch repos to include in the callback message
     let repos: Array<{ fullName: string; defaultBranch: string }> = [];
-    const resolvedConfig = resolveGithubConfig(config);
+    const resolvedConfig = await resolveConfig();
     if (resolvedConfig) {
       try {
         repos = await listInstallationRepos(resolvedConfig, parseInt(installationId, 10));
@@ -387,7 +408,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Get connected repo
   router.get("/companies/:companyId/projects/:projectId/github/repo", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -405,7 +426,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Connect a repo (now accepts repoFullName instead of separate owner/name)
   router.post("/companies/:companyId/projects/:projectId/github/repo", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -467,7 +488,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Disconnect repo
   router.delete("/companies/:companyId/projects/:projectId/github/repo", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -480,7 +501,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // List accessible repos
   router.get("/companies/:companyId/projects/:projectId/github/repos", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -505,7 +526,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Get branches
   router.get("/companies/:companyId/projects/:projectId/github/branches", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -524,7 +545,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // List agent permissions
   router.get("/companies/:companyId/projects/:projectId/github/agents", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -538,7 +559,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Update agent permission
   router.post("/companies/:companyId/projects/:projectId/github/agents", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -575,7 +596,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
 
   // Revoke agent permission
   router.delete("/companies/:companyId/projects/:projectId/github/agents/:agentId", async (req, res) => {
-    const cfg = resolveGithubConfig(config);
+    const cfg = await resolveConfig();
     if (!cfg) {
       res.status(503).json({ error: "GitHub integration is not configured" });
       return;
@@ -600,12 +621,17 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
         db,
         req.params.companyId,
         req.params.projectId,
-        config,
+        await resolveConfig(),
       );
       res.json(pulls);
     } catch (err) {
-      if (err instanceof Error && (err as Error & { code?: string }).code === "NO_REPO") {
+      const code = (err as Error & { code?: string }).code;
+      if (err instanceof Error && code === "NO_REPO") {
         res.status(404).json({ error: "No GitHub repo connected to this project" });
+        return;
+      }
+      if (err instanceof Error && code === "NO_CONFIG") {
+        res.status(503).json({ error: "GitHub integration not configured — reconnect in Project Settings" });
         return;
       }
       res.status(500).json({ error: err instanceof Error ? err.message : "Failed to list pull requests" });
@@ -621,7 +647,7 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
       return;
     }
     try {
-      const result = await mergePullRequest(db, req.params.companyId, req.params.projectId, prNumber, config);
+      const result = await mergePullRequest(db, req.params.companyId, req.params.projectId, prNumber, await resolveConfig());
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : "Failed to merge pull request" });

@@ -239,7 +239,7 @@ async function fetchPrPage(
   state: "open" | "closed",
 ): Promise<GithubPrRaw[]> {
   const resp = await fetch(
-    `https://api.github.com/repos/${owner}/${name}/pulls?state=${state}&per_page=30&sort=updated&direction=desc`,
+    `https://api.github.com/repos/${owner}/${name}/pulls?state=${state}&per_page=${state === "closed" ? 100 : 30}&sort=updated&direction=desc`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -291,7 +291,11 @@ export async function listOpenPullRequests(
     throw err;
   }
 
-  if (!cfg) return [];
+  if (!cfg) {
+    const err = new Error("GitHub integration is not configured");
+    (err as Error & { code: string }).code = "NO_CONFIG";
+    throw err;
+  }
 
   const token = await getAuthToken(cfg, repo.installationId || undefined);
   const { repoOwner, repoName } = repo;

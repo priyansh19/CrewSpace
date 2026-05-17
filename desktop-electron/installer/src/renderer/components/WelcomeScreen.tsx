@@ -1,72 +1,341 @@
 import { motion } from "framer-motion";
 
+const PILLARS = [
+  { label: "Multi-agent orchestration", icon: "⬡" },
+  { label: "Budget control",            icon: "◎" },
+  { label: "Approval gates",            icon: "✦" },
+];
+
 interface WelcomeScreenProps {
   onGetStarted: () => void;
 }
 
 export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col items-center"
+    <div className="w-full h-full flex" style={{ background: "#faf9f5" }}>
+
+      {/* ── Left decorative panel ─────────────────────────────────────── */}
+      <div
+        className="shrink-0 relative overflow-hidden flex flex-col items-center justify-center"
+        style={{ width: 380, background: "#141413" }}
       >
+        {/* Ambient glow */}
+        <div
+          style={{
+            position: "absolute",
+            top: "35%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 320,
+            height: 320,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(204,120,92,0.18) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Faint grid lines */}
+        <svg
+          style={{ position: "absolute", inset: 0, opacity: 0.04 }}
+          width="380"
+          height="600"
+        >
+          {Array.from({ length: 10 }, (_, i) => (
+            <line
+              key={`v${i}`}
+              x1={i * 42}
+              y1={0}
+              x2={i * 42}
+              y2={600}
+              stroke="#faf9f5"
+              strokeWidth="0.5"
+            />
+          ))}
+          {Array.from({ length: 15 }, (_, i) => (
+            <line
+              key={`h${i}`}
+              x1={0}
+              y1={i * 42}
+              x2={380}
+              y2={i * 42}
+              stroke="#faf9f5"
+              strokeWidth="0.5"
+            />
+          ))}
+        </svg>
+
         {/* Logo mark */}
-        <div className="mb-6">
-          <svg width="64" height="64" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="14" fill="#141413" />
-            <path d="M16 6 L16 26 M6 16 L26 16" stroke="#faf9f5" strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M9 9 L23 23 M23 9 L9 23" stroke="#faf9f5" strokeWidth="2.5" strokeLinecap="round" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          style={{ position: "relative", marginBottom: 36 }}
+        >
+          {/* Outer pulse ring */}
+          <motion.div
+            style={{
+              position: "absolute",
+              inset: -16,
+              borderRadius: "50%",
+              border: "1px solid rgba(204,120,92,0.35)",
+            }}
+            animate={{ scale: [1, 1.25, 1], opacity: [0.35, 0, 0.35] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+          {/* Inner pulse ring */}
+          <motion.div
+            style={{
+              position: "absolute",
+              inset: -8,
+              borderRadius: "50%",
+              border: "1px solid rgba(204,120,92,0.2)",
+            }}
+            animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0, 0.2] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+          />
+
+          {/* The spike-mark at 80px */}
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" rx="6" fill="#252538" />
+            <rect x="10.5" y="1.5" width="3"   height="5"   rx="1.2" fill="#E07A5F" />
+            <rect x="10.5" y="17.5" width="3"  height="5"   rx="1.2" fill="#E07A5F" />
+            <rect x="1.5"  y="10.5" width="5"  height="3"   rx="1.2" fill="#E07A5F" />
+            <rect x="17.5" y="10.5" width="5"  height="3"   rx="1.2" fill="#E07A5F" />
+            <rect x="7.5"  y="7.5"  width="9"  height="9"   rx="2"   fill="#FFFFFF" />
+            <polygon
+              points="10,10.2 13.8,12 10,13.8 10,12.8 12.4,12 10,11.2"
+              fill="#252538"
+            />
           </svg>
-        </div>
+        </motion.div>
 
         {/* Wordmark */}
-        <h1
-          className="font-display text-[42px] leading-tight tracking-tight text-ink mb-3"
-          style={{ letterSpacing: "-0.5px" }}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          style={{ textAlign: "center" }}
         >
-          CrewSpace
-        </h1>
+          <div
+            style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontSize: 46,
+              fontWeight: 400,
+              color: "#faf9f5",
+              letterSpacing: "-0.5px",
+              lineHeight: 1.05,
+            }}
+          >
+            CrewSpace
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 12,
+              color: "#5c5a54",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              fontWeight: 500,
+            }}
+          >
+            Control plane for AI companies
+          </div>
+        </motion.div>
 
-        {/* Tagline */}
-        <p
-          className="font-display text-xl text-body mb-2"
-          style={{ letterSpacing: "-0.3px" }}
+        {/* Feature pills */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.55, duration: 0.5 }}
+          style={{
+            position: "absolute",
+            bottom: 36,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            width: "100%",
+            padding: "0 32px",
+          }}
         >
-          The control plane for autonomous AI companies
-        </p>
+          {PILLARS.map((p, i) => (
+            <motion.div
+              key={p.label}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 + i * 0.1, duration: 0.4 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <span style={{ color: "#cc785c", fontSize: 14, lineHeight: 1 }}>{p.icon}</span>
+              <span style={{ fontSize: 12, color: "#7a7870", fontWeight: 400 }}>{p.label}</span>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
 
-        {/* Subline */}
-        <p className="text-sm text-muted max-w-md leading-relaxed mb-10">
-          Spin up an AI-native organization — org chart, goals, budgets, approvals, and plugins — all from one board.
-        </p>
-
-        {/* CTA */}
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onGetStarted}
-          className="px-8 py-3 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-active transition-colors min-w-[200px]"
+      {/* ── Right content panel ────────────────────────────────────────── */}
+      <div
+        className="flex-1 flex flex-col justify-center"
+        style={{ padding: "0 64px" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         >
-          Get Started
-        </motion.button>
+          {/* Label */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginBottom: 24,
+              padding: "4px 10px",
+              borderRadius: 9999,
+              background: "rgba(204,120,92,0.1)",
+              border: "1px solid rgba(204,120,92,0.2)",
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#cc785c",
+                display: "inline-block",
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#cc785c",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Version 0.1
+            </span>
+          </div>
 
-        {/* Secondary link */}
-        <button
-          onClick={() => window.installerAPI.openExternal("https://crewspace.ing")}
-          className="mt-4 text-sm text-muted hover:text-primary transition-colors"
+          {/* Headline */}
+          <h1
+            style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontSize: 48,
+              fontWeight: 400,
+              color: "#141413",
+              letterSpacing: "-0.5px",
+              lineHeight: 1.1,
+              marginBottom: 18,
+            }}
+          >
+            Your AI company,<br />
+            <em style={{ fontStyle: "italic", color: "#cc785c" }}>ready to run</em>
+          </h1>
+
+          {/* Body */}
+          <p
+            style={{
+              fontSize: 14,
+              lineHeight: 1.75,
+              color: "#5c5a54",
+              maxWidth: 380,
+              marginBottom: 40,
+            }}
+          >
+            Spin up an AI-native organization with a full org chart,
+            budget policies, approval gates, and plugin ecosystem — all
+            managed from a single control plane.
+          </p>
+
+          {/* CTA */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onGetStarted}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "14px 32px",
+              borderRadius: 10,
+              background: "#cc785c",
+              border: "none",
+              cursor: "pointer",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: "0.01em",
+              boxShadow: "0 4px 20px rgba(204,120,92,0.35)",
+              transition: "box-shadow 0.2s",
+              marginBottom: 16,
+            }}
+          >
+            Get Started
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M3 8h10M9 4l4 4-4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </motion.button>
+
+          {/* Learn more */}
+          <div>
+            <button
+              onClick={() => window.installerAPI.openExternal("https://crewspace.ing")}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 13,
+                color: "#8e8b82",
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#cc785c")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#8e8b82")}
+            >
+              Learn more
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <path
+                  d="M2 9L9 2M9 2H4M9 2v5"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Bottom footnote */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 24,
+            right: 64,
+            fontSize: 11,
+            color: "#b5b0a6",
+            letterSpacing: "0.04em",
+          }}
         >
-          Learn more
-        </button>
-      </motion.div>
-
-      {/* Footer */}
-      <div className="absolute bottom-5 left-0 right-0 text-center">
-        <span className="text-[11px] text-muted-soft tracking-wide">
           On-premise · Private · Secure
-        </span>
+        </div>
       </div>
     </div>
   );
