@@ -160,10 +160,7 @@ export function cleanKimiStderr(stderr: string): string {
 
     // Detect start of loguru error block — it may start with the handler header
     // or directly with the traceback
-    if (
-      line.startsWith("--- Logging error in Loguru") ||
-      line === "Traceback (most recent call last):"
-    ) {
+    if (line.startsWith("--- Logging error in Loguru")) {
       inLoguruBlock = true;
       continue;
     }
@@ -218,6 +215,12 @@ export function detectKimiLoginRequired(input: {
     "kimi login",
     "sign in",
     "not authenticated",
+    "invalid_authentication_error",
+    "api key appears to be invalid",
+    "api key is invalid",
+    "api key expired",
+    "token expired",
+    "token is invalid",
   ];
   const requiresLogin = authPhrases.some((phrase) => haystack.includes(phrase));
   if (!requiresLogin) return { requiresLogin: false, loginUrl: null };

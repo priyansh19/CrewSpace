@@ -40,7 +40,7 @@ const INSTANCE_SETTINGS_MEMORY_KEY = "crewspace.lastInstanceSettingsPath";
 /** Pages that need full height with no padding — they manage their own layout */
 function isFullPageRoute(pathname: string): boolean {
   // Only match top-level routes (e.g. /ABC/dashboard) — not nested ones like /agents/ceo/dashboard
-  return /\/[^/]+\/(memory|agent-chat|office|terminal|workspace|blockers|taskboard|org|dashboard|control)$/.test(pathname);
+  return /^\/[^/]+\/(memory|agent-chat|office|terminal|workspace|blockers|taskboard|org|dashboard|control|proposals)$/.test(pathname);
 }
 
 function readRememberedInstanceSettingsPath(): string {
@@ -416,7 +416,7 @@ export function Layout() {
                 "flex-1 min-w-0",
                 isFullPageRoute(location.pathname)
                   ? "relative min-h-0 overflow-hidden"
-                  : cn("px-6 py-5 md:px-10 md:py-6", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
+                  : cn("px-16 pt-8 pb-16 md:px-20 md:pt-10 md:pb-24", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
               )}
             >
               {hasUnknownCompanyPrefix ? (

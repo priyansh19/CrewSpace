@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Github, Check, X, Save, ShieldAlert } from "lucide-react";
+import { Check, Loader2, Save, ShieldAlert, X } from "lucide-react";
 import { githubIntegrationApi } from "@/api/githubIntegration";
 import { queryKeys } from "@/lib/queryKeys";
+import { useToast } from "@/context/ToastContext";
 import { AgentAvatar } from "./AgentAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,10 @@ interface ProjectRepoPermissionPanelProps {
 
 export function ProjectRepoPermissionPanel({ companyId, projectId, agents }: ProjectRepoPermissionPanelProps) {
   const queryClient = useQueryClient();
+  const { pushToast } = useToast();
   const [localPerms, setLocalPerms] = useState<Map<string, { canRead: boolean; canPush: boolean; canCreateBranch: boolean }>>(new Map());
+  const pendingCount = useRef(0);
+  const errorCount = useRef(0);
 
   const { data: perms } = useQuery({
     queryKey: ["github-repo-perms", companyId, projectId],
@@ -27,8 +31,34 @@ export function ProjectRepoPermissionPanel({ companyId, projectId, agents }: Pro
   const setPermMutation = useMutation({
     mutationFn: (data: { agentId: string; canRead: boolean; canPush: boolean; canCreateBranch: boolean }) =>
       githubIntegrationApi.setAgentPermission(companyId, projectId, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["github-repo-perms", companyId, projectId] });
+      setLocalPerms(prev => {
+        const next = new Map(prev);
+        next.delete(variables.agentId);
+        return next;
+      });
+      pendingCount.current -= 1;
+      if (pendingCount.current <= 0) {
+        if (errorCount.current === 0) {
+          pushToast({ tone: "success", title: "Permissions saved", body: "Agent repository permissions updated." });
+        }
+        pendingCount.current = 0;
+        errorCount.current = 0;
+      }
+    },
+    onError: (err) => {
+      errorCount.current += 1;
+      pendingCount.current -= 1;
+      if (pendingCount.current <= 0) {
+        pushToast({
+          tone: "error",
+          title: "Failed to save permissions",
+          body: err instanceof Error ? err.message : "One or more permissions could not be saved.",
+        });
+        pendingCount.current = 0;
+        errorCount.current = 0;
+      }
     },
   });
 
@@ -51,10 +81,13 @@ export function ProjectRepoPermissionPanel({ companyId, projectId, agents }: Pro
   };
 
   const saveChanges = () => {
-    for (const [agentId, perm] of localPerms) {
+    const entries = [...localPerms];
+    if (entries.length === 0) return;
+    pendingCount.current = entries.length;
+    errorCount.current = 0;
+    for (const [agentId, perm] of entries) {
       setPermMutation.mutate({ agentId, ...perm });
     }
-    setLocalPerms(new Map());
   };
 
   return (
@@ -144,8 +177,10 @@ export function ProjectRepoPermissionPanel({ companyId, projectId, agents }: Pro
 
       {hasChanges && (
         <Button size="sm" onClick={saveChanges} disabled={setPermMutation.isPending}>
-          <Save className="h-3.5 w-3.5 mr-1.5" />
-          Save Changes
+          {setPermMutation.isPending
+            ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Saving…</>
+            : <><Save className="h-3.5 w-3.5 mr-1.5" />Save Changes</>
+          }
         </Button>
       )}
     </div>

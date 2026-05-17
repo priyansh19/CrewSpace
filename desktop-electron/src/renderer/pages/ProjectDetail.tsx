@@ -10,6 +10,7 @@ import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
 import { heartbeatsApi } from "../api/heartbeats";
 import { assetsApi } from "../api/assets";
+import { githubIntegrationApi } from "../api/githubIntegration";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
 import { useToast } from "../context/ToastContext";
@@ -494,6 +495,15 @@ export function ProjectDetail() {
     enabled: !!resolvedCompanyId,
   });
 
+  // Lightweight check: is a GitHub repo connected to this project?
+  const { data: connectedGithubRepo } = useQuery({
+    queryKey: ["github-repo", resolvedCompanyId, project?.id],
+    queryFn: () => githubIntegrationApi.getRepo(resolvedCompanyId!, project!.id),
+    enabled: !!resolvedCompanyId && !!project?.id,
+    retry: false,
+    staleTime: 60_000,
+  });
+
   const experimentalSettingsQuery = useQuery({
     queryKey: queryKeys.instance.experimentalSettings,
     queryFn: () => instanceSettingsApi.getExperimental(),
@@ -874,7 +884,21 @@ export function ProjectDetail() {
             { value: "overview", label: "Overview" },
             ...(showWorkspacesTab ? [{ value: "workspaces", label: "Workspaces" }] : []),
             { value: "configuration", label: "Configuration" },
-            { value: "github", label: "GitHub" },
+            {
+              value: "github",
+              label: (
+                <span className="flex items-center gap-1.5">
+                  GitHub
+                  {connectedGithubRepo && (
+                    <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+                      style={{ background: "rgba(93,184,114,0.15)", color: "#5db872" }}>
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#5db872]" />
+                      Connected
+                    </span>
+                  )}
+                </span>
+              ),
+            },
             { value: "budget", label: "Budget" },
             ...pluginTabItems.map((item) => ({
               value: item.value,

@@ -93,6 +93,13 @@ export function Issues() {
     },
   });
 
+  const deleteIssue = useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map((id) => issuesApi.remove(id))),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues.list(selectedCompanyId!) });
+    },
+  });
+
   if (!selectedCompanyId) {
     return <EmptyState icon={CircleDot} message="Select a company to view issues." />;
   }
@@ -111,6 +118,7 @@ export function Issues() {
       initialSearch={initialSearch}
       onSearchChange={handleSearchChange}
       onUpdateIssue={(id, data) => updateIssue.mutate({ id, data })}
+      onDeleteIssues={(ids) => deleteIssue.mutate(ids)}
       searchFilters={participantAgentId ? { participantAgentId } : undefined}
     />
   );

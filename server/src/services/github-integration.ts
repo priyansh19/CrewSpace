@@ -203,6 +203,7 @@ interface GithubPrRaw {
   draft: boolean;
   mergeable_state: string;
   updated_at: string;
+  merged_at: string | null;
   head: { ref: string };
   base: { ref: string };
   user: { login: string; avatar_url: string };
@@ -216,7 +217,7 @@ export interface PullRequestEntry {
   url: string;
   author: string;
   authorAvatar: string;
-  state: "ready" | "open" | "draft";
+  state: "ready" | "open" | "draft" | "merged";
   updatedAt: string;
   labels: string[];
   referencedPrNumbers: number[];
@@ -229,6 +230,45 @@ export interface PullRequestEntry {
 function extractPrRefs(body: string): number[] {
   const matches = body.matchAll(/#(\d+)/g);
   return [...new Set([...matches].map((m) => parseInt(m[1], 10)))];
+}
+
+async function fetchPrPage(
+  owner: string,
+  name: string,
+  token: string,
+  state: "open" | "closed",
+): Promise<GithubPrRaw[]> {
+  const resp = await fetch(
+    `https://api.github.com/repos/${owner}/${name}/pulls?state=${state}&per_page=30&sort=updated&direction=desc`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "CrewSpace",
+      },
+    },
+  );
+  if (!resp.ok) throw new Error(`GitHub API error: ${resp.status} ${resp.statusText}`);
+  return resp.json() as Promise<GithubPrRaw[]>;
+}
+
+function mapPr(pr: GithubPrRaw, repoOwner: string, repoName: string, forceMerged = false): PullRequestEntry {
+  const merged = forceMerged || pr.merged_at != null;
+  return {
+    number: pr.number,
+    title: pr.title,
+    url: pr.html_url,
+    author: pr.user.login,
+    authorAvatar: pr.user.avatar_url,
+    state: merged ? "merged" : pr.draft ? "draft" : pr.mergeable_state === "clean" ? "ready" : "open",
+    updatedAt: pr.updated_at,
+    labels: pr.labels.map((l) => l.name),
+    referencedPrNumbers: extractPrRefs(pr.body ?? ""),
+    headRef: pr.head.ref,
+    baseRef: pr.base.ref,
+    repoOwner,
+    repoName,
+  };
 }
 
 export async function listOpenPullRequests(
@@ -254,37 +294,62 @@ export async function listOpenPullRequests(
   if (!cfg) return [];
 
   const token = await getAuthToken(cfg, repo.installationId || undefined);
+  const { repoOwner, repoName } = repo;
 
+  const [openPrs, closedPrs] = await Promise.all([
+    fetchPrPage(repoOwner, repoName, token, "open"),
+    fetchPrPage(repoOwner, repoName, token, "closed"),
+  ]);
+
+  const mergedPrs = closedPrs.filter((pr) => pr.merged_at != null);
+
+  const all = [
+    ...openPrs.map((pr) => mapPr(pr, repoOwner, repoName)),
+    ...mergedPrs.map((pr) => mapPr(pr, repoOwner, repoName, true)),
+  ];
+
+  all.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return all;
+}
+
+export async function mergePullRequest(
+  db: Db,
+  companyId: string,
+  projectId: string,
+  prNumber: number,
+  config?: GithubAppConfig,
+): Promise<{ merged: boolean; message: string }> {
+  const cfg = resolveGithubConfig(config);
+  if (!cfg) throw new Error("GitHub not configured");
+
+  const repo = await db.query.projectGithubRepos.findFirst({
+    where: and(
+      eq(projectGithubRepos.companyId, companyId),
+      eq(projectGithubRepos.projectId, projectId),
+    ),
+  });
+  if (!repo) throw new Error("No GitHub repo connected to this project");
+
+  const token = await getAuthToken(cfg, repo.installationId || undefined);
   const resp = await fetch(
-    `https://api.github.com/repos/${repo.repoOwner}/${repo.repoName}/pulls?state=open&per_page=30&sort=updated&direction=desc`,
+    `https://api.github.com/repos/${repo.repoOwner}/${repo.repoName}/pulls/${prNumber}/merge`,
     {
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
         "User-Agent": "CrewSpace",
       },
+      body: JSON.stringify({ merge_method: "merge" }),
     },
   );
   if (!resp.ok) {
-    throw new Error(`GitHub API error: ${resp.status} ${resp.statusText}`);
+    const body = await resp.json().catch(() => null) as { message?: string } | null;
+    throw new Error(body?.message ?? `GitHub API error: ${resp.status}`);
   }
-  const prs = await resp.json() as GithubPrRaw[];
-
-  return prs.map((pr) => ({
-    number: pr.number,
-    title: pr.title,
-    url: pr.html_url,
-    author: pr.user.login,
-    authorAvatar: pr.user.avatar_url,
-    state: pr.draft ? "draft" : pr.mergeable_state === "clean" ? "ready" : "open",
-    updatedAt: pr.updated_at,
-    labels: pr.labels.map((l) => l.name),
-    referencedPrNumbers: extractPrRefs(pr.body ?? ""),
-    headRef: pr.head.ref,
-    baseRef: pr.base.ref,
-    repoOwner: repo.repoOwner,
-    repoName: repo.repoName,
-  }));
+  const data = await resp.json() as { merged: boolean; message: string };
+  return data;
 }
 
 /** Resolve a usable GitHub config from explicit config or manifest temp file. */

@@ -815,7 +815,7 @@ export function AgentDetail() {
   const showConfigActionBar = (activeView === "configuration" || activeView === "instructions") && (configDirty || configSaving);
 
   return (
-    <div className={cn("max-w-5xl mx-auto space-y-6", isMobile && showConfigActionBar && "pb-24")}>
+    <div className={cn("w-full space-y-6", isMobile && showConfigActionBar && "pb-24")}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-4 min-w-0">
@@ -1059,7 +1059,7 @@ export function AgentDetail() {
       )}
 
       {activeView === "budget" && resolvedCompanyId ? (
-        <div className="max-w-3xl">
+        <div className="max-w-2xl">
           <BudgetPolicyCard
             summary={agentBudgetSummary}
             isSaving={budgetMutation.isPending}
@@ -1234,7 +1234,7 @@ function AgentAccessTab({
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="w-full space-y-6">
       {/* Platform Permissions */}
       <AccessSection icon={Shield} title="Platform Permissions" description="Controls what this agent can do within CrewSpace">
         <PermissionRow
@@ -1413,64 +1413,77 @@ function AgentOverview({
   agentId: string;
   agentRouteId: string;
 }) {
+  const { isMobile } = useSidebar();
   return (
-    <div className="space-y-8">
-      {/* Latest Run */}
-      <LatestRunCard runs={runs} agentId={agentRouteId} />
+    <div
+      className="grid gap-6"
+      style={{
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 320px",
+        alignItems: "start",
+      }}
+    >
+      {/* Left column: Latest Run + Charts */}
+      <div className="space-y-6 min-w-0">
+        {/* Latest Run */}
+        <LatestRunCard runs={runs} agentId={agentRouteId} />
 
-      {/* Charts */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <ChartCard title="Run Activity" subtitle="Last 14 days">
-          <RunActivityChart runs={runs} />
-        </ChartCard>
-        <ChartCard title="Issues by Priority" subtitle="Last 14 days">
-          <PriorityChart issues={assignedIssues} />
-        </ChartCard>
-        <ChartCard title="Issues by Status" subtitle="Last 14 days">
-          <IssueStatusChart issues={assignedIssues} />
-        </ChartCard>
-        <ChartCard title="Success Rate" subtitle="Last 14 days">
-          <SuccessRateChart runs={runs} />
-        </ChartCard>
-      </div>
-
-      {/* Recent Issues */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Recent Issues</h3>
-          <Link
-            to={`/issues?participantAgentId=${agentId}`}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            See All &rarr;
-          </Link>
+        {/* Charts */}
+        <div className="grid grid-cols-1 gap-4">
+          <ChartCard title="Run Activity" subtitle="Last 14 days" heightClass="h-64">
+            <RunActivityChart runs={runs} />
+          </ChartCard>
+          <ChartCard title="Issues by Priority" subtitle="Last 14 days" heightClass="h-64">
+            <PriorityChart issues={assignedIssues} />
+          </ChartCard>
+          <ChartCard title="Issues by Status" subtitle="Last 14 days" heightClass="h-64">
+            <IssueStatusChart issues={assignedIssues} />
+          </ChartCard>
+          <ChartCard title="Success Rate" subtitle="Last 14 days" heightClass="h-64">
+            <SuccessRateChart runs={runs} />
+          </ChartCard>
         </div>
-        {assignedIssues.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No recent issues.</p>
-        ) : (
-          <div className="border border-border rounded-lg">
-            {assignedIssues.slice(0, 10).map((issue) => (
-              <EntityRow
-                key={issue.id}
-                identifier={issue.identifier ?? issue.id.slice(0, 8)}
-                title={issue.title}
-                to={`/issues/${issue.identifier ?? issue.id}`}
-                trailing={<StatusBadge status={issue.status} />}
-              />
-            ))}
-            {assignedIssues.length > 10 && (
-              <div className="px-3 py-2 text-xs text-muted-foreground text-center border-t border-border">
-                +{assignedIssues.length - 10} more issues
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Costs */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Costs</h3>
-        <CostsSection runtimeState={runtimeState} runs={runs} />
+      {/* Right column: Recent Issues + Costs */}
+      <div className="space-y-6 min-w-0">
+        {/* Recent Issues */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Recent Issues</h3>
+            <Link
+              to={`/issues?participantAgentId=${agentId}`}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              See All &rarr;
+            </Link>
+          </div>
+          {assignedIssues.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No recent issues.</p>
+          ) : (
+            <div className="border border-border rounded-lg">
+              {assignedIssues.slice(0, 10).map((issue) => (
+                <EntityRow
+                  key={issue.id}
+                  identifier={issue.identifier ?? issue.id.slice(0, 8)}
+                  title={issue.title}
+                  to={`/issues/${issue.identifier ?? issue.id}`}
+                  trailing={<StatusBadge status={issue.status} />}
+                />
+              ))}
+              {assignedIssues.length > 10 && (
+                <div className="px-3 py-2 text-xs text-muted-foreground text-center border-t border-border">
+                  +{assignedIssues.length - 10} more issues
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Costs */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium">Costs</h3>
+          <CostsSection runtimeState={runtimeState} runs={runs} />
+        </div>
       </div>
     </div>
   );
@@ -1593,7 +1606,7 @@ function AgentConfigurePage({
   });
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="w-full space-y-6">
       <ConfigurationTab
         agent={agent}
         onDirtyChange={onDirtyChange}
@@ -2150,7 +2163,7 @@ function PromptsTab({
 
   if (!isLocal) {
     return (
-      <div className="max-w-3xl">
+      <div>
         <p className="text-sm text-muted-foreground">
           Instructions bundles are only available for local adapters.
         </p>
@@ -2163,7 +2176,7 @@ function PromptsTab({
   }
 
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       {(bundle?.warnings ?? []).length > 0 && (
         <div className="space-y-2">
           {(bundle?.warnings ?? []).map((warning) => (
@@ -2540,7 +2553,7 @@ function PromptsTab({
 
 function PromptsTabSkeleton() {
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="rounded-lg border border-border p-4 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -2788,7 +2801,7 @@ function AgentSkillsTab({
       : null;
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/skills"
