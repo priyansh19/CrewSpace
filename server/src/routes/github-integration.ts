@@ -3,6 +3,7 @@ import { eq, and, gt } from "drizzle-orm";
 import type { Db } from "@crewspaceai/db";
 import { projectGithubRepos, projectRepoPermissions, githubOAuthStates } from "@crewspaceai/db";
 import { assertCompanyAccess } from "./authz.js";
+import { instanceSettingsService } from "../services/instance-settings.js";
 import type { GithubAppConfig } from "../services/github-integration.js";
 import {
   verifyRepoAccess,
@@ -91,6 +92,15 @@ const MANIFEST_ERROR_HTML = (message: string) => `<!DOCTYPE html>
 
 export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
   const router = Router();
+  const instanceSvc = instanceSettingsService(db);
+
+  /** Resolve GitHub config: env/static → temp manifest file → DB credentials */
+  async function resolveConfig(): Promise<GithubAppConfig | undefined> {
+    const fromEnvOrManifest = resolveGithubConfig(config);
+    if (fromEnvOrManifest) return fromEnvOrManifest;
+    const dbCreds = await instanceSvc.getGithubAppCredentials();
+    return dbCreds ?? undefined;
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   //  Routes that work WITHOUT pre-existing GitHub App config
@@ -232,13 +242,15 @@ export function githubIntegrationRoutes(db: Db, config?: GithubAppConfig) {
     const companyId = req.query.companyId as string | undefined;
     const projectId = req.query.projectId as string | undefined;
 
-    // Determine slug: from static config, from stored manifest, or error
+    // Determine slug: static config → temp manifest file → DB credentials
     let slug = config?.slug;
     if (!slug) {
       const manifest = readManifestResult();
-      if (manifest) {
-        slug = manifest.slug;
-      }
+      if (manifest) slug = manifest.slug;
+    }
+    if (!slug) {
+      const dbCreds = await resolveConfig();
+      if (dbCreds?.slug) slug = dbCreds.slug;
     }
 
     if (!slug) {

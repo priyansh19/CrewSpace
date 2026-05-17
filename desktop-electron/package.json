@@ -1,6 +1,6 @@
 {
   "name": "crewspace-desktop",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "CrewSpace — AI agent company control plane",
   "author": "CrewSpace AI <hello@crewspace.ai>",
   "main": "main.js",
@@ -102,7 +102,9 @@
       }
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "assets/icon.ico"
     },
     "nsis": {
@@ -129,12 +131,17 @@
       "artifactName": "CrewSpace-Setup-${version}.msi"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "assets/icon.icns"
     },
     "dmg": {
       "background": "assets/installer/dmgBackground.png",
-      "window": { "width": 540, "height": 380 },
+      "window": {
+        "width": 540,
+        "height": 380
+      },
       "artifactName": "CrewSpace-${version}.dmg"
     }
   }
