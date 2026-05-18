@@ -1,6 +1,6 @@
 {
   "name": "crewspace-installer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CrewSpace Windows installer wizard",
   "author": "CrewSpaceAI",
   "private": true,

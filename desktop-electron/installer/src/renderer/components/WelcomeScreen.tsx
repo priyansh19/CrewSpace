@@ -94,18 +94,43 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
           />
 
-          {/* The spike-mark at 80px */}
+          {/* The spike-mark at 80px — full 8-bar design with gradients */}
           <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" rx="6" fill="#252538" />
-            <rect x="10.5" y="1.5" width="3"   height="5"   rx="1.2" fill="#E07A5F" />
-            <rect x="10.5" y="17.5" width="3"  height="5"   rx="1.2" fill="#E07A5F" />
-            <rect x="1.5"  y="10.5" width="5"  height="3"   rx="1.2" fill="#E07A5F" />
-            <rect x="17.5" y="10.5" width="5"  height="3"   rx="1.2" fill="#E07A5F" />
+            <defs>
+              <radialGradient id="ws-bg" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stopColor="#252538" />
+                <stop offset="100%" stopColor="#141422" />
+              </radialGradient>
+              <linearGradient id="ws-bar" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#F2A07B" />
+                <stop offset="100%" stopColor="#E07A5F" />
+              </linearGradient>
+            </defs>
+            <rect width="24" height="24" rx="5" fill="url(#ws-bg)" />
+            {/* N */}
+            <rect x="10.5" y="1.5" width="3"   height="5"   rx="1" fill="url(#ws-bar)" />
+            {/* S */}
+            <rect x="10.5" y="17.5" width="3"  height="5"   rx="1" fill="url(#ws-bar)" />
+            {/* W */}
+            <rect x="1.5"  y="10.5" width="5"  height="3"   rx="1" fill="url(#ws-bar)" />
+            {/* E */}
+            <rect x="17.5" y="10.5" width="5"  height="3"   rx="1" fill="url(#ws-bar)" />
+            {/* NE */}
+            <rect x="15" y="3" width="2.5" height="5.5" rx="1" fill="url(#ws-bar)" transform="rotate(45 16.25 5.75)" />
+            {/* NW */}
+            <rect x="6.5" y="3" width="2.5" height="5.5" rx="1" fill="url(#ws-bar)" transform="rotate(-45 7.75 5.75)" />
+            {/* SE */}
+            <rect x="15" y="15.5" width="2.5" height="5.5" rx="1" fill="url(#ws-bar)" transform="rotate(-45 16.25 18.25)" />
+            {/* SW */}
+            <rect x="6.5" y="15.5" width="2.5" height="5.5" rx="1" fill="url(#ws-bar)" transform="rotate(45 7.75 18.25)" />
+            {/* Terminal frame */}
             <rect x="7.5"  y="7.5"  width="9"  height="9"   rx="2"   fill="#FFFFFF" />
-            <polygon
-              points="10,10.2 13.8,12 10,13.8 10,12.8 12.4,12 10,11.2"
-              fill="#252538"
-            />
+            {/* Terminal screen */}
+            <rect x="9"    y="9.5"  width="6"  height="5.5" rx="1"   fill="#141422" />
+            {/* > prompt */}
+            <polygon points="9.8,10.8 11.8,12 9.8,13.2 9.8,12.5 11,12 9.8,11.5" fill="#FFFFFF" />
+            {/* _ cursor */}
+            <rect x="12.2" y="13" width="1.8" height="0.8" rx="0.4" fill="#FFFFFF" />
           </svg>
         </motion.div>
 

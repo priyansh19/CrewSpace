@@ -1,6 +1,6 @@
 {
   "name": "crewspace-desktop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CrewSpace — AI agent company control plane",
   "author": "CrewSpace AI <hello@crewspace.ai>",
   "main": "main.js",
@@ -134,7 +134,8 @@
       "target": [
         "dmg"
       ],
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.png",
+      "identity": null
     },
     "dmg": {
       "background": "assets/installer/dmgBackground.png",
