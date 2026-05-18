@@ -7,12 +7,9 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("path");
-const { spawn, exec } = require("child_process");
+const { spawn } = require("child_process");
 const os = require("os");
 const fs = require("fs");
-const util = require("util");
-
-const execAsync = util.promisify(exec);
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
@@ -70,6 +67,23 @@ function createWindow() {
 
 // ── Installation helpers ────────────────────────────────────────────────────
 
+// Use spawn(powershell.exe) directly — avoids cmd.exe newline/quoting issues
+function runPowerShell(script) {
+  return new Promise((resolve, reject) => {
+    const ps = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    let stderr = "";
+    ps.stderr.on("data", (d) => { stderr += d.toString(); });
+    ps.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`PowerShell exited with code ${code}: ${stderr.trim() || "no details"}`));
+    });
+    ps.on("error", reject);
+  });
+}
+
 function getAppDataDir() {
   return path.join(os.homedir(), "AppData", "Local", "CrewSpace");
 }
@@ -81,19 +95,17 @@ function getPayloadPath() {
 }
 
 async function extractZip(zipPath, targetDir, onProgress) {
-  // Ensure target exists
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
-  // Use PowerShell Expand-Archive (built into Windows)
   const safeZip = zipPath.replace(/'/g, "''");
   const safeTarget = targetDir.replace(/'/g, "''");
-  const cmd = `powershell -NoProfile -Command "Expand-Archive -Path '${safeZip}' -DestinationPath '${safeTarget}' -Force"`;
 
   onProgress?.({ percent: 5, stage: "extract", detail: "Starting extraction…" });
 
-  await execAsync(cmd);
+  // spawn powershell.exe directly — avoids cmd.exe breaking on newlines/quotes
+  await runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeTarget}' -Force`);
 
   onProgress?.({ percent: 70, stage: "extract", detail: "Extraction complete" });
 }
@@ -103,15 +115,16 @@ async function createShortcut(exePath, shortcutPath) {
   const safeDir = path.dirname(exePath).replace(/'/g, "''");
   const safeShortcut = shortcutPath.replace(/'/g, "''");
 
-  const ps = `
-    $WshShell = New-Object -comObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut('${safeShortcut}')
-    $Shortcut.TargetPath = '${safeExe}'
-    $Shortcut.WorkingDirectory = '${safeDir}'
-    $Shortcut.Save()
-  `;
+  // Single-line script — safe to pass directly to spawn(powershell.exe)
+  const script = [
+    `$w = New-Object -comObject WScript.Shell`,
+    `$s = $w.CreateShortcut('${safeShortcut}')`,
+    `$s.TargetPath = '${safeExe}'`,
+    `$s.WorkingDirectory = '${safeDir}'`,
+    `$s.Save()`,
+  ].join("; ");
 
-  await execAsync(`powershell -NoProfile -Command "${ps.replace(/"/g, '\"')}"`);
+  await runPowerShell(script);
 }
 
 async function createShortcuts(exePath, { desktop = true, startMenu = true } = {}) {
