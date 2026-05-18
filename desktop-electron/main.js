@@ -235,7 +235,8 @@ function spawnServer(port) {
     CREWSPACE_HOME: dataDir,
     HOST: SERVER_BIND_HOST,
     PORT: String(port),
-    SERVE_UI: "false",
+    SERVE_UI: "true",
+    CREWSPACE_RENDERER_DIST: path.join(__dirname, "renderer-dist"),
     CREWSPACE_MIGRATION_AUTO_APPLY: "true",
     CREWSPACE_MIGRATION_PROMPT: "never",
     CREWSPACE_OPEN_ON_LISTEN: "false",
@@ -491,7 +492,7 @@ function createWindow() {
     minHeight: 640,
     center: true,
     show: false,
-    backgroundColor: "#faf9f5",
+    backgroundColor: "#0f172a",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -620,7 +621,7 @@ function createWindow() {
     const url = mainWindow.webContents.getURL();
     handleNavigation(url);
     // Before React mounts: seed localStorage with the saved theme preference
-    if (url.includes("localhost:5285") || url.startsWith("file://")) {
+    if (url.includes("localhost:5285") || url.startsWith("file://") || (serverUrl && url.startsWith(serverUrl))) {
       try {
         const rawTheme = getThemePreference();
         const savedTheme = (rawTheme === "dark" || rawTheme === "light") ? rawTheme : "dark";

@@ -269,6 +269,7 @@ export async function createApp(
   if (opts.uiMode === "static") {
     // Try published location first (server/ui-dist/), then monorepo dev location (../../ui/dist)
     const candidates = [
+      ...(process.env.CREWSPACE_RENDERER_DIST ? [process.env.CREWSPACE_RENDERER_DIST] : []),
       path.resolve(__dirname, "../ui-dist"),
       path.resolve(__dirname, "../../desktop-electron/renderer-dist"),
     ];
