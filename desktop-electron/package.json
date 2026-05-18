@@ -135,7 +135,8 @@
         "dmg"
       ],
       "icon": "assets/icon.png",
-      "identity": null
+      "identity": null,
+      "afterSign": "scripts/afterSign.cjs"
     },
     "dmg": {
       "background": "assets/installer/dmgBackground.png",
