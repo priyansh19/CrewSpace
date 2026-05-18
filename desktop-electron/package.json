@@ -82,6 +82,7 @@
   "build": {
     "appId": "com.crewspaceai.desktop",
     "productName": "CrewSpace",
+    "afterSign": "scripts/afterSign.cjs",
     "directories": {
       "output": "dist"
     },
@@ -135,8 +136,7 @@
         "dmg"
       ],
       "icon": "assets/icon.png",
-      "identity": null,
-      "afterSign": "scripts/afterSign.cjs"
+      "identity": null
     },
     "dmg": {
       "background": "assets/installer/dmgBackground.png",
