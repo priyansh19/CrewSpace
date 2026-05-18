@@ -198,30 +198,51 @@ ipcMain.handle("install", async () => {
   const targetDir = path.join(os.homedir(), "AppData", "Local", "Programs", "CrewSpace");
 
   try {
-    // ── Case 1: payload zip exists → fresh app extraction ────────────────
+    // ── Case 1: payload zip exists → install / in-place update ──────────
     if (fs.existsSync(zipPath)) {
-      sendProgress(5, "extract", "Preparing installation directory…");
+      const isUpdate = fs.existsSync(targetDir);
+      sendProgress(5, "extract", isUpdate ? "Preparing update…" : "Preparing installation…");
 
-      if (fs.existsSync(targetDir)) {
-        // Kill any running CrewSpace so Windows releases file locks before we delete
-        try {
-          await runPowerShell("Stop-Process -Name 'CrewSpace' -Force -ErrorAction SilentlyContinue");
-          await new Promise((r) => setTimeout(r, 800));
-        } catch (_) {}
+      // Kill running CrewSpace and wait for it to fully exit before touching files.
+      // Using a wait loop avoids the "file locked" error from the old instant-delete approach.
+      try {
+        await runPowerShell(
+          "$proc = Get-Process -Name 'CrewSpace' -ErrorAction SilentlyContinue; " +
+          "if ($proc) { $proc | Stop-Process -Force; Start-Sleep -Seconds 2 }"
+        );
+      } catch (_) {}
 
-        try {
-          fs.rmSync(targetDir, { recursive: true, force: true });
-        } catch (_) {
-          // Locked files (e.g. DLLs in use) — proceed anyway;
-          // Expand-Archive -Force will overwrite everything it can
-          sendProgress(8, "extract", "Updating existing installation…");
-        }
-      }
+      sendProgress(10, "extract", "Extracting files…");
+
+      // Extract to a temp directory first — avoids lock contention on the live install dir
+      const tempDir = path.join(os.tmpdir(), `crewspace-update-${Date.now()}`);
+      fs.mkdirSync(tempDir, { recursive: true });
+
+      const safeZip = zipPath.replace(/'/g, "''");
+      const safeTemp = tempDir.replace(/'/g, "''");
+      await runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeTemp}' -Force`);
+
+      sendProgress(65, "extract", "Applying update…");
+
+      // electron-builder sometimes nests all files in a subdir inside the zip
+      const tempEntries = fs.readdirSync(tempDir, { withFileTypes: true });
+      const hasExeAtRoot = tempEntries.some((e) => e.name === "CrewSpace.exe");
+      const srcDir = hasExeAtRoot
+        ? tempDir
+        : path.join(tempDir, (tempEntries.find((e) => e.isDirectory()) ?? { name: "" }).name);
+
+      // Robocopy merge: overwrite existing files, copy new ones, keep unrelated extras.
+      // Exit codes 0–7 are success (files copied/skipped); ≥8 means real error.
       fs.mkdirSync(targetDir, { recursive: true });
+      const safeSrc = srcDir.replace(/'/g, "''");
+      const safeDst = targetDir.replace(/'/g, "''");
+      await runPowerShell(
+        `$rc = (Start-Process robocopy -ArgumentList "'${safeSrc}' '${safeDst}' /E /IS /IT /IM /NFL /NDL /NJH /NJS" -Wait -PassThru -NoNewWindow).ExitCode; ` +
+        `if ($rc -ge 8) { exit $rc } else { exit 0 }`
+      );
 
-      await extractZip(zipPath, targetDir, (progress) => {
-        mainWindow?.webContents.send("install-progress", progress);
-      });
+      // Clean up temp
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
 
       let exePath = path.join(targetDir, "CrewSpace.exe");
       if (!fs.existsSync(exePath)) {
@@ -235,7 +256,7 @@ ipcMain.handle("install", async () => {
 
       sendProgress(85, "shortcuts", "Creating shortcuts…");
       await createShortcuts(exePath);
-      sendProgress(100, "done", "Installation complete");
+      sendProgress(100, "done", isUpdate ? "Update complete" : "Installation complete");
       return { success: true, installPath: targetDir, exePath };
     }
 
