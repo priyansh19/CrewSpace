@@ -82,6 +82,7 @@
   "build": {
     "appId": "com.crewspaceai.desktop",
     "productName": "CrewSpace",
+    "afterSign": "scripts/afterSign.cjs",
     "directories": {
       "output": "dist"
     },
