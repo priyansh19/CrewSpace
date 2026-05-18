@@ -32,7 +32,7 @@ export default function App() {
       if (data.percent >= 100 && data.stage === "done") {
         window.installerAPI.offProgress();
         if (data.detail?.startsWith("Error:")) {
-          setInstallError(data.detail);
+          setInstallError(data.detail.slice("Error: ".length));
         } else {
           setInstallReady(true);
         }
@@ -43,6 +43,12 @@ export default function App() {
       const msg = err instanceof Error ? err.message : String(err);
       setInstallError(msg);
     });
+  }
+
+  function retryInstall() {
+    installStarted.current = false;
+    setInstallError(null);
+    startInstall();
   }
 
   function handleGetStarted() {
@@ -81,6 +87,7 @@ export default function App() {
               installReady={installReady}
               installError={installError}
               onComplete={() => setStep("complete")}
+              onRetry={retryInstall}
             />
           </motion.div>
         )}
