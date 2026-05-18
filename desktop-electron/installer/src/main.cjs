@@ -202,10 +202,20 @@ ipcMain.handle("install", async () => {
     if (fs.existsSync(zipPath)) {
       sendProgress(5, "extract", "Preparing installation directory…");
 
-      // Remove old app binaries but preserve user data (instances/ lives in a
-      // sibling AppData/Local/CrewSpace/ directory, not here, so rmSync is safe)
       if (fs.existsSync(targetDir)) {
-        fs.rmSync(targetDir, { recursive: true, force: true });
+        // Kill any running CrewSpace so Windows releases file locks before we delete
+        try {
+          await runPowerShell("Stop-Process -Name 'CrewSpace' -Force -ErrorAction SilentlyContinue");
+          await new Promise((r) => setTimeout(r, 800));
+        } catch (_) {}
+
+        try {
+          fs.rmSync(targetDir, { recursive: true, force: true });
+        } catch (_) {
+          // Locked files (e.g. DLLs in use) — proceed anyway;
+          // Expand-Archive -Force will overwrite everything it can
+          sendProgress(8, "extract", "Updating existing installation…");
+        }
       }
       fs.mkdirSync(targetDir, { recursive: true });
 
