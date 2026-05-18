@@ -8,12 +8,14 @@ interface FeatureCarouselProps {
   installReady: boolean;
   installError: string | null;
   onComplete: () => void;
+  onRetry: () => void;
 }
 
 export default function FeatureCarousel({
   installReady,
   installError,
   onComplete,
+  onRetry,
 }: FeatureCarouselProps) {
   const { index, progress, goTo, next, prev, setPaused } = useCarousel(
     featureSlides.length
@@ -286,14 +288,34 @@ export default function FeatureCarousel({
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
+                  maxWidth: 360,
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
                   <circle cx="7" cy="7" r="6.5" stroke="#c64545" />
                   <line x1="7" y1="4" x2="7" y2="8" stroke="#c64545" strokeWidth="1.5" strokeLinecap="round" />
                   <circle cx="7" cy="10" r="0.75" fill="#c64545" />
                 </svg>
-                Installation failed
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {installError.length > 80 ? installError.slice(0, 80) + "…" : installError}
+                </span>
+                <button
+                  onClick={onRetry}
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: 4,
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    border: "1px solid #c64545",
+                    background: "transparent",
+                    color: "#c64545",
+                    fontSize: 11,
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  Retry
+                </button>
               </span>
             ) : installReady ? (
               <span
