@@ -65,16 +65,29 @@ export default function InstallerLayout({ step, children }: InstallerLayoutProps
         <div className="flex items-center gap-2" style={{ minWidth: 160 }}>
           {/* Spike-mark icon */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" rx="5" fill="#252538" />
-            <rect x="10.5" y="2"    width="3"   height="4.5" rx="1" fill="#E07A5F" />
-            <rect x="10.5" y="17.5" width="3"   height="4.5" rx="1" fill="#E07A5F" />
-            <rect x="2"    y="10.5" width="4.5" height="3"   rx="1" fill="#E07A5F" />
-            <rect x="17.5" y="10.5" width="4.5" height="3"   rx="1" fill="#E07A5F" />
-            <rect x="8"    y="8"    width="8"   height="8"   rx="1.5" fill="#FFFFFF" />
-            <polygon
-              points="10.5,10.8 13.2,12 10.5,13.2 10.5,12.4 12,12 10.5,11.6"
-              fill="#252538"
-            />
+            <defs>
+              <radialGradient id="il-bg" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stopColor="#252538" />
+                <stop offset="100%" stopColor="#141422" />
+              </radialGradient>
+              <linearGradient id="il-bar" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#F2A07B" />
+                <stop offset="100%" stopColor="#E07A5F" />
+              </linearGradient>
+            </defs>
+            <rect width="24" height="24" rx="5" fill="url(#il-bg)" />
+            <rect x="10.5" y="2"    width="3"   height="4.5" rx="1" fill="url(#il-bar)" />
+            <rect x="10.5" y="17.5" width="3"   height="4.5" rx="1" fill="url(#il-bar)" />
+            <rect x="2"    y="10.5" width="4.5" height="3"   rx="1" fill="url(#il-bar)" />
+            <rect x="17.5" y="10.5" width="4.5" height="3"   rx="1" fill="url(#il-bar)" />
+            <rect x="15"   y="3.5"  width="2.5" height="5.5" rx="1" fill="url(#il-bar)" transform="rotate(45 16.25 6.25)" />
+            <rect x="6.5"  y="3.5"  width="2.5" height="5.5" rx="1" fill="url(#il-bar)" transform="rotate(-45 7.75 6.25)" />
+            <rect x="15"   y="15"   width="2.5" height="5.5" rx="1" fill="url(#il-bar)" transform="rotate(-45 16.25 17.75)" />
+            <rect x="6.5"  y="15"   width="2.5" height="5.5" rx="1" fill="url(#il-bar)" transform="rotate(45 7.75 17.75)" />
+            <rect x="7.5"  y="7.5"  width="9"   height="9"   rx="2" fill="#FFFFFF" />
+            <rect x="9"    y="9.5"  width="6"   height="5.5" rx="1" fill="#141422" />
+            <polygon points="9.8,10.8 11.8,12 9.8,13.2 9.8,12.5 11,12 9.8,11.5" fill="#FFFFFF" />
+            <rect x="12.2" y="13"   width="1.8" height="0.8" rx="0.4" fill="#FFFFFF" />
           </svg>
           <span
             style={{
