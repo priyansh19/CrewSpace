@@ -89,7 +89,6 @@
       "repo": "CrewSpace",
       "releaseType": "release"
     },
-    "updaterCacheDirName": "crewspace-updater",
     "directories": {
       "output": "dist"
     },
