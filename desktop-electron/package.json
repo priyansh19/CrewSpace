@@ -83,6 +83,13 @@
     "appId": "com.crewspaceai.desktop",
     "productName": "CrewSpace",
     "afterSign": "scripts/afterSign.cjs",
+    "publish": {
+      "provider": "github",
+      "owner": "priyansh19",
+      "repo": "CrewSpace",
+      "releaseType": "release"
+    },
+    "updaterCacheDirName": "crewspace-updater",
     "directories": {
       "output": "dist"
     },

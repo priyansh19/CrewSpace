@@ -45,7 +45,7 @@
       "icon": "assets/icon.ico"
     },
     "portable": {
-      "artifactName": "CrewSpace-Setup-${version}.exe"
+      "artifactName": "CrewSpace-Installer-${version}.exe"
     }
   }
 }
