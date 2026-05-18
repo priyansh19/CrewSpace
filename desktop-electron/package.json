@@ -134,7 +134,8 @@
       "target": [
         "dmg"
       ],
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.png",
+      "identity": null
     },
     "dmg": {
       "background": "assets/installer/dmgBackground.png",
