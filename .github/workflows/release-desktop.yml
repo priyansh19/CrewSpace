@@ -50,6 +50,14 @@ jobs:
       - name: Build workspace packages
         run: pnpm -r --filter '!crewspace-desktop' build
 
+      # Generate proper multi-size ICO from source PNG using ImageMagick
+      # (available on all GitHub Actions Windows runners as `magick`)
+      - name: Generate Windows ICO
+        shell: pwsh
+        run: |
+          magick "desktop-electron/assets/icon.png" -define icon:auto-resize=256,128,64,48,32,16 "desktop-electron/assets/icon.ico"
+          magick "desktop-electron/assets/icon.png" -define icon:auto-resize=256,128,64,48,32,16 "desktop-electron/installer/assets/icon.ico"
+
       # Build the Electron renderer (React UI)
       - name: Build desktop renderer
         working-directory: desktop-electron
@@ -120,6 +128,23 @@ jobs:
       - name: Build desktop renderer
         working-directory: desktop-electron
         run: pnpm run build:renderer
+
+      # Generate proper multi-resolution ICNS from source PNG using macOS tools
+      - name: Generate macOS ICNS
+        run: |
+          mkdir -p desktop-electron/assets/icon.iconset
+          sips -z 16   16   desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_16x16.png
+          sips -z 32   32   desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_16x16@2x.png
+          sips -z 32   32   desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_32x32.png
+          sips -z 64   64   desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_32x32@2x.png
+          sips -z 128  128  desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_128x128.png
+          sips -z 256  256  desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_128x128@2x.png
+          sips -z 256  256  desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_256x256.png
+          sips -z 512  512  desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_256x256@2x.png
+          sips -z 512  512  desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_512x512.png
+          sips -z 1024 1024 desktop-electron/assets/icon.png --out desktop-electron/assets/icon.iconset/icon_512x512@2x.png
+          iconutil -c icns desktop-electron/assets/icon.iconset -o desktop-electron/assets/icon.icns
+          rm -rf desktop-electron/assets/icon.iconset
 
       - name: Build macOS DMG
         working-directory: desktop-electron
