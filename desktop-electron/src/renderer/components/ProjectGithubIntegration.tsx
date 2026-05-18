@@ -16,6 +16,7 @@ declare global {
       restartServerWithAuth: () => Promise<{ success: boolean; error?: string }>;
       getGitHubAuthConfig: () => Promise<{ pat?: string } | null>;
       openGithubWindow?: (url: string) => void;
+      getServerUrl: () => Promise<string>;
     };
   }
 }
