@@ -232,12 +232,21 @@ export function ProjectGithubIntegration({ companyId, projectId, agents }: Proje
     }
   };
 
-  const initiateGithubInstall = useCallback(() => {
+  const initiateGithubInstall = useCallback(async () => {
     const width = 800, height = 700;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top  = window.screenY + (window.outerHeight - height) / 2;
-    const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    const apiBase = isLocalhost ? "http://localhost:3100/api" : "/api";
+
+    // Prefer the actual server URL from Electron (handles dynamic port).
+    // Fall back to relative /api for web builds.
+    let apiBase = "/api";
+    if (window.electronAPI?.getServerUrl) {
+      try {
+        const serverUrl = await window.electronAPI.getServerUrl();
+        if (serverUrl) apiBase = `${serverUrl.replace(/\/$/, "")}/api`;
+      } catch { /* use fallback */ }
+    }
+
     const popup = window.open(
       `${apiBase}/github/install?projectId=${encodeURIComponent(projectId)}&companyId=${encodeURIComponent(companyId)}`,
       "github-install",
