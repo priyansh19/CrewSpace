@@ -1,6 +1,6 @@
 {
   "name": "crewspace-desktop",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "CrewSpace — AI agent company control plane",
   "author": "CrewSpace AI <hello@crewspace.ai>",
   "main": "main.js",

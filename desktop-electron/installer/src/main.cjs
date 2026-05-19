@@ -28,11 +28,12 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     center: true,
-    show: false,
+    show: true,
     frame: false,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
+    backgroundColor: "#faf9f5",
     title: "CrewSpace Setup",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -53,10 +54,6 @@ function createWindow() {
       console.error("[Installer] Failed to load renderer:", err);
     });
   }
-
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
-  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
