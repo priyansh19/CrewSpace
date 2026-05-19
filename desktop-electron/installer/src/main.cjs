@@ -78,7 +78,7 @@ function runPowerShell(script) {
     ps.stderr.on("data", (d) => { stderr += d.toString(); });
     ps.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`PowerShell exited with code ${code}: ${stderr.trim() || "no details"}`));
+      else reject(new Error(`PowerShell failed (code ${code}): ${stderr.trim() || "no details"}`));
     });
     ps.on("error", reject);
   });
@@ -232,13 +232,14 @@ ipcMain.handle("install", async () => {
         : path.join(tempDir, (tempEntries.find((e) => e.isDirectory()) ?? { name: "" }).name);
 
       // Robocopy merge: overwrite existing files, copy new ones, keep unrelated extras.
+      // Run robocopy directly (not via Start-Process) so $LASTEXITCODE is reliable.
       // Exit codes 0–7 are success (files copied/skipped); ≥8 means real error.
       fs.mkdirSync(targetDir, { recursive: true });
       const safeSrc = srcDir.replace(/'/g, "''");
       const safeDst = targetDir.replace(/'/g, "''");
       await runPowerShell(
-        `$rc = (Start-Process robocopy -ArgumentList "'${safeSrc}' '${safeDst}' /E /IS /IT /IM /NFL /NDL /NJH /NJS" -Wait -PassThru -NoNewWindow).ExitCode; ` +
-        `if ($rc -ge 8) { exit $rc } else { exit 0 }`
+        `robocopy '${safeSrc}' '${safeDst}' /E /IS /IT /IM /NFL /NDL /NJH /NJS; ` +
+        `if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE } else { exit 0 }`
       );
 
       // Clean up temp
