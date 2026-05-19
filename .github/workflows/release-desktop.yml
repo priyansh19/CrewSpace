@@ -15,6 +15,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'release/*'
 
 concurrency:
   group: release-desktop-${{ github.ref }}
@@ -168,8 +170,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            # Triggered by release/* branch push — read version from package.json
+            ver=$(node -p "require('./desktop-electron/package.json').version")
+            echo "tag=v${ver}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create GitHub Release
