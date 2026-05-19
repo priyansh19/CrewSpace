@@ -65,25 +65,9 @@ function createWindow() {
 // ── Installation helpers ────────────────────────────────────────────────────
 
 // PowerShell is only used for shortcut creation (requires WScript.Shell COM).
-// All file operations use Node.js built-ins to avoid PowerShell policy issues.
-function runPowerShell(script) {
-  return new Promise((resolve, reject) => {
-    const ps = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-    });
-    let stderr = "";
-    ps.stderr.on("data", (d) => { stderr += d.toString(); });
-    ps.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`PowerShell failed (code ${code}): ${stderr.trim() || "no details"}`));
-    });
-    ps.on("error", reject);
-  });
-}
+// ── No PowerShell anywhere — all ops use Node.js built-ins or Electron APIs ──
 
-// Extract a ZIP using tar.exe (built into Windows 10 1803+), with
-// fallback to PowerShell Expand-Archive if tar is unavailable.
+// Extract a ZIP using tar.exe (built into Windows 10 1803+).
 function extractZipToDir(zipPath, targetDir) {
   fs.mkdirSync(targetDir, { recursive: true });
   return new Promise((resolve, reject) => {
@@ -94,25 +78,14 @@ function extractZipToDir(zipPath, targetDir) {
     let stderr = "";
     proc.stderr.on("data", (d) => { stderr += d.toString(); });
     proc.on("close", (code) => {
-      if (code === 0) { resolve(); return; }
-      // tar failed — fall back to Expand-Archive
-      const safeZip = zipPath.replace(/'/g, "''");
-      const safeDst = targetDir.replace(/'/g, "''");
-      runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeDst}' -Force`)
-        .then(resolve).catch(reject);
+      if (code === 0) resolve();
+      else reject(new Error(`Extraction failed (tar code ${code}): ${stderr.trim() || "no details"}`));
     });
-    proc.on("error", () => {
-      // tar.exe not found — fall back to Expand-Archive
-      const safeZip = zipPath.replace(/'/g, "''");
-      const safeDst = targetDir.replace(/'/g, "''");
-      runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeDst}' -Force`)
-        .then(resolve).catch(reject);
-    });
+    proc.on("error", (err) => reject(new Error(`tar.exe unavailable: ${err.message}`)));
   });
 }
 
 // Recursively copy srcDir into dstDir using Node.js fs.cpSync.
-// No robocopy or PowerShell needed.
 function copyDir(srcDir, dstDir) {
   fs.mkdirSync(dstDir, { recursive: true });
   fs.cpSync(srcDir, dstDir, { recursive: true, force: true, errorOnExist: false });
@@ -123,56 +96,29 @@ function getAppDataDir() {
 }
 
 function getPayloadPath() {
-  // In dev: __dirname = src/  →  ../assets/payload/app.zip
-  // In prod (asar:false): __dirname = resources/app/src/  →  ../assets/payload/app.zip
   return path.join(__dirname, "..", "assets", "payload", "app.zip");
 }
 
-async function createShortcut(exePath, shortcutPath) {
-  const safeExe = exePath.replace(/'/g, "''");
-  const safeDir = path.dirname(exePath).replace(/'/g, "''");
-  const safeShortcut = shortcutPath.replace(/'/g, "''");
-
-  // Single-line script — safe to pass directly to spawn(powershell.exe)
-  const script = [
-    `$w = New-Object -comObject WScript.Shell`,
-    `$s = $w.CreateShortcut('${safeShortcut}')`,
-    `$s.TargetPath = '${safeExe}'`,
-    `$s.WorkingDirectory = '${safeDir}'`,
-    `$s.Save()`,
-  ].join("; ");
-
-  await runPowerShell(script);
-}
-
-async function createShortcuts(exePath, { desktop = true, startMenu = true } = {}) {
-  const results = [];
+// Create Windows shortcuts using Electron's native shell.writeShortcutLink.
+// Zero PowerShell — no spawn, no execution policy, no WDAC issues.
+function createShortcuts(exePath, { desktop = true, startMenu = true } = {}) {
+  const opts = { target: exePath, cwd: path.dirname(exePath) };
 
   if (desktop) {
-    const desktopPath = path.join(os.homedir(), "Desktop", "CrewSpace.lnk");
-    await createShortcut(exePath, desktopPath);
-    results.push(desktopPath);
+    const dest = path.join(os.homedir(), "Desktop", "CrewSpace.lnk");
+    try { shell.writeShortcutLink(dest, "create", opts); } catch (_) {}
   }
 
   if (startMenu) {
-    const startMenuDir = path.join(
-      os.homedir(),
-      "AppData",
-      "Roaming",
-      "Microsoft",
-      "Windows",
-      "Start Menu",
-      "Programs"
+    const dir = path.join(
+      os.homedir(), "AppData", "Roaming", "Microsoft",
+      "Windows", "Start Menu", "Programs"
     );
-    if (!fs.existsSync(startMenuDir)) {
-      fs.mkdirSync(startMenuDir, { recursive: true });
-    }
-    const startMenuPath = path.join(startMenuDir, "CrewSpace.lnk");
-    await createShortcut(exePath, startMenuPath);
-    results.push(startMenuPath);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      shell.writeShortcutLink(path.join(dir, "CrewSpace.lnk"), "create", opts);
+    } catch (_) {}
   }
-
-  return results;
 }
 
 // ── IPC handlers ────────────────────────────────────────────────────────────
@@ -267,7 +213,7 @@ ipcMain.handle("install", async () => {
       }
 
       sendProgress(85, "shortcuts", "Creating shortcuts…");
-      await createShortcuts(exePath);
+      createShortcuts(exePath);
       sendProgress(100, "done", isUpdate ? "Update complete" : "Installation complete");
       return { success: true, installPath: targetDir, exePath };
     }
@@ -288,7 +234,7 @@ ipcMain.handle("install", async () => {
     await new Promise((r) => setTimeout(r, 400));
 
     if (existingExe) {
-      try { await createShortcuts(existingExe); } catch (_) {}
+      try { createShortcuts(existingExe); } catch (_) {}
     }
 
     sendProgress(100, "done", "Installation complete");
