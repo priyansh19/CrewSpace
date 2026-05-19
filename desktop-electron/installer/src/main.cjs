@@ -67,7 +67,8 @@ function createWindow() {
 
 // ── Installation helpers ────────────────────────────────────────────────────
 
-// Use spawn(powershell.exe) directly — avoids cmd.exe newline/quoting issues
+// PowerShell is only used for shortcut creation (requires WScript.Shell COM).
+// All file operations use Node.js built-ins to avoid PowerShell policy issues.
 function runPowerShell(script) {
   return new Promise((resolve, reject) => {
     const ps = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
@@ -84,6 +85,42 @@ function runPowerShell(script) {
   });
 }
 
+// Extract a ZIP using tar.exe (built into Windows 10 1803+), with
+// fallback to PowerShell Expand-Archive if tar is unavailable.
+function extractZipToDir(zipPath, targetDir) {
+  fs.mkdirSync(targetDir, { recursive: true });
+  return new Promise((resolve, reject) => {
+    const proc = spawn("tar.exe", ["-xf", zipPath, "-C", targetDir], {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    let stderr = "";
+    proc.stderr.on("data", (d) => { stderr += d.toString(); });
+    proc.on("close", (code) => {
+      if (code === 0) { resolve(); return; }
+      // tar failed — fall back to Expand-Archive
+      const safeZip = zipPath.replace(/'/g, "''");
+      const safeDst = targetDir.replace(/'/g, "''");
+      runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeDst}' -Force`)
+        .then(resolve).catch(reject);
+    });
+    proc.on("error", () => {
+      // tar.exe not found — fall back to Expand-Archive
+      const safeZip = zipPath.replace(/'/g, "''");
+      const safeDst = targetDir.replace(/'/g, "''");
+      runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeDst}' -Force`)
+        .then(resolve).catch(reject);
+    });
+  });
+}
+
+// Recursively copy srcDir into dstDir using Node.js fs.cpSync.
+// No robocopy or PowerShell needed.
+function copyDir(srcDir, dstDir) {
+  fs.mkdirSync(dstDir, { recursive: true });
+  fs.cpSync(srcDir, dstDir, { recursive: true, force: true, errorOnExist: false });
+}
+
 function getAppDataDir() {
   return path.join(os.homedir(), "AppData", "Local", "CrewSpace");
 }
@@ -92,22 +129,6 @@ function getPayloadPath() {
   // In dev: __dirname = src/  →  ../assets/payload/app.zip
   // In prod (asar:false): __dirname = resources/app/src/  →  ../assets/payload/app.zip
   return path.join(__dirname, "..", "assets", "payload", "app.zip");
-}
-
-async function extractZip(zipPath, targetDir, onProgress) {
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
-
-  const safeZip = zipPath.replace(/'/g, "''");
-  const safeTarget = targetDir.replace(/'/g, "''");
-
-  onProgress?.({ percent: 5, stage: "extract", detail: "Starting extraction…" });
-
-  // spawn powershell.exe directly — avoids cmd.exe breaking on newlines/quotes
-  await runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeTarget}' -Force`);
-
-  onProgress?.({ percent: 70, stage: "extract", detail: "Extraction complete" });
 }
 
 async function createShortcut(exePath, shortcutPath) {
@@ -203,24 +224,25 @@ ipcMain.handle("install", async () => {
       const isUpdate = fs.existsSync(targetDir);
       sendProgress(5, "extract", isUpdate ? "Preparing update…" : "Preparing installation…");
 
-      // Kill running CrewSpace and wait for it to fully exit before touching files.
-      // Using a wait loop avoids the "file locked" error from the old instant-delete approach.
+      // Kill any running CrewSpace process using taskkill (no PowerShell needed)
       try {
-        await runPowerShell(
-          "$proc = Get-Process -Name 'CrewSpace' -ErrorAction SilentlyContinue; " +
-          "if ($proc) { $proc | Stop-Process -Force; Start-Sleep -Seconds 2 }"
-        );
+        await new Promise((resolve) => {
+          const tk = spawn("taskkill.exe", ["/F", "/IM", "CrewSpace.exe", "/T"], {
+            stdio: "ignore", windowsHide: true,
+          });
+          tk.on("close", resolve);
+          tk.on("error", resolve);
+        });
+        // Brief pause to let file handles release
+        await new Promise((r) => setTimeout(r, 1500));
       } catch (_) {}
 
       sendProgress(10, "extract", "Extracting files…");
 
-      // Extract to a temp directory first — avoids lock contention on the live install dir
+      // Extract to a temp directory first — avoids lock contention on the live install dir.
+      // Uses tar.exe (built into Windows 10+) with Expand-Archive fallback.
       const tempDir = path.join(os.tmpdir(), `crewspace-update-${Date.now()}`);
-      fs.mkdirSync(tempDir, { recursive: true });
-
-      const safeZip = zipPath.replace(/'/g, "''");
-      const safeTemp = tempDir.replace(/'/g, "''");
-      await runPowerShell(`Expand-Archive -Path '${safeZip}' -DestinationPath '${safeTemp}' -Force`);
+      await extractZipToDir(zipPath, tempDir);
 
       sendProgress(65, "extract", "Applying update…");
 
@@ -231,16 +253,8 @@ ipcMain.handle("install", async () => {
         ? tempDir
         : path.join(tempDir, (tempEntries.find((e) => e.isDirectory()) ?? { name: "" }).name);
 
-      // Robocopy merge: overwrite existing files, copy new ones, keep unrelated extras.
-      // Run robocopy directly (not via Start-Process) so $LASTEXITCODE is reliable.
-      // Exit codes 0–7 are success (files copied/skipped); ≥8 means real error.
-      fs.mkdirSync(targetDir, { recursive: true });
-      const safeSrc = srcDir.replace(/'/g, "''");
-      const safeDst = targetDir.replace(/'/g, "''");
-      await runPowerShell(
-        `robocopy '${safeSrc}' '${safeDst}' /E /IS /IT /IM /NFL /NDL /NJH /NJS; ` +
-        `if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE } else { exit 0 }`
-      );
+      // Copy using Node.js fs.cpSync — no robocopy or PowerShell needed
+      copyDir(srcDir, targetDir);
 
       // Clean up temp
       try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
