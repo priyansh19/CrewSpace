@@ -1,4 +1,4 @@
-; Override the app-running check so the installer never shows
-; "cannot be closed" dialog. Users should close CrewSpace before upgrading.
+; Kill any running CrewSpace process silently instead of prompting the user
 !macro customCheckAppRunning
+  nsExec::ExecToLog 'taskkill /F /IM "CrewSpace.exe" /T'
 !macroend

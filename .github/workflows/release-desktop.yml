@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ── Windows: build NSIS installer + auto-update artifacts ──────────────────
+  # ── Windows: build installer wizard + NSIS auto-update artifacts ────────────
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -57,18 +57,62 @@ jobs:
         shell: pwsh
         run: |
           magick "desktop-electron/assets/icon.png" -define icon:auto-resize=256,128,64,48,32,16 "desktop-electron/assets/icon.ico"
+          magick "desktop-electron/assets/icon.png" -define icon:auto-resize=256,128,64,48,32,16 "desktop-electron/installer/assets/icon.ico"
+
+      # Sync installer wizard version with main desktop version so artifact names match
+      - name: Sync installer version
+        shell: pwsh
+        run: |
+          $ver = (Get-Content desktop-electron/package.json | ConvertFrom-Json).version
+          $installerPkg = Get-Content desktop-electron/installer/package.json | ConvertFrom-Json
+          $installerPkg.version = $ver
+          $installerPkg | ConvertTo-Json -Depth 10 | Set-Content desktop-electron/installer/package.json
+          Write-Host "Installer version set to $ver"
 
       # Build the Electron renderer (React UI)
       - name: Build desktop renderer
         working-directory: desktop-electron
         run: pnpm run build:renderer
 
-      # Build NSIS installer — primary Windows download + auto-update artifacts
+      # Build NSIS installer — generates latest.yml + blockmap for electron-updater
       - name: Build NSIS installer
         working-directory: desktop-electron
         run: pnpm exec electron-builder --win nsis --publish never
 
-      - name: Upload Windows NSIS artifacts
+      # Package the main app as an unpacked directory for the installer wizard payload
+      - name: Build desktop app (unpacked)
+        working-directory: desktop-electron
+        run: pnpm exec electron-builder --win --dir --publish never
+
+      # Zip the unpacked app as the installer wizard payload
+      - name: Create installer payload (app.zip)
+        shell: pwsh
+        run: |
+          $src = "desktop-electron\dist\win-unpacked"
+          $dst = "desktop-electron\installer\assets\payload\app.zip"
+          New-Item -ItemType Directory -Force -Path (Split-Path $dst)
+          Compress-Archive -Path "$src\*" -DestinationPath $dst -CompressionLevel Optimal
+          $mb = [math]::Round((Get-Item $dst).Length / 1MB, 1)
+          Write-Host "Payload size: $mb MB"
+
+      # Build the installer wizard renderer
+      - name: Build installer wizard renderer
+        working-directory: desktop-electron/installer
+        run: pnpm run build
+
+      # Package the installer wizard as a portable exe
+      - name: Build installer wizard portable exe
+        working-directory: desktop-electron/installer
+        run: pnpm run build:app
+
+      - name: Upload Windows installer wizard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-wizard
+          path: desktop-electron/installer/dist/CrewSpace-Installer-*.exe
+          retention-days: 30
+
+      - name: Upload NSIS auto-update artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-nsis
@@ -153,7 +197,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Windows NSIS artifacts
+      - name: Download Windows installer wizard
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer-wizard
+          path: dist/
+
+      - name: Download Windows NSIS auto-update artifacts
         uses: actions/download-artifact@v4
         with:
           name: windows-nsis
@@ -191,11 +241,11 @@ jobs:
           ### Downloads
           | Platform | File |
           |----------|------|
-          | Windows | `CrewSpace-Setup-*.exe` |
+          | Windows | `CrewSpace-Installer-*.exe` |
           | macOS | `CrewSpace-*.dmg` |
 
           ### Installation
-          **Windows:** Run `CrewSpace-Setup-*.exe`. It will install the app and create desktop + Start Menu shortcuts. Your existing data is preserved across updates. Future updates are delivered automatically in-app.
+          **Windows:** Run `CrewSpace-Installer-*.exe`. The wizard will install the app and create desktop + Start Menu shortcuts. Your existing data is preserved across updates. Future updates are delivered automatically in-app.
 
           **macOS:** Open the `.dmg` and drag CrewSpace to your Applications folder. If macOS says the app is "damaged", run this in Terminal:
           ```
@@ -209,7 +259,7 @@ jobs:
           - Plugin ecosystem with built-in plugin manager
           - Local-first: all data stays on your machine
           EOF
-          gh release create "$tag" dist/CrewSpace-Setup-*.exe dist/*.dmg dist/*.blockmap dist/latest.yml \
+          gh release create "$tag" dist/CrewSpace-Installer-*.exe dist/*.dmg dist/CrewSpace-Setup-*.exe dist/*.blockmap dist/latest.yml \
             --title "CrewSpace Desktop $tag" \
             --notes-file /tmp/release-notes.md \
             --latest
