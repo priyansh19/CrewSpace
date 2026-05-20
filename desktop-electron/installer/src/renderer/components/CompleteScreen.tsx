@@ -1,6 +1,23 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 
 export default function CompleteScreen() {
+  // Auto-launch CrewSpace shortly after the Complete screen appears.
+  // The Launch button below stays as a manual fallback (e.g. if the user
+  // cancels the auto-launch by closing the window first).
+  useEffect(() => {
+    const launchTimer = setTimeout(() => {
+      try { window.installerAPI.launchApp(); } catch (_) {}
+    }, 1200);
+    const closeTimer = setTimeout(() => {
+      try { window.installerAPI.closeWindow(); } catch (_) {}
+    }, 2000);
+    return () => {
+      clearTimeout(launchTimer);
+      clearTimeout(closeTimer);
+    };
+  }, []);
+
   return (
     <div
       style={{

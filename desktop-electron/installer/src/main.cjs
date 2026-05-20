@@ -55,6 +55,16 @@ function createWindow() {
     });
   }
 
+  // Force the window to the foreground in case another app stole focus
+  // (some users reported the wizard opening behind other windows).
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.moveTop();
+    mainWindow.setAlwaysOnTop(true);
+    setTimeout(() => mainWindow?.setAlwaysOnTop(false), 1500);
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -167,7 +177,10 @@ ipcMain.handle("install", async () => {
       const isUpdate = fs.existsSync(targetDir);
       sendProgress(5, "extract", isUpdate ? "Preparing update…" : "Preparing installation…");
 
-      // Kill any running CrewSpace process using taskkill (no PowerShell needed)
+      // Kill any running CrewSpace process using taskkill (no PowerShell needed).
+      // We then verify with tasklist — taskkill silently fails to terminate
+      // processes running at a higher integrity level (e.g. CrewSpace launched
+      // as Administrator) and that leaves file locks that break the install.
       try {
         await new Promise((resolve) => {
           const tk = spawn("taskkill.exe", ["/F", "/IM", "CrewSpace.exe", "/T"], {
@@ -176,9 +189,26 @@ ipcMain.handle("install", async () => {
           tk.on("close", resolve);
           tk.on("error", resolve);
         });
-        // Brief pause to let file handles release
         await new Promise((r) => setTimeout(r, 1500));
       } catch (_) {}
+
+      const stillRunning = await new Promise((resolve) => {
+        const tl = spawn("tasklist.exe", ["/FI", "IMAGENAME eq CrewSpace.exe", "/NH"], {
+          stdio: ["ignore", "pipe", "ignore"], windowsHide: true,
+        });
+        let out = "";
+        tl.stdout.on("data", (d) => { out += d.toString(); });
+        tl.on("close", () => resolve(out.toLowerCase().includes("crewspace.exe")));
+        tl.on("error", () => resolve(false));
+      });
+      if (stillRunning) {
+        throw new Error(
+          "CrewSpace is still running and could not be closed automatically. " +
+          "This usually means CrewSpace is running with Administrator privileges. " +
+          "Please open Task Manager as Administrator, end every CrewSpace.exe task, " +
+          "and run the installer again."
+        );
+      }
 
       sendProgress(10, "extract", "Extracting files…");
 
