@@ -90,7 +90,7 @@
       "releaseType": "release"
     },
     "directories": {
-      "output": "dist3"
+      "output": "dist"
     },
     "files": [
       "main.js",

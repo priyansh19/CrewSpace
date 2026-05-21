@@ -158,6 +158,12 @@ jobs:
       - name: Build workspace packages
         run: pnpm -r --filter '!crewspace-desktop' build
 
+      # Stage the built server into desktop-electron/server-prod/ so that
+      # electron-builder's extraResources ({from: "server-prod", to: "server"})
+      # actually has something to copy into resources/server/.
+      - name: Prepare desktop server bundle
+        run: node scripts/prepare-desktop-server.mjs
+
       - name: Build desktop renderer
         working-directory: desktop-electron
         run: pnpm run build:renderer

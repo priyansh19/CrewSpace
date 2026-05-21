@@ -14,7 +14,7 @@ import { ZipArchive } from "archiver";
 
 const input = process.argv.includes("--input")
   ? process.argv[process.argv.indexOf("--input") + 1]
-  : "desktop-electron/dist3/win-unpacked";
+  : "desktop-electron/dist/win-unpacked";
 
 const output = process.argv.includes("--output")
   ? process.argv[process.argv.indexOf("--output") + 1]
