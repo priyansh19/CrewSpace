@@ -23,10 +23,12 @@ function sleep(ms) {
 }
 
 function cpSyncWithRetry(src, dest, options, maxRetries = 10, delayMs = 300) {
-  // On Windows, force-overwriting a directory tree while files are locked
+  // Force-overwriting a directory tree while files are locked
   // (e.g. by pnpm hardlinks or antivirus) often fails. Remove the target
-  // first, then copy fresh.
-  if (process.platform === "win32" && existsSync(dest)) {
+  // first, then copy fresh. Do this on all platforms — Node 24 on macOS
+  // throws ERR_FS_CP_EEXIST when cpSync tries to merge into an existing
+  // directory even with force: true.
+  if (existsSync(dest)) {
     try {
       rmSync(dest, { recursive: true, force: true });
     } catch {
