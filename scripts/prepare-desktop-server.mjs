@@ -14,8 +14,8 @@
  * 7. Restore original workspace package.json files.
  */
 import { execSync } from "node:child_process";
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 function sleep(ms) {
@@ -65,6 +65,105 @@ const workspacePackages = [
   "packages/adapters/hermes-crewspace-adapter",
   "packages/plugins/sdk",
 ];
+
+/**
+ * pnpm deploy marks many transitive dependencies as "private" in
+ * .modules.yaml — they are only accessible inside .pnpm/ and are not
+ * hoisted to the root node_modules.  When we later dereference symlinks
+ * and delete .pnpm/, those packages become unresolvable.
+ *
+ * This function promotes every package found inside .pnpm/{name}/node_modules/
+ * to the root node_modules/ (as symlinks) so that Node.js module resolution
+ * works after dereferencing.
+ */
+function promoteAllPnpmPackages(nodeModulesDir) {
+  const pnpmDir = join(nodeModulesDir, ".pnpm");
+  if (!existsSync(pnpmDir)) return;
+
+  function promoteDirContents(sourceDir, targetDir) {
+    for (const entry of readdirSync(sourceDir, { withFileTypes: true })) {
+      const name = entry.name;
+      if (name === ".bin" || name === ".modules.yaml") continue;
+
+      const sourcePath = join(sourceDir, name);
+      const targetPath = join(targetDir, name);
+
+      if (entry.isDirectory()) {
+        if (name.startsWith("@")) {
+          // Scoped packages: always recurse so we don't miss packages
+          // that belong to the same scope but come from different .pnpm entries.
+          mkdirSync(targetPath, { recursive: true });
+          promoteDirContents(sourcePath, targetPath);
+          continue;
+        }
+        if (existsSync(targetPath)) continue;
+        const rel = relative(dirname(targetPath), sourcePath);
+        symlinkSync(rel, targetPath, "dir");
+      } else if (entry.isSymbolicLink()) {
+        if (existsSync(targetPath)) continue;
+        const rel = relative(dirname(targetPath), sourcePath);
+        const s = statSync(sourcePath);
+        symlinkSync(rel, targetPath, s.isDirectory() ? "dir" : "file");
+      }
+    }
+  }
+
+  for (const entry of readdirSync(pnpmDir)) {
+    const pkgNodeModules = join(pnpmDir, entry, "node_modules");
+    if (!existsSync(pkgNodeModules) || !statSync(pkgNodeModules).isDirectory()) {
+      continue;
+    }
+    promoteDirContents(pkgNodeModules, nodeModulesDir);
+  }
+}
+
+/**
+ * Recursively replace all symlinks in a directory tree with the actual
+ * files/directories they point to. This is required before packaging
+ * because pnpm's node_modules contains symlinks into .pnpm/ which
+ * become broken when extracted on a different machine/path.
+ */
+function dereferenceDir(dir) {
+  if (!existsSync(dir)) return;
+
+  const entries = readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+
+    if (entry.isSymbolicLink()) {
+      // Read the symlink target
+      let target;
+      try {
+        target = readlinkSync(fullPath);
+      } catch {
+        continue;
+      }
+
+      // Resolve relative targets
+      const resolvedTarget = resolve(dir, target);
+      if (!existsSync(resolvedTarget)) {
+        // Broken symlink — remove it
+        rmSync(fullPath, { recursive: true, force: true });
+        continue;
+      }
+
+      // Remove symlink and copy the real content
+      rmSync(fullPath, { recursive: true, force: true });
+      const stat = statSync(resolvedTarget);
+      if (stat.isDirectory()) {
+        cpSync(resolvedTarget, fullPath, { recursive: true, dereference: true });
+      } else {
+        mkdirSync(dirname(fullPath), { recursive: true });
+        copyFileSync(resolvedTarget, fullPath);
+      }
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      dereferenceDir(fullPath);
+    }
+  }
+}
 
 function patchPackageExports(pkgPath) {
   const original = readFileSync(pkgPath, "utf-8");
@@ -199,6 +298,10 @@ function main() {
   try {
     // 3. Deploy server
     const serverProdDir = join(repoRoot, "desktop-electron", "server-prod");
+    if (existsSync(serverProdDir)) {
+      console.log("[prepare-desktop-server] Clearing existing server-prod...");
+      rmSync(serverProdDir, { recursive: true, force: true });
+    }
     console.log("[prepare-desktop-server] Running pnpm deploy...");
     execSync(`pnpm deploy --filter @crewspaceai/server "${serverProdDir}"`, {
       cwd: repoRoot,
@@ -227,6 +330,19 @@ function main() {
     // 5. Patch all deployed @crewspaceai package exports
     console.log("[prepare-desktop-server] Patching deployed package exports...");
     patchAllExportsInDir(deployBase);
+
+    // 5b. Promote private .pnpm packages to root node_modules, then dereference
+    const deployedNodeModules = join(serverProdDir, "node_modules");
+    console.log("[prepare-desktop-server] Promoting private .pnpm packages to root node_modules...");
+    promoteAllPnpmPackages(deployedNodeModules);
+    console.log("[prepare-desktop-server] Dereferencing symlinks in node_modules...");
+    dereferenceDir(deployedNodeModules);
+    // Also remove the .pnpm store since all symlinks to it are now resolved
+    const pnpmStore = join(deployedNodeModules, ".pnpm");
+    if (existsSync(pnpmStore)) {
+      rmSync(pnpmStore, { recursive: true, force: true });
+      console.log("[prepare-desktop-server] Removed .pnpm store");
+    }
 
     // 6. Copy renderer-dist into desktop-electron build artifacts
     // The desktop app bundles renderer-dist directly; server ui-dist is not needed.

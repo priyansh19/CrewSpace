@@ -1,6 +1,6 @@
 {
   "name": "crewspace-installer",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "CrewSpace Windows installer wizard",
   "author": "CrewSpaceAI",
   "private": true,
@@ -34,6 +34,7 @@
       "output": "dist"
     },
     "files": [
+      "package.json",
       "src/main.cjs",
       "src/preload.cjs",
       "renderer-dist/**/*",

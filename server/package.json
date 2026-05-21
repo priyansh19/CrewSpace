@@ -70,7 +70,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.5.2",
     "hermes-crewspace-adapter": "workspace:*",
-    "jsdom": "^28.1.0",
+    "jsdom": "27.0.0",
     "multer": "^2.0.2",
     "open": "^11.0.0",
     "pino": "^9.6.0",

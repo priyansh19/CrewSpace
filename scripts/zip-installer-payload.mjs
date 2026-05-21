@@ -7,14 +7,14 @@
  *   node scripts/zip-installer-payload.mjs --input desktop-electron/dist/win-unpacked --output desktop-electron/installer/assets/payload/app.zip
  */
 
-import { createWriteStream } from "node:fs";
+import { createWriteStream, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
-import { resolve } from "node:path";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 
 const input = process.argv.includes("--input")
   ? process.argv[process.argv.indexOf("--input") + 1]
-  : "desktop-electron/dist/win-unpacked";
+  : "desktop-electron/dist3/win-unpacked";
 
 const output = process.argv.includes("--output")
   ? process.argv[process.argv.indexOf("--output") + 1]
@@ -27,7 +27,9 @@ console.log(`Creating payload zip…`);
 console.log(`  Input:  ${inputPath}`);
 console.log(`  Output: ${outputPath}`);
 
-const archive = archiver("zip", { zlib: { level: 9 } });
+mkdirSync(dirname(outputPath), { recursive: true });
+
+const archive = new ZipArchive({ zlib: { level: 9 } });
 const stream = createWriteStream(outputPath);
 
 archive.on("warning", (err) => {

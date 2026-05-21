@@ -256,7 +256,9 @@ function spawnServer(port) {
   } else {
     // Production: use bundled Node.js to run the prepared server
     execPath = process.execPath;
-    args = [serverEntry];
+    // Node 20 requires this flag to allow CJS packages that require() ESM deps
+    // (e.g. jsdom/html-encoding-sniffer, @asamuzakjp/css-color, etc.)
+    args = ["--experimental-require-module", serverEntry];
     // Electron executable acts as Node.js when this env var is set
     env.ELECTRON_RUN_AS_NODE = "1";
     console.log("[CrewSpace Desktop] Using bundled server (node + prepared server)");
