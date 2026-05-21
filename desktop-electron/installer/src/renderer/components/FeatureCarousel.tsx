@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { featureSlides } from "../lib/features";
 import { useCarousel } from "../hooks/useCarousel";
@@ -17,6 +17,8 @@ export default function FeatureCarousel({
   onComplete,
   onRetry,
 }: FeatureCarouselProps) {
+  const [showErrorModal, setShowErrorModal] = useState(false);
+
   const { index, progress, goTo, next, prev, setPaused } = useCarousel(
     featureSlides.length
   );
@@ -296,7 +298,11 @@ export default function FeatureCarousel({
                   <line x1="7" y1="4" x2="7" y2="8" stroke="#c64545" strokeWidth="1.5" strokeLinecap="round" />
                   <circle cx="7" cy="10" r="0.75" fill="#c64545" />
                 </svg>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span 
+                  style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
+                  onClick={() => setShowErrorModal(true)}
+                  title="Click to view full error"
+                >
                   {installError.length > 80 ? installError.slice(0, 80) + "…" : installError}
                 </span>
                 <button
@@ -355,6 +361,69 @@ export default function FeatureCarousel({
           </div>
         </div>
       </div>
+
+      {/* Error Modal */}
+      {showErrorModal && installError && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onClick={() => setShowErrorModal(false)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: 24,
+              borderRadius: 8,
+              maxWidth: 540,
+              width: "90%",
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: 16, color: "#c64545", display: "flex", alignItems: "center", gap: 8, fontFamily: "sans-serif", fontSize: 16, fontWeight: 600 }}>
+              <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="6.5" stroke="#c64545" strokeWidth="1.5" />
+                <line x1="7" y1="4" x2="7" y2="8" stroke="#c64545" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="7" cy="10" r="0.75" fill="#c64545" />
+              </svg>
+              Installation Error
+            </h3>
+            <div style={{ flex: 1, overflowY: "auto", background: "#f8f9fa", padding: 14, borderRadius: 6, border: "1px solid #e9ecef", fontSize: 13, color: "#333", whiteSpace: "pre-wrap", wordBreak: "break-all", fontFamily: "monospace" }}>
+              {installError}
+            </div>
+            <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowErrorModal(false)}
+                style={{
+                  padding: "8px 18px",
+                  background: "#141413",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
