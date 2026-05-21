@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 
 const PILLARS = [
-  { label: "Multi-agent orchestration", icon: "⬡" },
-  { label: "Budget control",            icon: "◎" },
-  { label: "Approval gates",            icon: "✦" },
+  { label: "3D office — watch agents work live",    icon: "⬡" },
+  { label: "Budget guardrails — no bill surprises", icon: "◎" },
+  { label: "One-click approval gates",              icon: "✦" },
 ];
 
 interface WelcomeScreenProps {
@@ -263,7 +263,7 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
             }}
           >
             Your AI company,<br />
-            <em style={{ fontStyle: "italic", color: "#cc785c" }}>ready to run</em>
+            <em style={{ fontStyle: "italic", color: "#cc785c" }}>built in minutes</em>
           </h1>
 
           {/* Body */}
@@ -273,15 +273,38 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
               lineHeight: 1.75,
               color: "#5c5a54",
               maxWidth: 380,
-              marginBottom: 40,
+              marginBottom: 32,
             }}
           >
-            Spin up an AI-native organization with a full org chart,
-            budget policies, approval gates, and plugin ecosystem — all
-            managed from a single control plane.
+            Walk a live 3D office, deploy AI agents with real roles, set
+            budget guardrails, and approve high-stakes actions in one click —
+            all on your machine, fully private.
           </p>
 
-          {/* CTA */}
+          {/* One-click install note */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 20,
+              padding: "8px 14px",
+              borderRadius: 8,
+              background: "rgba(204,120,92,0.06)",
+              border: "1px solid rgba(204,120,92,0.15)",
+              maxWidth: 340,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <circle cx="6.5" cy="6.5" r="6" stroke="#cc785c" strokeWidth="1.1" />
+              <path d="M6.5 4v3.5M6.5 9h.01" stroke="#cc785c" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            <span style={{ fontSize: 12, color: "#8e7060", lineHeight: 1.4 }}>
+              One click — no config, no admin rights, no Docker required
+            </span>
+          </div>
+
+          {/* Primary CTA — Install */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.97 }}
@@ -301,19 +324,26 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
               letterSpacing: "0.01em",
               boxShadow: "0 4px 20px rgba(204,120,92,0.35)",
               transition: "box-shadow 0.2s",
-              marginBottom: 16,
+              marginBottom: 14,
             }}
           >
-            Get Started
+            {/* Download icon */}
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path
-                d="M3 8h10M9 4l4 4-4 4"
+                d="M8 2v8M5 7l3 3 3-3"
                 stroke="currentColor"
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
+              <path
+                d="M3 12h10"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
+            Install CrewSpace
           </motion.button>
 
           {/* Learn more */}

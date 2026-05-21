@@ -90,7 +90,7 @@ function createWindow() {
 
 // Extract a ZIP using tar.exe (built into Windows 10 1803+).
 function extractZipToDir(zipPath, targetDir) {
-  fs.mkdirSync(targetDir, { recursive: true });
+  ensureCleanDir(targetDir);
   return new Promise((resolve, reject) => {
     const proc = spawn("tar.exe", ["-xf", zipPath, "-C", targetDir], {
       stdio: ["ignore", "pipe", "pipe"],
@@ -106,9 +106,27 @@ function extractZipToDir(zipPath, targetDir) {
   });
 }
 
+// Ensure a path is a clean, writable directory.
+// Handles the ENOTDIR case where a file exists at the same path as the
+// expected directory (e.g. a stale file from a failed prior install).
+function ensureCleanDir(dirPath) {
+  try {
+    const stat = fs.statSync(dirPath);
+    if (!stat.isDirectory()) {
+      flog(`ensureCleanDir: removing non-directory at ${dirPath}`);
+      fs.unlinkSync(dirPath);
+    }
+    // already a directory — nothing to do
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+    // ENOENT is fine — mkdirSync will create it
+  }
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
 // Recursively copy srcDir into dstDir using Node.js fs.cpSync.
 function copyDir(srcDir, dstDir) {
-  fs.mkdirSync(dstDir, { recursive: true });
+  ensureCleanDir(dstDir);
   fs.cpSync(srcDir, dstDir, { recursive: true, force: true, errorOnExist: false });
 }
 
@@ -245,12 +263,63 @@ ipcMain.handle("install", async () => {
 
       sendProgress(65, "extract", "Applying update…");
 
-      // electron-builder sometimes nests all files in a subdir inside the zip
-      const tempEntries = fs.readdirSync(tempDir, { withFileTypes: true });
-      const hasExeAtRoot = tempEntries.some((e) => e.name === "CrewSpace.exe");
-      const srcDir = hasExeAtRoot
-        ? tempDir
-        : path.join(tempDir, (tempEntries.find((e) => e.isDirectory()) ?? { name: "" }).name);
+      // Determine the real source directory inside the extracted temp dir.
+      // electron-builder sometimes nests all files in a subdirectory inside the zip,
+      // so we probe several patterns before falling back to the temp root.
+      const srcDir = (() => {
+        try {
+          const entries = fs.readdirSync(tempDir, { withFileTypes: true });
+          // Case 1: CrewSpace.exe is directly at the zip root — use temp dir
+          if (entries.some((e) => !e.isDirectory() && e.name === "CrewSpace.exe")) {
+            flog(`srcDir: exe at root \u2192 ${tempDir}`);
+            return tempDir;
+          }
+          // Case 2: exactly one sub-directory (common electron-builder layout)
+          const subDirs = entries.filter((e) => e.isDirectory());
+          if (subDirs.length === 1) {
+            const candidate = path.join(tempDir, subDirs[0].name);
+            flog(`srcDir: single subdir \u2192 ${candidate}`);
+            return candidate;
+          }
+          // Case 3: multiple subdirs — look for one containing CrewSpace.exe
+          for (const d of subDirs) {
+            const candidate = path.join(tempDir, d.name);
+            try {
+              const inner = fs.readdirSync(candidate);
+              if (inner.includes("CrewSpace.exe")) {
+                flog(`srcDir: nested subdir with exe \u2192 ${candidate}`);
+                return candidate;
+              }
+            } catch (_) {}
+          }
+          // Fallback: use tempDir itself
+          flog(`srcDir: fallback \u2192 ${tempDir}`);
+          return tempDir;
+        } catch (readErr) {
+          flog(`srcDir detection failed (${readErr.message}), using tempDir`);
+          return tempDir;
+        }
+      })();
+
+      // Validate srcDir is actually a directory before copying
+      try {
+        const srcStat = fs.statSync(srcDir);
+        if (!srcStat.isDirectory()) {
+          throw new Error(
+            `Extracted payload path is not a directory: ${srcDir}. ` +
+            "The installer file may be corrupt — please re-download and try again."
+          );
+        }
+      } catch (statErr) {
+        if (statErr.code === "ENOENT") {
+          throw new Error(
+            "Extraction appeared to succeed but the output directory is missing. " +
+            "This may be a permissions issue with your Temp folder. " +
+            "Please try running the installer again."
+          );
+        }
+        throw statErr;
+      }
 
       // Copy using Node.js fs.cpSync — no robocopy or PowerShell needed
       copyDir(srcDir, targetDir);
