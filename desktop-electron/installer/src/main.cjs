@@ -13,6 +13,17 @@ const fs = require("fs");
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
+// Persistent file log under %TEMP%\\crewspace-installer.log so failures are diagnosable
+// even when the renderer never opens DevTools. Best-effort - never crashes the app.
+const logFile = path.join(os.tmpdir(), "crewspace-installer.log");
+function flog(msg) {
+  try {
+    const line = `[${new Date().toISOString()}] ${msg}\n`;
+    fs.appendFileSync(logFile, line);
+  } catch (_) {}
+}
+flog(`installer start, pid=${process.pid}, app.isPackaged=${app.isPackaged}, __dirname=${__dirname}`);
+
 let mainWindow = null;
 
 function createWindow() {
@@ -106,7 +117,22 @@ function getAppDataDir() {
 }
 
 function getPayloadPath() {
-  return path.join(__dirname, "..", "assets", "payload", "app.zip");
+  // Probe several candidate locations - portable Electron sometimes puts resources
+  // in slightly different paths between dev, asar, and portable extraction.
+  const candidates = [
+    path.join(__dirname, "..", "assets", "payload", "app.zip"),
+    path.join(process.resourcesPath || "", "app", "assets", "payload", "app.zip"),
+    path.join(process.resourcesPath || "", "assets", "payload", "app.zip"),
+    path.join(app.getAppPath(), "assets", "payload", "app.zip"),
+  ];
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) {
+      flog(`payload found at ${c}`);
+      return c;
+    }
+  }
+  flog(`payload NOT FOUND. Probed: ${candidates.join(" | ")}`);
+  return candidates[0]; // returned for existing existsSync caller; will be false
 }
 
 // Create Windows shortcuts using Electron's native shell.writeShortcutLink.
@@ -248,27 +274,16 @@ ipcMain.handle("install", async () => {
       return { success: true, installPath: targetDir, exePath };
     }
 
-    // ── Case 2: no payload — simulate progress, find existing install ────
-    sendProgress(10, "extract", "Locating CrewSpace installation…");
-    await new Promise((r) => setTimeout(r, 600));
-
-    sendProgress(40, "extract", "Verifying installation files…");
-    await new Promise((r) => setTimeout(r, 700));
-
-    const existingExe = findInstalledExe();
-
-    sendProgress(70, "extract", "Configuring environment…");
-    await new Promise((r) => setTimeout(r, 500));
-
-    sendProgress(85, "shortcuts", "Creating shortcuts…");
-    await new Promise((r) => setTimeout(r, 400));
-
-    if (existingExe) {
-      try { createShortcuts(existingExe); } catch (_) {}
-    }
-
-    sendProgress(100, "done", "Installation complete");
-    return { success: true, installPath: targetDir, exePath: existingExe || "" };
+    // ── Case 2: no payload — this means the installer was packaged
+    // incorrectly. Fail loudly so the user knows nothing was installed,
+    // rather than silently launching a stale binary.
+    const zipPath2 = getPayloadPath();
+    flog(`install handler: no payload at ${zipPath2}`);
+    throw new Error(
+      "Installer payload (app.zip) is missing from this build. " +
+      "Nothing was installed. Please download the latest installer from " +
+      "https://github.com/priyansh19/CrewSpace/releases and try again."
+    );
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -323,8 +338,29 @@ ipcMain.on("close-window", () => {
 
 // ── App lifecycle ───────────────────────────────────────────────────────────
 
+// First, refuse to start if another CrewSpace Setup.exe is already running on the
+// machine (covers the race where two wrapper EXEs extract simultaneously to different
+// temp dirs and both reach the `requestSingleInstanceLock` call below).
+try {
+  const out = require("child_process").execSync(
+    `tasklist /FI "IMAGENAME eq CrewSpace Setup.exe" /NH`,
+    { stdio: ["ignore", "pipe", "ignore"] }
+  ).toString();
+  const myPid = process.pid;
+  // Count "CrewSpace Setup.exe" entries that aren't us.
+  const matches = (out.match(/CrewSpace Setup\.exe\s+(\d+)/g) || [])
+    .map((m) => parseInt(m.split(/\s+/)[1], 10))
+    .filter((p) => p && p !== myPid);
+  if (matches.length > 0) {
+    flog(`refusing to start: existing CrewSpace Setup.exe PIDs ${matches.join(",")} already running`);
+    app.quit();
+    process.exit(0);
+  }
+} catch (_) {}
+
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
+  flog("requestSingleInstanceLock denied - another instance already running");
   app.quit();
   process.exit(0);
 }
