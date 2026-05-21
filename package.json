@@ -13,12 +13,13 @@
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @crewspaceai/db generate",
     "db:migrate": "pnpm --filter @crewspaceai/db migrate",
-    "build:desktop": "pnpm -r build && cd desktop-electron && pnpm run build:renderer && pnpm make",
+    "build:desktop": "pnpm -r build && cd desktop-electron && pnpm run build:win",
     "build:installer": "pnpm --filter crewspace-installer build",
     "build:desktop:with-installer": "pnpm build:desktop && pnpm package:payload && pnpm build:installer",
     "package:payload": "node scripts/zip-installer-payload.mjs"
   },
   "devDependencies": {
+    "archiver": "^8.0.0",
     "cross-env": "^10.1.0",
     "esbuild": "^0.27.3",
     "typescript": "^5.7.3",

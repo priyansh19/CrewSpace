@@ -1,6 +1,6 @@
 {
   "name": "crewspace-desktop",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "CrewSpace \u2014 AI agent company control plane",
   "author": "CrewSpace AI <hello@crewspace.ai>",
   "main": "main.js",
@@ -90,7 +90,7 @@
       "releaseType": "release"
     },
     "directories": {
-      "output": "dist"
+      "output": "dist3"
     },
     "files": [
       "main.js",

@@ -91,8 +91,10 @@ function createWindow() {
 // Extract a ZIP using tar.exe (built into Windows 10 1803+).
 function extractZipToDir(zipPath, targetDir) {
   ensureCleanDir(targetDir);
+  const systemTar = "C:\\Windows\\System32\\tar.exe";
+  const tarPath = fs.existsSync(systemTar) ? systemTar : "tar.exe";
   return new Promise((resolve, reject) => {
-    const proc = spawn("tar.exe", ["-xf", zipPath, "-C", targetDir], {
+    const proc = spawn(tarPath, ["-xf", zipPath, "-C", targetDir], {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
@@ -256,78 +258,14 @@ ipcMain.handle("install", async () => {
 
       sendProgress(10, "extract", "Extracting files…");
 
-      // Extract to a temp directory first — avoids lock contention on the live install dir.
-      // Uses tar.exe (built into Windows 10+) with Expand-Archive fallback.
-      const tempDir = path.join(os.tmpdir(), `crewspace-update-${Date.now()}`);
-      await extractZipToDir(zipPath, tempDir);
+      sendProgress(15, "extract", "Extracting files…");
 
-      sendProgress(65, "extract", "Applying update…");
-
-      // Determine the real source directory inside the extracted temp dir.
-      // electron-builder sometimes nests all files in a subdirectory inside the zip,
-      // so we probe several patterns before falling back to the temp root.
-      const srcDir = (() => {
-        try {
-          const entries = fs.readdirSync(tempDir, { withFileTypes: true });
-          // Case 1: CrewSpace.exe is directly at the zip root — use temp dir
-          if (entries.some((e) => !e.isDirectory() && e.name === "CrewSpace.exe")) {
-            flog(`srcDir: exe at root \u2192 ${tempDir}`);
-            return tempDir;
-          }
-          // Case 2: exactly one sub-directory (common electron-builder layout)
-          const subDirs = entries.filter((e) => e.isDirectory());
-          if (subDirs.length === 1) {
-            const candidate = path.join(tempDir, subDirs[0].name);
-            flog(`srcDir: single subdir \u2192 ${candidate}`);
-            return candidate;
-          }
-          // Case 3: multiple subdirs — look for one containing CrewSpace.exe
-          for (const d of subDirs) {
-            const candidate = path.join(tempDir, d.name);
-            try {
-              const inner = fs.readdirSync(candidate);
-              if (inner.includes("CrewSpace.exe")) {
-                flog(`srcDir: nested subdir with exe \u2192 ${candidate}`);
-                return candidate;
-              }
-            } catch (_) {}
-          }
-          // Fallback: use tempDir itself
-          flog(`srcDir: fallback \u2192 ${tempDir}`);
-          return tempDir;
-        } catch (readErr) {
-          flog(`srcDir detection failed (${readErr.message}), using tempDir`);
-          return tempDir;
-        }
-      })();
-
-      // Validate srcDir is actually a directory before copying
-      try {
-        const srcStat = fs.statSync(srcDir);
-        if (!srcStat.isDirectory()) {
-          throw new Error(
-            `Extracted payload path is not a directory: ${srcDir}. ` +
-            "The installer file may be corrupt — please re-download and try again."
-          );
-        }
-      } catch (statErr) {
-        if (statErr.code === "ENOENT") {
-          throw new Error(
-            "Extraction appeared to succeed but the output directory is missing. " +
-            "This may be a permissions issue with your Temp folder. " +
-            "Please try running the installer again."
-          );
-        }
-        throw statErr;
-      }
-
-      // Copy using Node.js fs.cpSync — no robocopy or PowerShell needed
-      copyDir(srcDir, targetDir);
-
-      // Clean up temp
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+      // Extract DIRECTLY to target — avoids Node 20 fs.cpSync symlink bugs
+      fs.mkdirSync(targetDir, { recursive: true });
+      await extractZipToDir(zipPath, targetDir);
 
       let exePath = path.join(targetDir, "CrewSpace.exe");
+      // electron-builder zips win-unpacked directly, so exe is at root
       if (!fs.existsSync(exePath)) {
         const entries = fs.readdirSync(targetDir, { withFileTypes: true });
         const subDir = entries.find((e) => e.isDirectory());
@@ -368,14 +306,15 @@ ipcMain.handle("launch-app", async () => {
   const exePath = findInstalledExe();
 
   if (exePath) {
+    const err = await shell.openPath(exePath);
+    if (err === "") return { success: true, launched: exePath };
+    // Fallback only if openPath fails
     try {
       const child = spawn(exePath, [], { detached: true, shell: false, stdio: "ignore" });
       child.unref();
       return { success: true, launched: exePath };
-    } catch (err) {
-      // Fall back to shell.openPath if spawn fails
-      await shell.openPath(exePath);
-      return { success: true, launched: exePath };
+    } catch (spawnErr) {
+      return { success: false, error: String(spawnErr) };
     }
   }
 
