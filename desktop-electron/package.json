@@ -143,10 +143,7 @@
         "dmg"
       ],
       "icon": "assets/icon.icns",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.inherit.plist"
+      "identity": null
     },
     "dmg": {
       "background": "assets/installer/dmgBackground.png",
