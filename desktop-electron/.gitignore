@@ -5,3 +5,4 @@ renderer-dist/
 *.tsbuildinfo
 .DS_Store
 dist3/
+dist-new/
