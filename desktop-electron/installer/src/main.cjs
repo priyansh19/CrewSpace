@@ -125,19 +125,25 @@ async function extractZipToDir(zipPath, targetDir) {
   let lastErr = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     lastErr = null;
+    // On repeat installs old files (especially .exe/.dll with read-only attr)
+    // can survive the first clear attempt if they were momentarily locked.
+    // We clear before EVERY extraction attempt so tar.exe has a clean target.
+    clearDirContents(targetDir);
+
     const proc = spawn(tarPath, ["-xf", zipPath, "-C", targetDir], {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
-    const code = await new Promise((resolve, reject) => {
+    const { code, stderr } = await new Promise((resolve, reject) => {
       let stderr = "";
       proc.stderr.on("data", (d) => { stderr += d.toString(); });
-      proc.on("close", (c) => resolve(c));
+      proc.on("close", (c) => resolve({ code: c, stderr }));
       proc.on("error", (err) => reject(new Error(`tar.exe unavailable: ${err.message}`)));
     });
     if (code === 0) return;
-    lastErr = new Error(`Extraction failed (tar code ${code})`);
-    flog(`extractZipToDir attempt ${attempt} failed, waiting before retry…`);
+    const errDetail = stderr.trim() || "no details";
+    lastErr = new Error(`Extraction failed (tar code ${code}): ${errDetail}`);
+    flog(`extractZipToDir attempt ${attempt} failed — ${errDetail}, waiting ${attempt * 2}s before retry…`);
     await sleep(attempt * 2000);
   }
   throw lastErr || new Error("Extraction failed after 3 attempts");
@@ -161,21 +167,30 @@ function ensureCleanDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-// Remove all contents inside a directory (best-effort, never throws).
+// Remove all contents inside a directory recursively.
+// On Windows, read-only files (common for .exe and .dll) block deletion.
+// We chmod first, then delete.  Best-effort — never throws.
 function clearDirContents(dirPath) {
-  try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const full = path.join(dirPath, entry.name);
-      try {
-        if (entry.isDirectory()) {
-          fs.rmSync(full, { recursive: true, force: true });
-        } else {
-          fs.unlinkSync(full);
+  function rmRecursive(p) {
+    try {
+      const stat = fs.statSync(p);
+      if (stat.isDirectory()) {
+        for (const entry of fs.readdirSync(p)) {
+          rmRecursive(path.join(p, entry));
         }
-      } catch (e) {
-        flog(`clearDirContents: could not remove ${full}: ${e.code || e.message}`);
+        fs.rmdirSync(p);
+      } else {
+        // Windows: remove read-only attribute before deleting
+        try { fs.chmodSync(p, 0o666); } catch (_) {}
+        fs.unlinkSync(p);
       }
+    } catch (e) {
+      flog(`clearDirContents: could not remove ${p}: ${e.code || e.message}`);
+    }
+  }
+  try {
+    for (const entry of fs.readdirSync(dirPath)) {
+      rmRecursive(path.join(dirPath, entry));
     }
   } catch (e) {
     if (e.code !== "ENOENT") flog(`clearDirContents: ${e.message}`);
@@ -308,11 +323,10 @@ ipcMain.handle("install", async () => {
 
       sendProgress(10, "extract", "Removing old files…");
 
-      // On repeat installs old files (especially app.asar) can be locked by
-      // Windows Search or AV even after the process is dead.  We clear the
-      // directory contents so tar.exe doesn't trip over them.
+      // Ensure target directory exists.  Actual clearing of old files happens
+      // inside extractZipToDir before each retry attempt, since a file may be
+      // locked during the first clear but free on the second attempt.
       ensureCleanDir(targetDir);
-      clearDirContents(targetDir);
 
       sendProgress(15, "extract", "Extracting files…");
 
