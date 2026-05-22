@@ -1,24 +1,41 @@
-// Runs after electron-builder signs (or skips signing) the app bundle,
-// before DMG is created. Strips any ad-hoc signature so macOS shows
-// "unidentified developer" instead of the harder "damaged" Gatekeeper error.
-const { execSync } = require("child_process");
+// Runs after electron-builder signs the app bundle.
+// Notarizes the app with Apple for Gatekeeper compliance.
+const { notarize } = require("@electron/notarize");
 const path = require("path");
 
 module.exports = async function afterSign(context) {
-  if (context.electronPlatformName !== "darwin") return;
+  if (context.electronPlatformName !== "darwin") {
+    console.log("[afterSign] Skipping notarization — not macOS.");
+    return;
+  }
 
-  const appPath = path.join(
-    context.appOutDir,
-    `${context.packager.appInfo.productFilename}.app`,
-  );
+  const appName = context.packager.appInfo.productFilename;
+  const appPath = path.join(context.appOutDir, `${appName}.app`);
 
-  console.log(`[afterSign] Stripping ad-hoc signature from: ${appPath}`);
+  const appleId = process.env.APPLE_ID;
+  const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
+  const teamId = process.env.APPLE_TEAM_ID;
+
+  if (!appleId || !appleIdPassword || !teamId) {
+    console.warn(
+      "[afterSign] Missing Apple signing credentials — skipping notarization.\n" +
+      "Set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID env vars."
+    );
+    return;
+  }
+
+  console.log(`[afterSign] Notarizing: ${appPath}`);
   try {
-    execSync(`codesign --remove-signature --deep "${appPath}"`, {
-      stdio: "inherit",
+    await notarize({
+      appBundleId: "com.crewspaceai.desktop",
+      appPath,
+      appleId,
+      appleIdPassword,
+      teamId,
     });
-    console.log("[afterSign] Signature removed — app will be unsigned.");
+    console.log("[afterSign] Notarization complete.");
   } catch (e) {
-    console.warn("[afterSign] codesign remove-signature failed:", e.message);
+    console.error("[afterSign] Notarization failed:", e.message);
+    throw e;
   }
 };

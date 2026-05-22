@@ -21,6 +21,7 @@
     "postinstall": ""
   },
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
     "@tailwindcss/vite": "^4.0.7",
     "@types/node": "^25.2.3",
     "@types/react": "^19.0.8",
@@ -40,11 +41,11 @@
     "@crewspaceai/adapter-codex-local": "workspace:*",
     "@crewspaceai/adapter-cursor-local": "workspace:*",
     "@crewspaceai/adapter-gemini-local": "workspace:*",
+    "@crewspaceai/adapter-kimi-api": "workspace:*",
+    "@crewspaceai/adapter-kimi-local": "workspace:*",
     "@crewspaceai/adapter-openclaw-gateway": "workspace:*",
     "@crewspaceai/adapter-opencode-local": "workspace:*",
     "@crewspaceai/adapter-pi-local": "workspace:*",
-    "@crewspaceai/adapter-kimi-local": "workspace:*",
-    "@crewspaceai/adapter-kimi-api": "workspace:*",
     "@crewspaceai/adapter-utils": "workspace:*",
     "@crewspaceai/shared": "workspace:*",
     "@dicebear/collection": "^9.4.2",
@@ -141,8 +142,11 @@
       "target": [
         "dmg"
       ],
-      "icon": "assets/icon.png",
-      "identity": null
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist"
     },
     "dmg": {
       "background": "assets/installer/dmgBackground.png",
