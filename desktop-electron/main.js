@@ -494,7 +494,7 @@ function createWindow() {
     minHeight: 640,
     center: true,
     show: false,
-    backgroundColor: "#0f172a",
+    backgroundColor: "#181715",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -652,11 +652,11 @@ function injectCrewSpaceTitleBar(win) {
   const css = [
     "body > div:first-child { padding-top: 32px !important; height: 100% !important; display: flex !important; flex-direction: column !important; box-sizing: border-box !important; }",
     "body > div:first-child > div:first-child { flex: 1 1 auto !important; min-height: 0 !important; max-height: none !important; }",
-    ".crewspace-titlebar { position: fixed; top: 0; left: 0; right: 0; height: 32px; background: hsl(var(--background)); border-bottom: 1px solid hsl(var(--border)); display: flex; align-items: center; justify-content: space-between; padding: 0 0 0 12px; z-index: 99999; -webkit-app-region: drag; user-select: none; box-sizing: border-box; }",
+    ".crewspace-titlebar { position: fixed; top: 0; left: 0; right: 0; height: 32px; background: var(--background); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 0 0 12px; z-index: 99999; -webkit-app-region: drag; user-select: none; box-sizing: border-box; }",
     ".crewspace-titlebar-drag { flex: 1; height: 100%; -webkit-app-region: drag; }",
     ".crewspace-titlebar-btns { display: flex; align-items: center; height: 100%; gap: 0; }",
-    ".crewspace-titlebar-btn { width: 46px; height: 100%; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: hsl(var(--muted-foreground)); -webkit-app-region: no-drag; transition: background 120ms, color 120ms; padding: 0; margin: 0; }",
-    ".crewspace-titlebar-btn:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }",
+    ".crewspace-titlebar-btn { width: 46px; height: 100%; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--muted-foreground); -webkit-app-region: no-drag; transition: background 120ms, color 120ms; padding: 0; margin: 0; }",
+    ".crewspace-titlebar-btn:hover { background: var(--accent); color: var(--foreground); }",
     ".crewspace-titlebar-btn.close:hover { background: #dc2626; color: #fff; }",
     ".crewspace-titlebar-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }",
   ].join(" ");

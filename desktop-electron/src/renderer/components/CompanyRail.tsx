@@ -158,7 +158,7 @@ function SortableCompanyItem({
 
 export function CompanyRail() {
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
-  const { toggleSidebar, sidebarOpen } = useSidebar();
+  const { toggleSidebar, toggleLeftNav, sidebarOpen, leftNavOpen, isMobile } = useSidebar();
   const { openOnboarding } = useDialog();
   const navigate = useNavigate();
   const location = useLocation();
@@ -291,15 +291,27 @@ export function CompanyRail() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                toggleSidebar();
+                if (isMobile) {
+                  toggleSidebar();
+                } else {
+                  toggleLeftNav();
+                }
               }}
               className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              aria-label={isMobile ? (sidebarOpen ? "Collapse sidebar" : "Expand sidebar") : (leftNavOpen ? "Collapse sidebar" : "Expand sidebar")}
             >
-              {sidebarOpen ? (
-                <PanelLeftClose className="h-5 w-5" />
+              {isMobile ? (
+                sidebarOpen ? (
+                  <PanelLeftClose className="h-5 w-5" />
+                ) : (
+                  <PanelLeftOpen className="h-5 w-5" />
+                )
               ) : (
-                <PanelLeftOpen className="h-5 w-5" />
+                leftNavOpen ? (
+                  <PanelLeftClose className="h-5 w-5" />
+                ) : (
+                  <PanelLeftOpen className="h-5 w-5" />
+                )
               )}
             </button>
           </TooltipTrigger>

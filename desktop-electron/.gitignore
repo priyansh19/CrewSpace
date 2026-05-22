@@ -4,3 +4,4 @@ renderer-dist/
 .vite/
 *.tsbuildinfo
 .DS_Store
+dist3/

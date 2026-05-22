@@ -74,6 +74,13 @@ export function chatSessionRoutes(db: Db) {
       return;
     }
     assertCompanyAccess(req, existing.companyId);
+
+    if (!req.body || typeof req.body !== "object") {
+      console.warn(`[chat-sessions] Missing body for POST /chat-sessions/${id}/messages — content-type: ${req.header("content-type")}, content-length: ${req.header("content-length")}`);
+      res.status(400).json({ error: "Request body is required" });
+      return;
+    }
+
     const { role, content, agentId } = req.body as { role: string; content: string; agentId?: string };
     if (!role || !content) {
       res.status(400).json({ error: "role and content are required" });

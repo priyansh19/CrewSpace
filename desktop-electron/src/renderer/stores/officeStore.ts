@@ -306,6 +306,8 @@ function deriveStatus(
   issues: MissionIssue[],
   liveRuns: number,
 ): AgentStatus {
+  if (agent.status === "terminated") return "sleeping";
+
   if (liveRuns > 0) return "working";
 
   const openAssigned = issues.filter(

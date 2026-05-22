@@ -865,7 +865,8 @@ export function agentRoutes(db: Db) {
   router.get("/companies/:companyId/agents", async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
-    const result = await svc.list(companyId);
+    const includeTerminated = req.query.includeTerminated === "true";
+    const result = await svc.list(companyId, { includeTerminated });
     const canReadConfigs = await actorCanReadConfigurationsForCompany(req, companyId);
     if (canReadConfigs || req.actor.type === "board") {
       res.json(result);
@@ -2492,6 +2493,13 @@ function extractKimiChatText(raw: string): string {
   // Returns: text/event-stream  →  data: {"t":"<chunk>"}\n\n  …  data: [DONE]\n\n
   router.post("/agents/:id/chat", async (req, res) => {
     const id = req.params.id as string;
+
+    if (!req.body || typeof req.body !== "object") {
+      console.warn(`[agent-chat] Missing body for POST /agents/${id}/chat — content-type: ${req.header("content-type")}, content-length: ${req.header("content-length")}`);
+      res.status(400).json({ error: "Request body is required" });
+      return;
+    }
+
     const body = req.body as { messages?: Array<{ role: string; content: string }> };
 
     if (!Array.isArray(body.messages) || body.messages.length === 0) {

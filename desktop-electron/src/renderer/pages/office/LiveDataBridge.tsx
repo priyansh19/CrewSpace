@@ -19,7 +19,7 @@ const LiveDataBridge = () => {
     error: agentsErrorObj,
   } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId ?? ""),
-    queryFn: () => agentsApi.list(selectedCompanyId!),
+    queryFn: () => agentsApi.list(selectedCompanyId!, true),
     enabled: !!selectedCompanyId,
     refetchInterval: 10_000,
     refetchOnWindowFocus: true,

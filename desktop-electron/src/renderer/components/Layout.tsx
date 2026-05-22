@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Moon, Settings, Sun, PanelLeft, PanelLeftClose } from "lucide-react";
+import { BookOpen, Moon, Settings, Sun, PanelLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "@/lib/router";
 import { CompanyRail } from "./CompanyRail";
 import { Sidebar } from "./Sidebar";
@@ -347,7 +347,7 @@ export function Layout() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : leftNavOpen ? (
           <div className="flex h-full flex-col shrink-0">
             <div className="flex flex-1 min-h-0">
               <CompanyRail />
@@ -405,6 +405,16 @@ export function Layout() {
               </div>
             </div>
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={toggleLeftNav}
+            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors mt-3 ml-3"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+          >
+            <PanelLeftOpen className="h-5 w-5" />
+          </button>
         )}
 
         <div className={cn("flex min-w-0 flex-col", isMobile ? "w-full" : "h-full flex-1")}>
