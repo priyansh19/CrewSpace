@@ -125,11 +125,6 @@ async function extractZipToDir(zipPath, targetDir) {
   let lastErr = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     lastErr = null;
-    // On repeat installs old files (especially .exe/.dll with read-only attr)
-    // can survive the first clear attempt if they were momentarily locked.
-    // We clear before EVERY extraction attempt so tar.exe has a clean target.
-    clearDirContents(targetDir);
-
     const proc = spawn(tarPath, ["-xf", zipPath, "-C", targetDir], {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
@@ -150,10 +145,9 @@ async function extractZipToDir(zipPath, targetDir) {
 }
 
 // Ensure a path is a clean, writable directory.
-// Handles the ENOTDIR case where a file exists at the same path as the
-// expected directory (e.g. a stale file from a failed prior install).
-// On repeat installs we also clear out old files so tar.exe doesn't
-// trip over locked files from the previous version.
+// On repeat installs we RENAME the old directory instead of recursively
+// deleting it — recursive deletion blocks the main thread and freezes the
+// window.  Renaming is O(1) and instant.  The old dir is cleaned up async.
 function ensureCleanDir(dirPath) {
   try {
     const stat = fs.statSync(dirPath);
@@ -167,34 +161,33 @@ function ensureCleanDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-// Remove all contents inside a directory recursively.
-// On Windows, read-only files (common for .exe and .dll) block deletion.
-// We chmod first, then delete.  Best-effort — never throws.
-function clearDirContents(dirPath) {
-  function rmRecursive(p) {
-    try {
-      const stat = fs.statSync(p);
-      if (stat.isDirectory()) {
-        for (const entry of fs.readdirSync(p)) {
-          rmRecursive(path.join(p, entry));
-        }
-        fs.rmdirSync(p);
-      } else {
-        // Windows: remove read-only attribute before deleting
-        try { fs.chmodSync(p, 0o666); } catch (_) {}
-        fs.unlinkSync(p);
-      }
-    } catch (e) {
-      flog(`clearDirContents: could not remove ${p}: ${e.code || e.message}`);
-    }
-  }
+// Rename an existing install directory to a backup name (instant, non-blocking).
+// Returns the backup path so the caller can schedule async cleanup.
+function stashOldInstall(dirPath) {
+  if (!fs.existsSync(dirPath)) return null;
+  const backup = `${dirPath}.old.${Date.now()}`;
   try {
-    for (const entry of fs.readdirSync(dirPath)) {
-      rmRecursive(path.join(dirPath, entry));
-    }
-  } catch (e) {
-    if (e.code !== "ENOENT") flog(`clearDirContents: ${e.message}`);
+    fs.renameSync(dirPath, backup);
+    flog(`stashOldInstall: renamed ${dirPath} → ${backup}`);
+    return backup;
+  } catch (err) {
+    flog(`stashOldInstall: rename failed: ${err.code || err.message}`);
+    return null;
   }
+}
+
+// Best-effort async cleanup of a stashed old install directory.
+// Runs in the background so it never blocks the UI.
+function cleanupOldInstall(backupPath) {
+  if (!backupPath) return;
+  setTimeout(() => {
+    try {
+      fs.rmSync(backupPath, { recursive: true, force: true });
+      flog(`cleanupOldInstall: removed ${backupPath}`);
+    } catch (err) {
+      flog(`cleanupOldInstall: could not remove ${backupPath}: ${err.code || err.message}`);
+    }
+  }, 500);
 }
 
 // Recursively copy srcDir into dstDir using Node.js fs.cpSync.
@@ -323,15 +316,34 @@ ipcMain.handle("install", async () => {
 
       sendProgress(10, "extract", "Removing old files…");
 
-      // Ensure target directory exists.  Actual clearing of old files happens
-      // inside extractZipToDir before each retry attempt, since a file may be
-      // locked during the first clear but free on the second attempt.
+      // Rename the old install directory instead of recursively deleting.
+      // Recursive deletion blocks the main thread and freezes the window.
+      // Renaming is O(1) and instant — we clean up the backup async later.
+      const backupDir = stashOldInstall(targetDir);
       ensureCleanDir(targetDir);
 
       sendProgress(15, "extract", "Extracting files…");
 
       // Extract DIRECTLY to target — avoids Node 20 fs.cpSync symlink bugs
-      await extractZipToDir(zipPath, targetDir);
+      try {
+        await extractZipToDir(zipPath, targetDir);
+      } catch (extractErr) {
+        // If extraction fails, try to restore the backup so the user isn't
+        // left with a broken installation.
+        if (backupDir) {
+          try {
+            fs.rmSync(targetDir, { recursive: true, force: true });
+            fs.renameSync(backupDir, targetDir);
+            flog(`install: restored backup after failed extraction`);
+          } catch (restoreErr) {
+            flog(`install: failed to restore backup: ${restoreErr.message}`);
+          }
+        }
+        throw extractErr;
+      }
+
+      // Extraction succeeded — clean up the old install in the background.
+      cleanupOldInstall(backupDir);
 
       let exePath = path.join(targetDir, "CrewSpace.exe");
       // electron-builder zips win-unpacked directly, so exe is at root
