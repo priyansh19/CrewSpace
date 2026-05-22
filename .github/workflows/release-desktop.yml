@@ -85,8 +85,13 @@ jobs:
       # Build NSIS installer — generates latest.yml + blockmap for electron-updater.
       # We stash the NSIS artifacts before the unpacked build because both builds
       # share the default output dir and electron-builder may clean files.
+      # Windows signing env vars are passed here; if secrets are absent electron-builder
+      # skips signing and the build remains unsigned (same as before).
       - name: Build NSIS installer
         working-directory: desktop-electron
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: pnpm exec electron-builder --win nsis --publish never
 
       - name: Stash NSIS artifacts
@@ -129,9 +134,13 @@ jobs:
         working-directory: desktop-electron/installer
         run: pnpm run build
 
-      # Package the installer wizard as a portable exe
+      # Package the installer wizard as a portable exe.
+      # Signing env vars are passed so the portable wizard exe is also signed.
       - name: Build installer wizard portable exe
         working-directory: desktop-electron/installer
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: pnpm run build:app
 
       - name: Upload Windows installer wizard artifact
