@@ -50,6 +50,15 @@ function getAppDataDir() {
   return path.join(os.homedir(), "AppData", "Local", "CrewSpace");
 }
 
+function getEmbeddedPostgresDataDir() {
+  return path.join(getAppDataDir(), "instances", "default", "data");
+}
+
+function isFirstRun() {
+  const pgVersionFile = path.join(getEmbeddedPostgresDataDir(), "PG_VERSION");
+  return !fs.existsSync(pgVersionFile);
+}
+
 
 function isCrewSpaceUrl(url) {
   if (serverUrl && url.startsWith(serverUrl)) return true;
@@ -71,6 +80,7 @@ let isQuitting = false;
 let normalBounds = null; // Pre-maximize bounds for frameless window restore
 let updateAvailable = false;
 let updateDownloaded = false;
+let startupConfig = { firstRun: false, maxWaitSeconds: 60 };
 
 // ── Auto Updater ────────────────────────────────────────────────────
 function setupAutoUpdater() {
@@ -217,6 +227,51 @@ async function findFreePort(startPort) {
   return startPort;
 }
 
+// ── Server log buffer for diagnostics ───────────────────────────────
+const SERVER_LOG_BUFFER = { lines: [], maxLines: 200 };
+function appendServerLog(line) {
+  SERVER_LOG_BUFFER.lines.push(line);
+  if (SERVER_LOG_BUFFER.lines.length > SERVER_LOG_BUFFER.maxLines) {
+    SERVER_LOG_BUFFER.lines.shift();
+  }
+}
+function getServerLogs() {
+  return SERVER_LOG_BUFFER.lines.join("\n");
+}
+function clearServerLogs() {
+  SERVER_LOG_BUFFER.lines = [];
+}
+
+// ── Parse server stdout for startup stage markers ───────────────────
+function parseServerStartupStage(line) {
+  const lower = line.toLowerCase();
+  if (lower.includes("initdb") || lower.includes("initialise")) {
+    return { stage: "init-db", message: "Creating database cluster (first run, this may take a minute)...", detail: "Setting up embedded PostgreSQL" };
+  }
+  if (lower.includes("embedded postgresql ready")) {
+    return { stage: "boot-app", message: "Loading CrewSpace...", detail: "Starting application server" };
+  }
+  if (lower.includes("migrations") && (lower.includes("applying") || lower.includes("pending"))) {
+    return { stage: "migrations", message: "Applying database migrations...", detail: "Updating schema" };
+  }
+  if (lower.includes("server listening") || lower.includes("listening on")) {
+    return { stage: "boot-app", message: "Loading CrewSpace...", detail: "Almost there" };
+  }
+  return null;
+}
+
+function sendStartupStage(stageData) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("startup-stage", stageData);
+  }
+}
+
+function sendServerLog(line) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("server-log", line);
+  }
+}
+
 // ── Spawn server ────────────────────────────────────────────────────
 function spawnServer(port) {
   const dataDir = getAppDataDir();
@@ -278,19 +333,38 @@ function spawnServer(port) {
   });
 
   proc.stdout.on("data", (data) => {
+    const text = data.toString();
     try {
-      console.log("[server]", data.toString().trimEnd());
+      console.log("[server]", text.trimEnd());
     } catch {
       /* Ignore EPIPE from closed console streams during shutdown */
     }
+    // Capture logs and parse startup stages
+    text.split(/\r?\n/).forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      appendServerLog(trimmed);
+      sendServerLog(trimmed);
+      const stage = parseServerStartupStage(trimmed);
+      if (stage) sendStartupStage(stage);
+    });
   });
 
   proc.stderr.on("data", (data) => {
+    const text = data.toString();
     try {
-      console.error("[server]", data.toString().trimEnd());
+      console.error("[server]", text.trimEnd());
     } catch {
       /* Ignore EPIPE from closed console streams during shutdown */
     }
+    text.split(/\r?\n/).forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed) {
+        const stamped = "[stderr] " + trimmed;
+        appendServerLog(stamped);
+        sendServerLog(stamped);
+      }
+    });
   });
 
   proc.stdout.on("error", () => {
@@ -305,6 +379,11 @@ function spawnServer(port) {
     console.log(`[CrewSpace Desktop] Server exited with code ${code}`);
     if (!isQuitting && !isRestarting && mainWindow) {
       mainWindow.webContents.send("server-crashed", code);
+      mainWindow.webContents.send("startup-error", {
+        title: "Server crashed",
+        message: `The server exited unexpectedly (code: ${code}).`,
+        logs: getServerLogs(),
+      });
     }
   });
 
@@ -312,6 +391,11 @@ function spawnServer(port) {
     console.error("[CrewSpace Desktop] Server spawn error:", err);
     if (mainWindow) {
       mainWindow.webContents.send("server-error", err.message);
+      mainWindow.webContents.send("startup-error", {
+        title: "Server failed to start",
+        message: err.message,
+        logs: getServerLogs(),
+      });
     }
   });
 
@@ -465,9 +549,9 @@ async function respawnServerWithRestore() {
 }
 
 // ── Health check ────────────────────────────────────────────────────
-async function waitForServer(port) {
+async function waitForServer(port, maxRetries = HEALTH_MAX_RETRIES) {
   const url = `http://${SERVER_LOCAL_HOST}:${port}/api/health`;
-  for (let i = 0; i < HEALTH_MAX_RETRIES; i++) {
+  for (let i = 0; i < maxRetries; i++) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
       if (res.ok) return true;
@@ -783,6 +867,33 @@ function createTray() {
 // ── IPC handlers ────────────────────────────────────────────────────
 ipcMain.handle("get-server-url", () => serverUrl);
 
+ipcMain.handle("get-startup-config", () => startupConfig);
+
+ipcMain.handle("get-server-logs", () => getServerLogs());
+
+ipcMain.handle("retry-server-start", async () => {
+  if (!serverProcess) return { success: false, error: "No server process to retry" };
+  try {
+    killServer();
+    await waitForServerDeath();
+    serverProcess = null;
+    clearServerLogs();
+
+    const port = extractPortFromUrl(serverUrl);
+    serverProcess = spawnServer(port);
+    const maxRetries = startupConfig.firstRun ? 600 : HEALTH_MAX_RETRIES;
+    const healthy = await waitForServer(port, maxRetries);
+
+    if (healthy) {
+      return { success: true, serverUrl };
+    } else {
+      return { success: false, error: "Server health check timed out after retry", logs: getServerLogs() };
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err), logs: getServerLogs() };
+  }
+});
+
 ipcMain.handle("check-server-health", async () => {
   if (!serverUrl) return false;
   try {
@@ -1034,6 +1145,11 @@ app.whenReady().then(async () => {
     await spawnVite();
   }
 
+  // Detect first-run for extended timeout
+  const firstRun = isFirstRun();
+  startupConfig = { firstRun, maxWaitSeconds: firstRun ? 300 : 60 };
+  console.log(`[CrewSpace Desktop] First run: ${firstRun}, max wait: ${startupConfig.maxWaitSeconds}s`);
+
   // Quick-check: reuse port 3150 if a healthy server is already running
   let port = SERVER_PORT;
   let existingHealthy = false;
@@ -1048,6 +1164,7 @@ app.whenReady().then(async () => {
   serverUrl = `http://${SERVER_LOCAL_HOST}:${port}`;
 
   if (!existingHealthy) {
+    clearServerLogs();
     serverProcess = spawnServer(port);
   } else {
     console.log(`[CrewSpace Desktop] Reusing existing server on port ${port}`);
@@ -1056,6 +1173,13 @@ app.whenReady().then(async () => {
   createWindow();
   createTray();
   setupAutoUpdater();
+
+  // Send startup config to renderer once window is ready
+  if (mainWindow) {
+    mainWindow.webContents.on("dom-ready", () => {
+      mainWindow.webContents.send("startup-config", startupConfig);
+    });
+  }
 
   app.on("activate", () => {
     createWindow();

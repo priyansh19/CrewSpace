@@ -30,6 +30,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onServerCrashed: (callback) => ipcRenderer.on("server-crashed", (_event, code) => callback(code)),
   onServerError: (callback) => ipcRenderer.on("server-error", (_event, message) => callback(message)),
 
+  // Startup Progress Events
+  onStartupConfig: (callback) => ipcRenderer.on("startup-config", (_event, data) => callback(data)),
+  onStartupStage: (callback) => ipcRenderer.on("startup-stage", (_event, data) => callback(data)),
+  onStartupReady: (callback) => ipcRenderer.on("startup-ready", () => callback()),
+  onStartupError: (callback) => ipcRenderer.on("startup-error", (_event, data) => callback(data)),
+  getStartupConfig: () => ipcRenderer.invoke("get-startup-config"),
+  retryServerStart: () => ipcRenderer.invoke("retry-server-start"),
+
+  // Server log stream
+  onServerLog: (callback) => ipcRenderer.on("server-log", (_event, line) => callback(line)),
+  getServerLogs: () => ipcRenderer.invoke("get-server-logs"),
+
   // Window Control
   minimizeWindow: () => ipcRenderer.send("window-minimize"),
   maximizeWindow: () => ipcRenderer.send("window-maximize"),
