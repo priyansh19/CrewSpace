@@ -157,15 +157,16 @@ body {
 /* ── Brand ───────────────────────────────────────────────────── */
 .brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 20px;
+  margin-bottom: 16px;
 }
 
 .mark {
-  width: 36px;
-  height: 36px;
+  width: 96px;
+  height: 96px;
   flex-shrink: 0;
 }
 

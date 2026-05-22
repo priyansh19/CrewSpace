@@ -39,10 +39,66 @@
     <div class="app">
       <div class="card">
         <div class="brand">
-          <svg class="mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="14" fill="#141413" />
-            <path d="M16 6 L16 26 M6 16 L26 16" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" />
-            <path d="M9 9 L23 23 M23 9 L9 23" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" />
+          <svg class="mark" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="splash-bgGrad" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stop-color="#252538"/>
+                <stop offset="100%" stop-color="#141422"/>
+              </radialGradient>
+              <linearGradient id="splash-coralGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#E07A5F"/>
+                <stop offset="50%" stop-color="#F2A07B"/>
+                <stop offset="100%" stop-color="#E07A5F"/>
+              </linearGradient>
+              <linearGradient id="splash-coralGradV" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#F2A07B"/>
+                <stop offset="100%" stop-color="#E07A5F"/>
+              </linearGradient>
+              <linearGradient id="splash-coralGradD1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#F4A261"/>
+                <stop offset="100%" stop-color="#D4654A"/>
+              </linearGradient>
+              <linearGradient id="splash-coralGradD2" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#F4A261"/>
+                <stop offset="100%" stop-color="#D4654A"/>
+              </linearGradient>
+              <filter id="splash-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="12" result="blur"/>
+                <feMerge>
+                  <feMergeNode in="blur"/>
+                  <feMergeNode in="blur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+              <filter id="splash-barShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.4"/>
+              </filter>
+            </defs>
+            <rect width="1024" height="1024" rx="224" fill="url(#splash-bgGrad)"/>
+            <circle cx="512" cy="512" r="380" fill="none" stroke="#2A2A3E" stroke-width="2" opacity="0.6"/>
+            <rect x="472" y="140" width="80" height="160" rx="8" fill="url(#splash-coralGradV)" filter="url(#splash-barShadow)"/>
+            <rect x="472" y="724" width="80" height="160" rx="8" fill="url(#splash-coralGradV)" filter="url(#splash-barShadow)"/>
+            <rect x="140" y="472" width="160" height="80" rx="8" fill="url(#splash-coralGrad)" filter="url(#splash-barShadow)"/>
+            <rect x="724" y="472" width="160" height="80" rx="8" fill="url(#splash-coralGrad)" filter="url(#splash-barShadow)"/>
+            <g transform="rotate(45, 512, 512)">
+              <rect x="484" y="140" width="56" height="150" rx="6" fill="url(#splash-coralGradD1)" filter="url(#splash-barShadow)"/>
+            </g>
+            <g transform="rotate(-45, 512, 512)">
+              <rect x="484" y="140" width="56" height="150" rx="6" fill="url(#splash-coralGradD2)" filter="url(#splash-barShadow)"/>
+            </g>
+            <g transform="rotate(135, 512, 512)">
+              <rect x="484" y="140" width="56" height="150" rx="6" fill="url(#splash-coralGradD2)" filter="url(#splash-barShadow)"/>
+            </g>
+            <g transform="rotate(-135, 512, 512)">
+              <rect x="484" y="140" width="56" height="150" rx="6" fill="url(#splash-coralGradD1)" filter="url(#splash-barShadow)"/>
+            </g>
+            <rect x="362" y="362" width="300" height="300" rx="56" fill="#E07A5F" opacity="0.15" filter="url(#splash-glow)"/>
+            <rect x="362" y="362" width="300" height="300" rx="48" fill="#FFFFFF"/>
+            <rect x="386" y="410" width="252" height="228" rx="24" fill="#141422"/>
+            <circle cx="414" cy="390" r="10" fill="#141422"/>
+            <circle cx="446" cy="390" r="10" fill="#141422"/>
+            <polygon points="460,470 500,498 460,526 460,510 484,498 460,486" fill="#FFFFFF"/>
+            <rect x="514" y="520" width="28" height="6" rx="3" fill="#FFFFFF"/>
           </svg>
           <h1 class="title">CrewSpace</h1>
         </div>
