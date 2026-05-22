@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import { generateKeyPairSync, randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import path from "node:path";
 import type { Db } from "@crewspaceai/db";
 import { agents as agentsTable, companies, heartbeatRuns } from "@crewspaceai/db";
@@ -2587,7 +2587,24 @@ function extractKimiChatText(raw: string): string {
     res.setHeader("X-Accel-Buffering", "no"); // disable nginx buffering if present
     res.flushHeaders();
 
-    const proc = spawn(command, args, { env: { ...process.env, HOME: homeDir } });
+    // Pre-flight: check command exists so the user gets a clear error
+    function commandExists(cmd: string): boolean {
+      try {
+        execSync(process.platform === "win32" ? `where ${cmd}` : `which ${cmd}`, { stdio: "ignore" });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    if (!commandExists(command)) {
+      res.write(`data: ${JSON.stringify({ err: `Command "${command}" not found. Please install the ${adapterType} CLI.` })}\n\n`);
+      res.write("data: [DONE]\n\n");
+      res.end();
+      return;
+    }
+
+    const proc = spawn(command, args, { env: process.env });
 
     proc.stdin.write(fullPrompt);
     proc.stdin.end();
@@ -2602,7 +2619,13 @@ function extractKimiChatText(raw: string): string {
       // Stream each chunk as an SSE event immediately
       res.write(`data: ${JSON.stringify({ t: streamText })}\n\n`);
     });
-    proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.stderr.on("data", (chunk: Buffer) => {
+      const text = chunk.toString().trim();
+      stderr += text;
+      if (text) {
+        res.write(`data: ${JSON.stringify({ err: text })}\n\n`);
+      }
+    });
 
     proc.on("close", (code) => {
       if (code !== 0) {
@@ -2716,7 +2739,7 @@ function extractKimiChatText(raw: string): string {
     })();
 
     try {
-      const proc = spawn(command, args, { env: { ...process.env, HOME: homeDir } });
+      const proc = spawn(command, args, { env: process.env });
       proc.stdin.write(prompt);
       proc.stdin.end();
 

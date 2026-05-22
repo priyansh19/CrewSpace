@@ -93,6 +93,24 @@ export async function createApp(
       (req as unknown as { rawBody: Buffer }).rawBody = buf;
     },
   }));
+  // Diagnostic: log body-parser results for routes that mysteriously lose
+  // req.body in production (kimi_local chat + chat-sessions messages).
+  app.use((req, _res, next) => {
+    const isChatRoute = req.method === "POST" && (
+      /^\/api\/agents\/[^/]+\/chat$/.test(req.originalUrl || "") ||
+      /^\/api\/chat-sessions\/[^/]+\/messages$/.test(req.originalUrl || "")
+    );
+    if (isChatRoute) {
+      console.warn(
+        `[body-parser-debug] ${req.method} ${req.originalUrl} — ` +
+        `content-type: ${req.header("content-type")}, ` +
+        `content-length: ${req.header("content-length")}, ` +
+        `rawBody-length: ${(req as unknown as { rawBody?: Buffer }).rawBody?.length ?? 0}, ` +
+        `body: ${JSON.stringify(req.body)}`,
+      );
+    }
+    next();
+  });
   app.use(httpLogger);
   const privateHostnameGateEnabled =
     opts.deploymentMode === "authenticated" && opts.deploymentExposure === "private";

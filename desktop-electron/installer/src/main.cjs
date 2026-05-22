@@ -85,32 +85,69 @@ function createWindow() {
 
 // ── Installation helpers ────────────────────────────────────────────────────
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Kill every process whose image name matches (best-effort, never throws).
+function killProcessByName(name) {
+  return new Promise((resolve) => {
+    const tk = spawn("taskkill.exe", ["/F", "/IM", name, "/T"], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    tk.on("close", resolve);
+    tk.on("error", resolve);
+  });
+}
+
+// Check whether any process with the given image name is still running.
+function isProcessRunning(name) {
+  return new Promise((resolve) => {
+    const tl = spawn("tasklist.exe", ["/FI", `IMAGENAME eq ${name}`, "/NH"], {
+      stdio: ["ignore", "pipe", "ignore"],
+      windowsHide: true,
+    });
+    let out = "";
+    tl.stdout.on("data", (d) => { out += d.toString(); });
+    tl.on("close", () => resolve(out.toLowerCase().includes(name.toLowerCase())));
+    tl.on("error", () => resolve(false));
+  });
+}
+
 // PowerShell is only used for shortcut creation (requires WScript.Shell COM).
 // ── No PowerShell anywhere — all ops use Node.js built-ins or Electron APIs ──
 
 // Extract a ZIP using tar.exe (built into Windows 10 1803+).
-function extractZipToDir(zipPath, targetDir) {
-  ensureCleanDir(targetDir);
+// Retries up to 3× with progressive delays when files are locked.
+async function extractZipToDir(zipPath, targetDir) {
   const systemTar = "C:\\Windows\\System32\\tar.exe";
   const tarPath = fs.existsSync(systemTar) ? systemTar : "tar.exe";
-  return new Promise((resolve, reject) => {
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    lastErr = null;
     const proc = spawn(tarPath, ["-xf", zipPath, "-C", targetDir], {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
-    let stderr = "";
-    proc.stderr.on("data", (d) => { stderr += d.toString(); });
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`Extraction failed (tar code ${code}): ${stderr.trim() || "no details"}`));
+    const code = await new Promise((resolve, reject) => {
+      let stderr = "";
+      proc.stderr.on("data", (d) => { stderr += d.toString(); });
+      proc.on("close", (c) => resolve(c));
+      proc.on("error", (err) => reject(new Error(`tar.exe unavailable: ${err.message}`)));
     });
-    proc.on("error", (err) => reject(new Error(`tar.exe unavailable: ${err.message}`)));
-  });
+    if (code === 0) return;
+    lastErr = new Error(`Extraction failed (tar code ${code})`);
+    flog(`extractZipToDir attempt ${attempt} failed, waiting before retry…`);
+    await sleep(attempt * 2000);
+  }
+  throw lastErr || new Error("Extraction failed after 3 attempts");
 }
 
 // Ensure a path is a clean, writable directory.
 // Handles the ENOTDIR case where a file exists at the same path as the
 // expected directory (e.g. a stale file from a failed prior install).
+// On repeat installs we also clear out old files so tar.exe doesn't
+// trip over locked files from the previous version.
 function ensureCleanDir(dirPath) {
   try {
     const stat = fs.statSync(dirPath);
@@ -118,12 +155,31 @@ function ensureCleanDir(dirPath) {
       flog(`ensureCleanDir: removing non-directory at ${dirPath}`);
       fs.unlinkSync(dirPath);
     }
-    // already a directory — nothing to do
   } catch (err) {
     if (err.code !== "ENOENT") throw err;
-    // ENOENT is fine — mkdirSync will create it
   }
   fs.mkdirSync(dirPath, { recursive: true });
+}
+
+// Remove all contents inside a directory (best-effort, never throws).
+function clearDirContents(dirPath) {
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(dirPath, entry.name);
+      try {
+        if (entry.isDirectory()) {
+          fs.rmSync(full, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(full);
+        }
+      } catch (e) {
+        flog(`clearDirContents: could not remove ${full}: ${e.code || e.message}`);
+      }
+    }
+  } catch (e) {
+    if (e.code !== "ENOENT") flog(`clearDirContents: ${e.message}`);
+  }
 }
 
 // Recursively copy srcDir into dstDir using Node.js fs.cpSync.
@@ -223,45 +279,44 @@ ipcMain.handle("install", async () => {
       const isUpdate = fs.existsSync(targetDir);
       sendProgress(5, "extract", isUpdate ? "Preparing update…" : "Preparing installation…");
 
-      // Kill any running CrewSpace process using taskkill (no PowerShell needed).
-      // We then verify with tasklist — taskkill silently fails to terminate
-      // processes running at a higher integrity level (e.g. CrewSpace launched
-      // as Administrator) and that leaves file locks that break the install.
-      try {
-        await new Promise((resolve) => {
-          const tk = spawn("taskkill.exe", ["/F", "/IM", "CrewSpace.exe", "/T"], {
-            stdio: "ignore", windowsHide: true,
-          });
-          tk.on("close", resolve);
-          tk.on("error", resolve);
-        });
-        await new Promise((r) => setTimeout(r, 1500));
-      } catch (_) {}
-
-      const stillRunning = await new Promise((resolve) => {
-        const tl = spawn("tasklist.exe", ["/FI", "IMAGENAME eq CrewSpace.exe", "/NH"], {
-          stdio: ["ignore", "pipe", "ignore"], windowsHide: true,
-        });
-        let out = "";
-        tl.stdout.on("data", (d) => { out += d.toString(); });
-        tl.on("close", () => resolve(out.toLowerCase().includes("crewspace.exe")));
-        tl.on("error", () => resolve(false));
-      });
-      if (stillRunning) {
-        throw new Error(
-          "CrewSpace is still running and could not be closed automatically. " +
-          "This usually means CrewSpace is running with Administrator privileges. " +
-          "Please open Task Manager as Administrator, end every CrewSpace.exe task, " +
-          "and run the installer again."
-        );
+      // Kill every CrewSpace process (main + Electron helpers) because any
+      // of them can hold file locks that break the install.  We do this
+      // silently — the user already clicked "Install", they expect a replace.
+      const processesToKill = [
+        "CrewSpace.exe",
+        "CrewSpace Helper.exe",
+        "CrewSpace Helper (Renderer).exe",
+        "CrewSpace Helper (GPU).exe",
+      ];
+      for (const procName of processesToKill) {
+        await killProcessByName(procName);
       }
 
-      sendProgress(10, "extract", "Extracting files…");
+      // Wait for Windows to release file locks, then verify nothing is left.
+      await sleep(3000);
+      for (const procName of processesToKill) {
+        const stillRunning = await isProcessRunning(procName);
+        if (stillRunning) {
+          throw new Error(
+            `CrewSpace is still running (${procName}) and could not be closed automatically. ` +
+            "This usually means CrewSpace is running with Administrator privileges. " +
+            "Please open Task Manager as Administrator, end every CrewSpace task, " +
+            "and run the installer again."
+          );
+        }
+      }
+
+      sendProgress(10, "extract", "Removing old files…");
+
+      // On repeat installs old files (especially app.asar) can be locked by
+      // Windows Search or AV even after the process is dead.  We clear the
+      // directory contents so tar.exe doesn't trip over them.
+      ensureCleanDir(targetDir);
+      clearDirContents(targetDir);
 
       sendProgress(15, "extract", "Extracting files…");
 
       // Extract DIRECTLY to target — avoids Node 20 fs.cpSync symlink bugs
-      fs.mkdirSync(targetDir, { recursive: true });
       await extractZipToDir(zipPath, targetDir);
 
       let exePath = path.join(targetDir, "CrewSpace.exe");

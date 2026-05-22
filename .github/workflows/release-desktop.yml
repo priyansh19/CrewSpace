@@ -82,15 +82,36 @@ jobs:
         working-directory: desktop-electron
         run: pnpm run build:renderer
 
-      # Build NSIS installer — generates latest.yml + blockmap for electron-updater
+      # Build NSIS installer — generates latest.yml + blockmap for electron-updater.
+      # We stash the NSIS artifacts before the unpacked build because both builds
+      # share the default output dir and electron-builder may clean files.
       - name: Build NSIS installer
         working-directory: desktop-electron
         run: pnpm exec electron-builder --win nsis --publish never
 
-      # Package the main app as an unpacked directory for the installer wizard payload
+      - name: Stash NSIS artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "desktop-electron\dist-nsis"
+          Move-Item -Path "desktop-electron\dist\CrewSpace-Setup-*.exe" -Destination "desktop-electron\dist-nsis\"
+          if (Test-Path "desktop-electron\dist\CrewSpace-Setup-*.exe.blockmap") {
+            Move-Item -Path "desktop-electron\dist\CrewSpace-Setup-*.exe.blockmap" -Destination "desktop-electron\dist-nsis\"
+          }
+          if (Test-Path "desktop-electron\dist\latest.yml") {
+            Move-Item -Path "desktop-electron\dist\latest.yml" -Destination "desktop-electron\dist-nsis\"
+          }
+
+      # Package the main app as an unpacked directory for the installer wizard payload.
+      # This runs in a separate output dir so it can't collide with the NSIS artifacts.
       - name: Build desktop app (unpacked)
         working-directory: desktop-electron
         run: pnpm exec electron-builder --win --dir --publish never
+
+      - name: Restore NSIS artifacts
+        shell: pwsh
+        run: |
+          Move-Item -Path "desktop-electron\dist-nsis\*" -Destination "desktop-electron\dist\" -Force
+          Remove-Item -Path "desktop-electron\dist-nsis" -Recurse -Force
 
       # Zip the unpacked app as the installer wizard payload
       - name: Create installer payload (app.zip)

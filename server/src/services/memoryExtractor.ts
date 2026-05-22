@@ -99,7 +99,7 @@ function runClaude(claudeCmd: string, homeDir: string, prompt: string): Promise<
     const proc = spawn(
       claudeCmd,
       ["--print", "-", "--output-format", "text", "--dangerously-skip-permissions"],
-      { env: { ...process.env, HOME: homeDir } },
+      { env: process.env },
     );
 
     proc.stdin.write(prompt);
