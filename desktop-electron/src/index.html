@@ -38,6 +38,40 @@
 
     <!-- Main carousel container -->
     <div id="app">
+      <!-- LOG TOGGLE BUTTON -->
+      <button id="log-toggle" aria-label="Show logs">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 17 10 11 4 5"></polyline>
+          <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+        <span>Logs</span>
+      </button>
+
+      <!-- LOG PANEL (slides in from right) -->
+      <div id="log-panel">
+        <div id="log-header">
+          <span class="log-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            Server Console
+          </span>
+          <button id="log-close" aria-label="Close logs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div id="log-toolbar">
+          <button id="log-copy" class="log-toolbar-btn">Copy</button>
+          <button id="log-clear" class="log-toolbar-btn">Clear</button>
+          <span id="log-line-count" class="log-line-count">0 lines</span>
+        </div>
+        <div id="log-content"></div>
+      </div>
+
       <!-- CAROUSEL VIEW -->
       <div id="carousel-view">
         <!-- LEFT: dark illustration panel -->

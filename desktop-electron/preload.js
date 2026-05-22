@@ -38,6 +38,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getStartupConfig: () => ipcRenderer.invoke("get-startup-config"),
   retryServerStart: () => ipcRenderer.invoke("retry-server-start"),
 
+  // Server log stream
+  onServerLog: (callback) => ipcRenderer.on("server-log", (_event, line) => callback(line)),
+  getServerLogs: () => ipcRenderer.invoke("get-server-logs"),
+
   // Window Control
   minimizeWindow: () => ipcRenderer.send("window-minimize"),
   maximizeWindow: () => ipcRenderer.send("window-maximize"),

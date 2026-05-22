@@ -266,6 +266,12 @@ function sendStartupStage(stageData) {
   }
 }
 
+function sendServerLog(line) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("server-log", line);
+  }
+}
+
 // ── Spawn server ────────────────────────────────────────────────────
 function spawnServer(port) {
   const dataDir = getAppDataDir();
@@ -338,6 +344,7 @@ function spawnServer(port) {
       const trimmed = line.trim();
       if (!trimmed) return;
       appendServerLog(trimmed);
+      sendServerLog(trimmed);
       const stage = parseServerStartupStage(trimmed);
       if (stage) sendStartupStage(stage);
     });
@@ -352,7 +359,11 @@ function spawnServer(port) {
     }
     text.split(/\r?\n/).forEach((line) => {
       const trimmed = line.trim();
-      if (trimmed) appendServerLog("[stderr] " + trimmed);
+      if (trimmed) {
+        const stamped = "[stderr] " + trimmed;
+        appendServerLog(stamped);
+        sendServerLog(stamped);
+      }
     });
   });
 
@@ -857,6 +868,8 @@ function createTray() {
 ipcMain.handle("get-server-url", () => serverUrl);
 
 ipcMain.handle("get-startup-config", () => startupConfig);
+
+ipcMain.handle("get-server-logs", () => getServerLogs());
 
 ipcMain.handle("retry-server-start", async () => {
   if (!serverProcess) return { success: false, error: "No server process to retry" };

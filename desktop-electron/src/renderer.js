@@ -33,6 +33,13 @@ const els = {
   btnOpenData: document.getElementById("btn-open-data"),
   btnViewLogs: document.getElementById("btn-view-logs"),
   btnHideLogs: document.getElementById("btn-hide-logs"),
+  logToggle: document.getElementById("log-toggle"),
+  logPanel: document.getElementById("log-panel"),
+  logClose: document.getElementById("log-close"),
+  logContent: document.getElementById("log-content"),
+  logCopy: document.getElementById("log-copy"),
+  logClear: document.getElementById("log-clear"),
+  logLineCount: document.getElementById("log-line-count"),
 };
 
 // ── Carousel State ──────────────────────────────────────────────
@@ -50,6 +57,12 @@ let overallStartTime = Date.now();
 let isReady = false;
 let isError = false;
 let serverLogs = "";
+
+// Log panel state
+const MAX_LOG_LINES = 500;
+let logLines = [];
+let logPanelOpen = false;
+let logAutoScroll = true;
 
 // Known stage durations (ms) for progress estimation
 const STAGE_DURATIONS = {
@@ -206,6 +219,104 @@ function setStartupStage(stageData) {
   updateStartupProgress();
 }
 
+// ── Log Panel ───────────────────────────────────────────────────
+function getLogLevelClass(line) {
+  const lower = line.toLowerCase();
+  if (lower.includes("error") || lower.includes("fatal") || lower.includes("failed")) return "error";
+  if (lower.includes("warn")) return "warn";
+  if (lower.includes("info") || lower.includes("ready") || lower.includes("listening")) return "info";
+  return "";
+}
+
+function appendLogLine(line) {
+  if (!line) return;
+  logLines.push(line);
+  if (logLines.length > MAX_LOG_LINES) {
+    logLines.shift();
+  }
+
+  if (!logPanelOpen) return;
+
+  const div = document.createElement("div");
+  div.className = "log-line " + getLogLevelClass(line);
+
+  const ts = document.createElement("span");
+  ts.className = "log-ts";
+  const now = new Date();
+  ts.textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
+  const text = document.createElement("span");
+  text.textContent = line;
+
+  div.appendChild(ts);
+  div.appendChild(text);
+  els.logContent.appendChild(div);
+
+  updateLogLineCount();
+
+  if (logAutoScroll) {
+    els.logContent.scrollTop = els.logContent.scrollHeight;
+  }
+}
+
+function updateLogLineCount() {
+  if (els.logLineCount) {
+    els.logLineCount.textContent = `${logLines.length} line${logLines.length !== 1 ? "s" : ""}`;
+  }
+}
+
+function renderAllLogs() {
+  if (!els.logContent) return;
+  els.logContent.innerHTML = "";
+
+  if (logLines.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "log-empty";
+    empty.textContent = "Waiting for server logs...";
+    els.logContent.appendChild(empty);
+    updateLogLineCount();
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  logLines.forEach((line) => {
+    const div = document.createElement("div");
+    div.className = "log-line " + getLogLevelClass(line);
+
+    const ts = document.createElement("span");
+    ts.className = "log-ts";
+    const now = new Date();
+    ts.textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
+    const text = document.createElement("span");
+    text.textContent = line;
+
+    div.appendChild(ts);
+    div.appendChild(text);
+    frag.appendChild(div);
+  });
+
+  els.logContent.appendChild(frag);
+  updateLogLineCount();
+
+  if (logAutoScroll) {
+    els.logContent.scrollTop = els.logContent.scrollHeight;
+  }
+}
+
+function openLogPanel() {
+  logPanelOpen = true;
+  els.logPanel.classList.add("open");
+  els.logToggle.classList.add("hidden");
+  renderAllLogs();
+}
+
+function closeLogPanel() {
+  logPanelOpen = false;
+  els.logPanel.classList.remove("open");
+  els.logToggle.classList.remove("hidden");
+}
+
 function setStartupReady() {
   isReady = true;
   els.startupPulse.classList.add("done");
@@ -277,6 +388,28 @@ function setupIpcListeners() {
       console.error("[renderer] Startup error:", data);
       showErrorPanel(data.title, data.message, data.logs);
     });
+  }
+
+  // Server log stream
+  if (window.electronAPI.onServerLog) {
+    window.electronAPI.onServerLog((line) => {
+      appendLogLine(line);
+    });
+  }
+
+  // Fetch existing logs on boot
+  if (window.electronAPI.getServerLogs) {
+    window.electronAPI.getServerLogs().then((logs) => {
+      if (logs) {
+        logs.split("\n").forEach((line) => {
+          if (line.trim()) logLines.push(line.trim());
+        });
+        if (logLines.length > MAX_LOG_LINES) {
+          logLines = logLines.slice(logLines.length - MAX_LOG_LINES);
+        }
+        updateLogLineCount();
+      }
+    }).catch(() => {});
   }
 
   // Legacy events (fallback)
@@ -435,6 +568,52 @@ function setupEventBindings() {
   els.btnHideLogs.addEventListener("click", () => {
     els.errorLogs.classList.add("hidden");
   });
+
+  // Log panel toggle
+  if (els.logToggle) {
+    els.logToggle.addEventListener("click", openLogPanel);
+  }
+  if (els.logClose) {
+    els.logClose.addEventListener("click", closeLogPanel);
+  }
+
+  // Log copy
+  if (els.logCopy) {
+    els.logCopy.addEventListener("click", async () => {
+      const text = logLines.join("\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        els.logCopy.textContent = "Copied!";
+        setTimeout(() => { els.logCopy.textContent = "Copy"; }, 1500);
+      } catch {
+        // Fallback
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        els.logCopy.textContent = "Copied!";
+        setTimeout(() => { els.logCopy.textContent = "Copy"; }, 1500);
+      }
+    });
+  }
+
+  // Log clear
+  if (els.logClear) {
+    els.logClear.addEventListener("click", () => {
+      logLines = [];
+      renderAllLogs();
+    });
+  }
+
+  // Pause auto-scroll when user scrolls up
+  if (els.logContent) {
+    els.logContent.addEventListener("scroll", () => {
+      const nearBottom = els.logContent.scrollHeight - els.logContent.scrollTop - els.logContent.clientHeight < 30;
+      logAutoScroll = nearBottom;
+    });
+  }
 
   // Maximize button icon update
   if (window.electronAPI && window.electronAPI.onWindowMaximizedChanged) {
