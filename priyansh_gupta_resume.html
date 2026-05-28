@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Priyansh Gupta — Senior Agentic AI / GenAI Lead Engineer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      background: #e8ecf0;
+      color: #1e293b;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 16px auto;
+      background: #fff;
+      display: flex;
+      box-shadow: 0 4px 32px rgba(0,0,0,.18);
+    }
+
+    /* ─── LEFT SIDEBAR ─── */
+    .sidebar {
+      width: 34%;
+      min-width: 34%;
+      background: #0c1524;
+      color: #cbd5e1;
+      padding: 30px 18px 30px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .sidebar-name {
+      line-height: 1.05;
+    }
+    .sidebar-name .first { font-size: 22px; font-weight: 800; color: #f1f5f9; letter-spacing: -.5px; }
+    .sidebar-name .last  { font-size: 22px; font-weight: 800; color: #818cf8; letter-spacing: -.5px; }
+    .sidebar-name .role  {
+      margin-top: 6px;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    /* divider */
+    .s-divider {
+      height: 1px;
+      background: linear-gradient(90deg, #818cf8 0%, transparent 100%);
+      border: none;
+      margin: -6px 0;
+    }
+
+    /* section heading in sidebar */
+    .s-heading {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #818cf8;
+      margin-bottom: 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    /* contact */
+    .contact-list { display: flex; flex-direction: column; gap: 7px; }
+    .c-item { display: flex; align-items: flex-start; gap: 8px; font-size: 9px; color: #94a3b8; }
+    .c-icon {
+      width: 16px; height: 16px; min-width: 16px;
+      background: #1e3a5f; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; flex-shrink: 0; margin-top: 1px;
+    }
+    .c-item a { color: #94a3b8; text-decoration: none; }
+    .c-item a:hover { color: #818cf8; }
+    .c-open { color: #818cf8 !important; font-weight: 500; }
+
+    /* skill blocks */
+    .skill-block { margin-bottom: 11px; }
+    .skill-block:last-child { margin-bottom: 0; }
+    .sk-cat {
+      font-size: 8px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: #818cf8; margin-bottom: 5px;
+    }
+    .sk-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+    .sk-tag {
+      background: #172033; color: #94a3b8;
+      font-size: 8px; padding: 2px 7px;
+      border-radius: 20px; border: 1px solid #263349;
+    }
+    .sk-tag.hot {
+      background: #1e1b4b; color: #a5b4fc;
+      border-color: #3730a3;
+    }
+
+    /* cert list */
+    .cert-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 8.5px; color: #94a3b8;
+      padding: 4px 0; border-bottom: 1px solid #172033;
+    }
+    .cert-item:last-child { border-bottom: none; }
+    .cbadge {
+      font-size: 6.5px; font-weight: 700;
+      padding: 1px 5px; border-radius: 3px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .cbadge.az  { background: #1d4ed8; color: #fff; }
+    .cbadge.k8s { background: #0369a1; color: #fff; }
+
+    /* education */
+    .edu-block { }
+    .edu-school { font-size: 10px; font-weight: 700; color: #e2e8f0; }
+    .edu-deg    { font-size: 9px; color: #94a3b8; margin-top: 2px; }
+    .edu-date   { font-size: 8.5px; color: #818cf8; margin-top: 2px; font-weight: 500; }
+
+    /* ─── RIGHT MAIN ─── */
+    .main {
+      width: 66%;
+      padding: 28px 22px 28px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* main header */
+    .main-header .name {
+      font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -.8px; line-height: 1;
+    }
+    .main-header .title {
+      font-size: 10px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: #6366f1; margin-top: 4px;
+    }
+    .main-header .rule {
+      height: 2px;
+      background: linear-gradient(90deg, #6366f1 0%, #06b6d4 50%, transparent 100%);
+      margin-top: 10px; border: none; border-radius: 2px;
+    }
+
+    /* main section label */
+    .m-heading {
+      font-size: 8px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: #6366f1;
+      padding-bottom: 4px; border-bottom: 1.5px solid #6366f1;
+      margin-bottom: 10px;
+    }
+
+    /* summary */
+    .summary p {
+      font-size: 9.5px; color: #374151; line-height: 1.65;
+    }
+    .summary p strong { color: #0f172a; font-weight: 600; }
+
+    /* highlight chips in summary */
+    .chip {
+      display: inline-block;
+      background: #eef2ff; color: #4338ca;
+      font-size: 8px; font-weight: 600;
+      padding: 1px 7px; border-radius: 20px;
+      margin: 1px 1px;
+    }
+
+    /* jobs */
+    .job { margin-bottom: 14px; }
+    .job:last-child { margin-bottom: 0; }
+
+    .job-row {
+      display: flex; justify-content: space-between;
+      align-items: flex-start;
+    }
+    .job-title { font-size: 10.5px; font-weight: 700; color: #0f172a; }
+    .job-date  { font-size: 8px; color: #6366f1; font-weight: 600; white-space: nowrap; margin-left: 6px; }
+    .job-meta  { font-size: 9px; color: #6366f1; font-weight: 500; margin-top: 1px; margin-bottom: 4px; }
+    .job-meta .loc { color: #64748b; font-weight: 400; }
+
+    ul.bullets { list-style: none; padding: 0; }
+    ul.bullets li {
+      font-size: 9px; color: #374151;
+      padding: 2px 0 2px 13px;
+      position: relative; line-height: 1.5;
+    }
+    ul.bullets li::before {
+      content: '▸';
+      position: absolute; left: 0; top: 3px;
+      color: #6366f1; font-size: 8px;
+    }
+    ul.bullets li strong { color: #0f172a; font-weight: 600; }
+
+    /* projects */
+    .proj { margin-bottom: 12px; }
+    .proj:last-child { margin-bottom: 0; }
+    .proj-name { font-size: 10px; font-weight: 700; color: #0f172a; }
+    .proj-sub  { font-size: 8.5px; color: #6366f1; font-style: italic; margin-top: 1px; margin-bottom: 3px; }
+
+    /* ─── PRINT ─── */
+    @media print {
+      body  { background: white; }
+      .page { margin: 0; width: 100%; min-height: 297mm; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══════════════════════════════ LEFT SIDEBAR ═══════════════════════════════ -->
+  <aside class="sidebar">
+
+    <!-- Name & role -->
+    <div class="sidebar-name">
+      <div class="first">PRIYANSH</div>
+      <div class="last">GUPTA</div>
+      <div class="role">Senior Agentic AI Engineer<br>GenAI Lead · MLOps · Multi-Agent Systems</div>
+    </div>
+
+    <hr class="s-divider" />
+
+    <!-- Contact -->
+    <div>
+      <div class="s-heading">Contact</div>
+      <div class="contact-list">
+        <div class="c-item">
+          <span class="c-icon">✉</span>
+          <span>priyansh.9071@gmail.com</span>
+        </div>
+        <div class="c-item">
+          <span class="c-icon">☎</span>
+          <span>+971 506 479 919</span>
+        </div>
+        <div class="c-item">
+          <span class="c-icon">📍</span>
+          <div>
+            Bangalore, India<br>
+            <span class="c-open">Open to UAE / Remote / Hybrid</span>
+          </div>
+        </div>
+        <div class="c-item">
+          <span class="c-icon">🎓</span>
+          <div>MSc Artificial Intelligence<br>Heriot-Watt University <em style="color:#64748b;">(In Progress)</em></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="s-divider" />
+
+    <!-- Skills -->
+    <div>
+      <div class="s-heading">Technical Skills</div>
+
+      <div class="skill-block">
+        <div class="sk-cat">Agentic AI & LLMs</div>
+        <div class="sk-tags">
+          <span class="sk-tag hot">LangChain</span>
+          <span class="sk-tag hot">LangGraph</span>
+          <span class="sk-tag hot">AutoGen</span>
+          <span class="sk-tag hot">LlamaIndex</span>
+          <span class="sk-tag hot">MCP</span>
+          <span class="sk-tag hot">RAG</span>
+          <span class="sk-tag">Tool-use / Function Calling</span>
+          <span class="sk-tag">Chain-of-Thought</span>
+          <span class="sk-tag">HITL</span>
+          <span class="sk-tag">Agent Memory</span>
+          <span class="sk-tag">Prompt Engineering</span>
+          <span class="sk-tag">Guardrails</span>
+          <span class="sk-tag">Multi-Agent Orchestration</span>
+        </div>
+      </div>
+
+      <div class="skill-block">
+        <div class="sk-cat">AI / MLOps Platforms</div>
+        <div class="sk-tags">
+          <span class="sk-tag hot">Azure AI Foundry</span>
+          <span class="sk-tag hot">Azure OpenAI</span>
+          <span class="sk-tag">GPT-4o · Claude · Gemini</span>
+          <span class="sk-tag">Azure ML</span>
+          <span class="sk-tag">AWS SageMaker</span>
+          <span class="sk-tag">GCP Vertex AI</span>
+          <span class="sk-tag">Prompt Flow</span>
+          <span class="sk-tag">Model Monitoring</span>
+          <span class="sk-tag">Drift Detection</span>
+        </div>
+      </div>
+
+      <div class="skill-block">
+        <div class="sk-cat">Vector & Search</div>
+        <div class="sk-tags">
+          <span class="sk-tag hot">Azure AI Search</span>
+          <span class="sk-tag">Pinecone</span>
+          <span class="sk-tag">ChromaDB</span>
+          <span class="sk-tag">Qdrant</span>
+          <span class="sk-tag">HuggingFace Embeddings</span>
+          <span class="sk-tag">Top-k Reranking</span>
+        </div>
+      </div>
+
+      <div class="skill-block">
+        <div class="sk-cat">Backend & APIs</div>
+        <div class="sk-tags">
+          <span class="sk-tag hot">Python · FastAPI</span>
+          <span class="sk-tag">Node.js · TypeScript</span>
+          <span class="sk-tag">REST APIs</span>
+          <span class="sk-tag">Microservices</span>
+          <span class="sk-tag">Event-driven Arch</span>
+        </div>
+      </div>
+
+      <div class="skill-block">
+        <div class="sk-cat">Cloud & IaC</div>
+        <div class="sk-tags">
+          <span class="sk-tag hot">Azure</span>
+          <span class="sk-tag hot">AWS</span>
+          <span class="sk-tag">GCP</span>
+          <span class="sk-tag">Terraform</span>
+          <span class="sk-tag">Bicep</span>
+          <span class="sk-tag">ARM</span>
+          <span class="sk-tag">Ansible</span>
+          <span class="sk-tag">GitOps</span>
+        </div>
+      </div>
+
+      <div class="skill-block">
+        <div class="sk-cat">Containers & Orchestration</div>
+        <div class="sk-tags">
+          <span class="sk-tag">Kubernetes (AKS, EKS)</span>
+          <span class="sk-tag">Docker</span>
+          <span class="sk-tag">Helm</span>
+          <span class="sk-tag">Istio</span>
+          <span class="sk-tag">ArgoCD</span>
+          <span class="sk-tag">FluxCD</span>
+          <span class="sk-tag">Kyverno</span>
+        </div>
+      </div>
+
+      <div class="skill-block">
+        <div class="sk-cat">Security & Observability</div>
+        <div class="sk-tags">
+          <span class="sk-tag">Prompt Injection Defense</span>
+          <span class="sk-tag">RBAC</span>
+          <span class="sk-tag">mTLS Zero-trust</span>
+          <span class="sk-tag">OPA</span>
+          <span class="sk-tag">Azure Key Vault</span>
+          <span class="sk-tag">Prometheus</span>
+          <span class="sk-tag">Grafana</span>
+          <span class="sk-tag">Azure Monitor</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="s-divider" />
+
+    <!-- Certifications -->
+    <div>
+      <div class="s-heading">Certifications</div>
+      <div class="cert-item"><span class="cbadge az">AI</span>Azure AI Engineer Associate (AI-102)</div>
+      <div class="cert-item"><span class="cbadge az">AZ</span>DevOps Engineer Expert (AZ-400)</div>
+      <div class="cert-item"><span class="cbadge k8s">K8s</span>Certified Kubernetes Admin (CKA)</div>
+      <div class="cert-item"><span class="cbadge k8s">K8s</span>Certified K8s App Developer (CKAD)</div>
+      <div class="cert-item"><span class="cbadge az">AZ</span>Azure Network Engineer (AZ-700)</div>
+      <div class="cert-item"><span class="cbadge az">AZ</span>Azure Administrator (AZ-104)</div>
+      <div class="cert-item"><span class="cbadge az">AZ</span>Azure AI Fundamentals (AI-900)</div>
+      <div class="cert-item"><span class="cbadge az">AZ</span>Azure Fundamentals (AZ-900)</div>
+    </div>
+
+    <hr class="s-divider" />
+
+    <!-- Education -->
+    <div>
+      <div class="s-heading">Education</div>
+      <div class="edu-block">
+        <div class="edu-school">Heriot-Watt University</div>
+        <div class="edu-deg">MSc Artificial Intelligence</div>
+        <div class="edu-date">In Progress</div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════ RIGHT MAIN ═══════════════════════════════ -->
+  <main class="main">
+
+    <!-- Header -->
+    <div class="main-header">
+      <div class="name">PRIYANSH GUPTA</div>
+      <div class="title">Senior Agentic AI Engineer &nbsp;·&nbsp; GenAI Lead &nbsp;·&nbsp; MLOps</div>
+      <hr class="rule" />
+    </div>
+
+    <!-- Professional Summary -->
+    <div class="summary">
+      <div class="m-heading">Professional Summary</div>
+      <p>
+        Senior Agentic AI &amp; GenAI Lead Engineer with <strong>5+ years</strong> architecting and shipping
+        <strong>production-grade autonomous agent systems</strong>, multi-agent orchestration frameworks, and
+        enterprise RAG pipelines on <strong>Azure AI Foundry, AWS, and GCP</strong>. Deep expertise in
+        <strong>LLM tool-calling, chain-of-thought reasoning, agent memory architectures</strong>, and
+        <strong>Model Context Protocol (MCP)</strong> integrations. Proven track record leading GenAI platform
+        adoption for <strong>Fortune 500 clients</strong>, designing agentic systems with
+        <strong>HITL oversight</strong>, prompt injection defences, RBAC, and full audit trails.
+        <br /><br />
+        <span class="chip">Multi-Agent Orchestration</span>
+        <span class="chip">Enterprise RAG</span>
+        <span class="chip">LLM Tool-calling</span>
+        <span class="chip">Azure AI Foundry</span>
+        <span class="chip">MCP Integration</span>
+        <span class="chip">HITL Design</span>
+        <span class="chip">AI Security</span>
+        <span class="chip">MLOps at Scale</span>
+      </p>
+    </div>
+
+    <!-- Work Experience -->
+    <div>
+      <div class="m-heading">Work Experience</div>
+
+      <!-- AIS Senior -->
+      <div class="job">
+        <div class="job-row">
+          <div class="job-title">Senior DevOps &amp; AI Platform Engineer</div>
+          <div class="job-date">Aug 2024 – Present</div>
+        </div>
+        <div class="job-meta">Applied Information Services (AIS) &nbsp;<span class="loc">· Hyderabad, India</span></div>
+        <ul class="bullets">
+          <li>Deployed <strong>multimodal LLM models</strong> (vision + language) on <strong>Azure AI Foundry</strong> with model endpoints, inference auto-scaling, and <strong>Azure AI Content Safety guardrails</strong> — full model lifecycle management in production.</li>
+          <li>Architected enterprise <strong>RAG pipelines</strong> — document ingestion, chunking, and vector + semantic hybrid indexing in <strong>Azure AI Search</strong> — measurably reducing hallucination rates across Fortune 500 workloads.</li>
+          <li>Delivered first <strong>MCP (Model Context Protocol)</strong> integration for Azure Boards, enabling AI assistants to autonomously query live tickets, sprint data, and work items — production agentic tool-use at enterprise scale.</li>
+          <li>Led <strong>GenAI platform modernisation</strong> for FMGlobal (Fortune 500): zero-downtime migration of critical insurance workloads to secure Azure AI infrastructure.</li>
+          <li>Standardised CI/CD governance across 20+ microservices; deployed JFrog Artifactory with Docker image promotion gates for container supply-chain auditability.</li>
+        </ul>
+      </div>
+
+      <!-- Freelance -->
+      <div class="job">
+        <div class="job-row">
+          <div class="job-title">Senior GenAI / MLOps / Agentic AI Consultant</div>
+          <div class="job-date">Aug 2022 – Present</div>
+        </div>
+        <div class="job-meta">Freelance (Upwork) &nbsp;<span class="loc">· Remote — Global Clients</span></div>
+        <ul class="bullets">
+          <li>Architected end-to-end <strong>RAG pipelines</strong> using <strong>LangChain + Pinecone / ChromaDB</strong> — semantic retrieval, top-k reranking, grounded responses for production SaaS clients globally.</li>
+          <li>Delivered <strong>production agentic AI solutions</strong> embedding Azure OpenAI, Claude, and GPT-4o into SaaS workflows; built multi-step LLM reasoning pipelines with <strong>tool-use, function-calling</strong>, and autonomous decision-making.</li>
+          <li>Deployed <strong>MLOps infrastructure</strong> on Azure ML and AWS SageMaker; orchestrated agentic pipelines with n8n + Python automation, model monitoring, and drift detection.</li>
+        </ul>
+      </div>
+
+      <!-- AIS DevOps -->
+      <div class="job">
+        <div class="job-row">
+          <div class="job-title">DevOps Engineer</div>
+          <div class="job-date">Oct 2022 – Aug 2024</div>
+        </div>
+        <div class="job-meta">Applied Information Services (AIS) &nbsp;<span class="loc">· Hyderabad, India</span></div>
+        <ul class="bullets">
+          <li>Engineered <strong>Helm Charts</strong> for AKS onboarding with rollback-enabled pipelines; implemented <strong>Kyverno</strong> admission control for security baselines, resource quotas, and image signing.</li>
+          <li>Configured <strong>Istio service mesh</strong> with mTLS zero-trust peer authentication, FluxCD GitOps state management, and subset-based canary/A-B traffic routing.</li>
+          <li>Managed secrets via <strong>Kubernetes Secrets Store CSI Driver</strong> + Azure Key Vault — enforcing least-privilege access across all AKS clusters.</li>
+        </ul>
+      </div>
+
+      <!-- AIS SWE -->
+      <div class="job">
+        <div class="job-row">
+          <div class="job-title">Software Engineer</div>
+          <div class="job-date">May 2021 – Oct 2022</div>
+        </div>
+        <div class="job-meta">Applied Information Services (AIS) &nbsp;<span class="loc">· Hyderabad, India</span></div>
+        <ul class="bullets">
+          <li>Built reusable <strong>Terraform modules</strong> for Azure VNets, Key Vaults, AKS, and App Gateways; authored Azure DevOps YAML CI/CD templates for full build-test-deploy workflows.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Projects -->
+    <div>
+      <div class="m-heading">Key Projects</div>
+
+      <div class="proj">
+        <div class="proj-name">CrewSpace — Open-Source Multi-Agent AI Platform</div>
+        <div class="proj-sub">Hierarchical orchestration · Persistent memory graph · Visual task board · React dashboard</div>
+        <ul class="bullets">
+          <li>Architected and launched <strong>CrewSpace</strong> — hierarchical multi-agent orchestration, 1:1 &amp; group agent chat, persistent agent memory graphs with 3D visualization UI, enabling stateful, long-running agentic workflows with full lifecycle management.</li>
+          <li>Engineered a production <strong>multi-agent content pipeline</strong> (CEO → Manager → Researcher → Generator) with chain-of-thought task delegation, Python scheduler, SHA-256 deduplication — deployed on cloud VPS with Traefik + Better Auth.</li>
+        </ul>
+      </div>
+
+      <div class="proj">
+        <div class="proj-name">NemoClaw — Secure Multi-Agent Orchestration Framework</div>
+        <div class="proj-sub">Lead orchestrator + 5 concurrent sub-agents · HITL checkpoints · Privacy-safe hybrid inference</div>
+        <ul class="bullets">
+          <li>Designed framework with scoped <strong>tool-calling chains</strong>, sandboxed task execution, isolated state management, and <strong>HITL checkpoints</strong> for high-stakes decisions.</li>
+          <li>Implemented <strong>agentic security controls</strong>: RBAC tool access, prompt injection detection, output sanitisation before inter-agent handoff, structured audit logs on every tool invocation and state transition.</li>
+          <li>Privacy-safe hybrid inference: local <strong>Ollama (Qwen3 7B–14B)</strong> for workers; cloud LLMs (Claude / GPT-4o) at orchestrator-tier only — zero sensitive data egress from the local network.</li>
+        </ul>
+      </div>
+
+      <div class="proj">
+        <div class="proj-name">AutoOps AI — Autonomous DevOps &amp; Infrastructure Management Agent</div>
+        <div class="proj-sub">GitHub + CI/CD monitoring · LLM root-cause analysis · Terraform auto-remediation on Azure</div>
+        <ul class="bullets">
+          <li>Built autonomous AI agent monitoring GitHub repos and CI/CD pipelines — <strong>multi-step LLM reasoning</strong> and root-cause analysis, autonomously raising PRs and triggering Terraform-based infrastructure remediation.</li>
+          <li>Natural language IaC provisioning: plain-English commands parsed via <strong>LLM function-calling</strong>, converted to HCL, validated, planned, and applied with auto-revert logic via Prometheus alerting on regression.</li>
+        </ul>
+      </div>
+
+      <div class="proj">
+        <div class="proj-name">RAG Production Chatbot — Local Ollama + Vector DB Pipeline</div>
+        <div class="proj-sub">Zero external API dependency · FastAPI REST · ChromaDB · Full audit logging</div>
+        <ul class="bullets">
+          <li>Shipped production RAG chatbot on fully local <strong>Ollama inference</strong> with a <strong>ChromaDB vector pipeline</strong> (chunking, indexing, semantic search, top-k retrieval) and a FastAPI REST layer — ensuring data-privacy compliance at zero external API dependency.</li>
+        </ul>
+      </div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,481 @@
+%% ═══════════════════════════════════════════════════════════════════
+%%  Priyansh Gupta — Senior Agentic AI / GenAI Lead Engineer Resume
+%%  Two-column layout: dark left sidebar + clean right main panel
+%%  Compile with: xelatex priyansh_gupta_resume.tex  (or pdflatex)
+%% ═══════════════════════════════════════════════════════════════════
+\documentclass[10pt, a4paper]{article}
+
+%% ─── Packages ────────────────────────────────────────────────────
+\usepackage[a4paper, top=0mm, bottom=0mm, left=0mm, right=0mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{paracol}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{calc}
+\usepackage{hyperref}
+\usepackage{mdframed}
+\usepackage{tcolorbox}
+\usepackage{etoolbox}
+\usepackage{setspace}
+\usepackage[sfdefault,light]{FiraSans}
+
+\hypersetup{
+  colorlinks=false,
+  pdfborder={0 0 0}
+}
+
+%% ─── Colours ─────────────────────────────────────────────────────
+\definecolor{sidebarBg}{HTML}{0c1524}
+\definecolor{accentPurple}{HTML}{818cf8}
+\definecolor{accentBlue}{HTML}{06b6d4}
+\definecolor{sideText}{HTML}{94a3b8}
+\definecolor{sideMuted}{HTML}{475569}
+\definecolor{sideLight}{HTML}{e2e8f0}
+\definecolor{mainText}{HTML}{374151}
+\definecolor{mainDark}{HTML}{0f172a}
+\definecolor{tagBg}{HTML}{eef2ff}
+\definecolor{tagText}{HTML}{4338ca}
+\definecolor{tagHotBg}{HTML}{1e1b4b}
+\definecolor{tagHotText}{HTML}{a5b4fc}
+\definecolor{ruleLine}{HTML}{6366f1}
+\definecolor{azureBadge}{HTML}{1d4ed8}
+\definecolor{k8sBadge}{HTML}{0369a1}
+\definecolor{jobDateCol}{HTML}{6366f1}
+\definecolor{companyCol}{HTML}{6366f1}
+\definecolor{bulletCol}{HTML}{6366f1}
+
+%% ─── Global spacing ──────────────────────────────────────────────
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\pagestyle{empty}
+
+%% ─── Column widths ───────────────────────────────────────────────
+\columnratio{0.34}   %  left = 34 %, right = 66 %
+
+%% ─── Helpers ─────────────────────────────────────────────────────
+
+% Sidebar section heading
+\newcommand{\sideHeading}[1]{%
+  \vspace{8pt}%
+  {\fontsize{6.5pt}{6.5pt}\selectfont
+   \textcolor{accentPurple}{\bfseries\MakeUppercase{#1}}}%
+  \vspace{3pt}%
+  \textcolor{sideMuted}{\hrule height 0.4pt}%
+  \vspace{5pt}%
+}
+
+% Main section heading
+\newcommand{\mainHeading}[1]{%
+  \vspace{2pt}%
+  {\fontsize{6.8pt}{6.8pt}\selectfont
+   \textcolor{ruleLine}{\bfseries\MakeUppercase{#1}}}%
+  \vspace{2pt}%
+  \textcolor{ruleLine}{\hrule height 1pt}%
+  \vspace{6pt}%
+}
+
+% Sidebar skill category
+\newcommand{\skillCat}[1]{%
+  \vspace{4pt}%
+  {\fontsize{7pt}{7pt}\selectfont\textcolor{accentPurple}{\bfseries\MakeUppercase{#1}}}%
+  \vspace{2pt}\\%
+}
+
+% Skill tag (normal)
+\newcommand{\sktag}[1]{%
+  \tcbox[on line,
+    colframe=sideMuted, colback=sidebarBg,
+    boxrule=0.4pt, arc=8pt,
+    left=2pt, right=2pt, top=1pt, bottom=1pt,
+    boxsep=0pt]
+    {\fontsize{7pt}{7pt}\selectfont\textcolor{sideText}{#1}}%
+  \hspace{1pt}%
+}
+
+% Skill tag hot (highlighted)
+\newcommand{\sktaghot}[1]{%
+  \tcbox[on line,
+    colframe=accentPurple, colback=tagHotBg,
+    boxrule=0.4pt, arc=8pt,
+    left=2pt, right=2pt, top=1pt, bottom=1pt,
+    boxsep=0pt]
+    {\fontsize{7pt}{7pt}\selectfont\textcolor{tagHotText}{\bfseries#1}}%
+  \hspace{1pt}%
+}
+
+% Cert badge
+\newcommand{\certbadge}[2]{%
+  \tcbox[on line,
+    colframe=#1, colback=#1,
+    boxrule=0pt, arc=2pt,
+    left=2pt, right=2pt, top=0.5pt, bottom=0.5pt, boxsep=0pt]
+    {\fontsize{5.5pt}{5.5pt}\selectfont\textcolor{white}{\bfseries#2}}%
+}
+
+% Job entry
+\newcommand{\jobentry}[4]{%
+  % #1 = title, #2 = date, #3 = company + location, #4 = bullets
+  \vspace{1pt}%
+  {\fontsize{9.5pt}{9.5pt}\selectfont
+   \textbf{\textcolor{mainDark}{#1}} \hfill
+   {\fontsize{7.5pt}{7.5pt}\selectfont\textcolor{jobDateCol}{\bfseries#2}}}\\[-1pt]%
+  {\fontsize{8pt}{8pt}\selectfont\textcolor{companyCol}{#3}}%
+  \vspace{3pt}%
+  #4
+  \vspace{8pt}%
+}
+
+% Project entry
+\newcommand{\projentry}[3]{%
+  % #1 = name, #2 = subtitle, #3 = bullets
+  \vspace{1pt}%
+  {\fontsize{9pt}{9pt}\selectfont\textbf{\textcolor{mainDark}{#1}}}\\[-1pt]%
+  {\fontsize{7.5pt}{7.5pt}\selectfont\textit{\textcolor{companyCol}{#2}}}%
+  \vspace{2pt}%
+  #3
+  \vspace{7pt}%
+}
+
+% Bullet list style
+\newlist{cvbullets}{itemize}{1}
+\setlist[cvbullets]{
+  leftmargin=9pt,
+  itemsep=1pt,
+  topsep=0pt,
+  parsep=0pt,
+  label=\textcolor{bulletCol}{\scriptsize$\blacktriangleright$},
+}
+
+% Contact item helper
+\newcommand{\citem}[2]{%
+  \textcolor{accentPurple}{#1}\enspace
+  {\fontsize{8pt}{8pt}\selectfont\textcolor{sideText}{#2}}\\[4pt]%
+}
+
+%% ═══════════════════════════════════════════════════════════════════
+\begin{document}
+
+\begin{paracol}{2}
+
+%% ═══════════════════════════════════════════════════════════════════
+%%  LEFT COLUMN — SIDEBAR
+%% ═══════════════════════════════════════════════════════════════════
+\backgroundcolor{c[0](4pt,4pt)(0.5\columnsep,4pt)}{sidebarBg}
+
+\begin{minipage}[t][\paperheight][t]{\linewidth}
+\color{sideText}
+\vspace*{18pt}
+\hspace*{10pt}%
+\begin{minipage}{\linewidth-10pt}
+
+%% ── Name ──────────────────────────────────────────────────────────
+{\fontsize{21pt}{21pt}\selectfont\bfseries\textcolor{sideLight}{PRIYANSH}}\\[1pt]
+{\fontsize{21pt}{21pt}\selectfont\bfseries\textcolor{accentPurple}{GUPTA}}\\[6pt]
+{\fontsize{6.5pt}{9pt}\selectfont\bfseries\textcolor{sideMuted}{\MakeUppercase{Senior Agentic AI Engineer\\GenAI Lead · MLOps · Multi-Agent Systems}}}
+
+\vspace{10pt}
+{\textcolor{sideMuted}{\hrule height 0.4pt}}
+\vspace{6pt}
+
+%% ── Contact ───────────────────────────────────────────────────────
+\sideHeading{Contact}
+
+\citem{\faEnvelope}{priyansh.9071@gmail.com}
+\citem{\faPhone}{+971 506 479 919}
+\citem{\faMapMarker*}{Bangalore, India\\
+  {\fontsize{7.5pt}{7.5pt}\selectfont\textcolor{accentPurple}{Open to UAE / Remote / Hybrid}}}
+\citem{\faGraduationCap}{MSc Artificial Intelligence\\
+  {\fontsize{7.5pt}{7.5pt}\selectfont Heriot-Watt University \textit{(In Progress)}}}
+
+%% ── Skills ────────────────────────────────────────────────────────
+\sideHeading{Technical Skills}
+
+\skillCat{Agentic AI \& LLMs}
+\sktaghot{LangChain}
+\sktaghot{LangGraph}
+\sktaghot{AutoGen}
+\sktaghot{LlamaIndex}\\[2pt]
+\sktaghot{MCP}
+\sktaghot{RAG}
+\sktag{Tool-use}
+\sktag{HITL}\\[2pt]
+\sktag{Chain-of-Thought}
+\sktag{Agent Memory}\\[2pt]
+\sktag{Prompt Engineering}
+\sktag{Guardrails}\\[2pt]
+\sktag{Multi-Agent Orchestration}
+
+\skillCat{AI / MLOps Platforms}
+\sktaghot{Azure AI Foundry}
+\sktaghot{Azure OpenAI}\\[2pt]
+\sktag{GPT-4o · Claude · Gemini}\\[2pt]
+\sktag{Azure ML}
+\sktag{AWS SageMaker}\\[2pt]
+\sktag{GCP Vertex AI}
+\sktag{Prompt Flow}\\[2pt]
+\sktag{Model Monitoring}
+\sktag{Drift Detection}
+
+\skillCat{Vector \& Search}
+\sktaghot{Azure AI Search}
+\sktag{Pinecone}\\[2pt]
+\sktag{ChromaDB}
+\sktag{Qdrant}\\[2pt]
+\sktag{HuggingFace Embeddings}\\[2pt]
+\sktag{Top-k Reranking}
+
+\skillCat{Backend \& APIs}
+\sktaghot{Python · FastAPI}
+\sktag{Node.js}\\[2pt]
+\sktag{TypeScript}
+\sktag{REST APIs}\\[2pt]
+\sktag{Microservices}
+\sktag{Event-driven Arch}
+
+\skillCat{Cloud \& IaC}
+\sktaghot{Azure}
+\sktaghot{AWS}
+\sktag{GCP}
+\sktag{Terraform}\\[2pt]
+\sktag{Bicep}
+\sktag{ARM}
+\sktag{Ansible}
+\sktag{GitOps}
+
+\skillCat{Containers \& Orchestration}
+\sktag{Kubernetes (AKS, EKS)}\\[2pt]
+\sktag{Docker}
+\sktag{Helm}
+\sktag{Istio}\\[2pt]
+\sktag{ArgoCD}
+\sktag{FluxCD}
+\sktag{Kyverno}
+
+\skillCat{Security \& Observability}
+\sktag{Prompt Injection Defense}\\[2pt]
+\sktag{RBAC}
+\sktag{mTLS Zero-trust}\\[2pt]
+\sktag{OPA}
+\sktag{Azure Key Vault}\\[2pt]
+\sktag{Prometheus}
+\sktag{Grafana}\\[2pt]
+\sktag{Azure Monitor}
+
+%% ── Certifications ────────────────────────────────────────────────
+\sideHeading{Certifications}
+
+{\fontsize{7.5pt}{11pt}\selectfont
+\certbadge{azureBadge}{AI}\enspace Azure AI Engineer Associate (AI-102)\\
+\certbadge{azureBadge}{AZ}\enspace DevOps Engineer Expert (AZ-400)\\
+\certbadge{k8sBadge}{K8s}\enspace Certified Kubernetes Admin (CKA)\\
+\certbadge{k8sBadge}{K8s}\enspace Certified K8s App Developer (CKAD)\\
+\certbadge{azureBadge}{AZ}\enspace Azure Network Engineer (AZ-700)\\
+\certbadge{azureBadge}{AZ}\enspace Azure Administrator (AZ-104)\\
+\certbadge{azureBadge}{AZ}\enspace Azure AI Fundamentals (AI-900)\\
+\certbadge{azureBadge}{AZ}\enspace Azure Fundamentals (AZ-900)%
+}
+
+%% ── Education ─────────────────────────────────────────────────────
+\sideHeading{Education}
+
+{\fontsize{9pt}{9pt}\selectfont\bfseries\textcolor{sideLight}{Heriot-Watt University}}\\[2pt]
+{\fontsize{8pt}{8pt}\selectfont\textcolor{sideText}{MSc Artificial Intelligence}}\\[2pt]
+{\fontsize{8pt}{8pt}\selectfont\textcolor{accentPurple}{\bfseries In Progress}}
+
+\end{minipage}
+\end{minipage}
+
+%% ═══════════════════════════════════════════════════════════════════
+%%  RIGHT COLUMN — MAIN CONTENT
+%% ═══════════════════════════════════════════════════════════════════
+\switchcolumn
+
+\vspace*{18pt}
+\hspace*{10pt}%
+\begin{minipage}{\linewidth-14pt}
+
+%% ── Header ────────────────────────────────────────────────────────
+{\fontsize{24pt}{24pt}\selectfont\bfseries\textcolor{mainDark}{PRIYANSH GUPTA}}\\[4pt]
+{\fontsize{8pt}{8pt}\selectfont\bfseries\textcolor{ruleLine}{\MakeUppercase{%
+  Senior Agentic AI Engineer \quad·\quad GenAI Lead \quad·\quad MLOps%
+}}}\\[8pt]
+% gradient rule
+{\color{ruleLine}\hrule height 1.5pt}
+
+\vspace{12pt}
+
+%% ── Professional Summary ──────────────────────────────────────────
+\mainHeading{Professional Summary}
+
+{\fontsize{8.8pt}{14pt}\selectfont\textcolor{mainText}{%
+  Senior Agentic AI \& GenAI Lead Engineer with \textbf{5+ years} architecting and shipping
+  \textbf{production-grade autonomous agent systems}, multi-agent orchestration frameworks,
+  and enterprise RAG pipelines on \textbf{Azure AI Foundry, AWS, and GCP}. Deep expertise in
+  \textbf{LLM tool-calling, chain-of-thought reasoning, agent memory architectures}, and
+  \textbf{Model Context Protocol (MCP)} integrations connecting live enterprise data to AI.
+  Proven track record leading GenAI platform adoption for \textbf{Fortune 500 clients},
+  designing agentic systems with \textbf{HITL oversight}, prompt injection defences, RBAC,
+  and full audit trails. Certified \textbf{Azure AI Engineer (AI-102)}, CKA, CKAD, and
+  \textbf{AZ-400 DevOps Expert}.
+}}
+
+\vspace{10pt}
+
+%% ── Work Experience ───────────────────────────────────────────────
+\mainHeading{Work Experience}
+
+\jobentry%
+  {Senior DevOps \& AI Platform Engineer}%
+  {Aug 2024 – Present}%
+  {Applied Information Services (AIS) \textcolor{sideMuted}{·} Hyderabad, India}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Deployed \textbf{multimodal LLM models} (vision + language) on \textbf{Azure AI Foundry},
+        configuring model endpoints, inference auto-scaling, and \textbf{Azure AI Content Safety
+        guardrails} — full model lifecycle management in production.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Architected enterprise \textbf{RAG pipelines} — document ingestion, chunking, and
+        vector + semantic hybrid indexing in \textbf{Azure AI Search} — measurably reducing
+        hallucination rates across Fortune 500 workloads.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Delivered first \textbf{MCP (Model Context Protocol)} integration for Azure Boards,
+        enabling AI assistants to autonomously reference live tickets, sprint data, and work
+        items — production agentic tool-use at enterprise scale.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Led \textbf{GenAI platform modernisation} for FMGlobal (Fortune 500): zero-downtime
+        migration of critical insurance workloads to secure Azure AI infrastructure.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Standardised CI/CD governance across 20+ microservices via OpsLevel; deployed JFrog
+        Artifactory with Docker image promotion gates for container supply-chain auditability.
+    \end{cvbullets}%
+  }
+
+\jobentry%
+  {Senior GenAI / MLOps / Agentic AI Consultant}%
+  {Aug 2022 – Present}%
+  {Freelance Consulting (Upwork) \textcolor{sideMuted}{·} Remote — Global Clients}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Architected end-to-end \textbf{RAG pipelines} using \textbf{LangChain + Pinecone /
+        ChromaDB} — semantic retrieval, top-k reranking, grounded responses for production
+        SaaS clients globally.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Delivered \textbf{production agentic AI solutions} embedding Azure OpenAI, Claude, and
+        GPT-4o into SaaS workflows; built multi-step LLM reasoning pipelines with
+        \textbf{tool-use, function-calling}, and autonomous decision-making.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Deployed \textbf{MLOps infrastructure} on Azure ML and AWS SageMaker; orchestrated
+        agentic pipelines with n8n + Python, model monitoring, and drift detection.
+    \end{cvbullets}%
+  }
+
+\jobentry%
+  {DevOps Engineer}%
+  {Oct 2022 – Aug 2024}%
+  {Applied Information Services (AIS) \textcolor{sideMuted}{·} Hyderabad, India}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Engineered \textbf{Helm Charts} for AKS onboarding with rollback-enabled pipelines;
+        implemented \textbf{Kyverno} admission control for security baselines and image signing.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Configured \textbf{Istio service mesh} with mTLS zero-trust peer authentication,
+        FluxCD GitOps state management, and canary / A-B traffic routing.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Managed secrets via \textbf{Kubernetes Secrets Store CSI Driver} + Azure Key Vault —
+        enforcing least-privilege access across all AKS clusters.
+    \end{cvbullets}%
+  }
+
+\jobentry%
+  {Software Engineer}%
+  {May 2021 – Oct 2022}%
+  {Applied Information Services (AIS) \textcolor{sideMuted}{·} Hyderabad, India}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Built reusable \textbf{Terraform modules} for Azure VNets, Key Vaults, AKS, and App
+        Gateways; authored Azure DevOps YAML CI/CD templates for end-to-end workflows.
+    \end{cvbullets}%
+  }
+
+%% ── Key Projects ──────────────────────────────────────────────────
+\mainHeading{Key Projects}
+
+\projentry%
+  {CrewSpace — Open-Source Multi-Agent AI Platform}%
+  {Hierarchical orchestration · Persistent memory graph · Visual task board · React dashboard}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Architected and launched \textbf{CrewSpace} — hierarchical multi-agent orchestration,
+        1:1 \& group agent chat, persistent agent memory graphs with 3D visualization UI,
+        enabling stateful, long-running agentic workflows with full lifecycle management.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Engineered production \textbf{multi-agent content pipeline} (CEO → Manager → Researcher
+        → Generator) with chain-of-thought task delegation, Python scheduler, SHA-256
+        deduplication — deployed on cloud VPS with Traefik \& Better Auth.
+    \end{cvbullets}%
+  }
+
+\projentry%
+  {NemoClaw — Secure Multi-Agent Orchestration Framework}%
+  {Lead orchestrator + 5 concurrent sub-agents · HITL checkpoints · Privacy-safe hybrid inference}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Designed framework with scoped \textbf{tool-calling chains}, sandboxed task execution,
+        isolated state management, and \textbf{HITL checkpoints} for high-stakes decisions.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Implemented \textbf{agentic security controls}: RBAC tool access, prompt injection
+        detection, output sanitisation before inter-agent handoff, structured audit logs on
+        every tool invocation and state transition.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Privacy-safe hybrid inference: local \textbf{Ollama (Qwen3 7B–14B)} for workers;
+        cloud LLMs (Claude / GPT-4o) at orchestrator-tier only — zero sensitive data egress.
+    \end{cvbullets}%
+  }
+
+\projentry%
+  {AutoOps AI — Autonomous DevOps \& Infrastructure Management Agent}%
+  {GitHub + CI/CD monitoring · LLM root-cause analysis · Terraform auto-remediation on Azure}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Built autonomous AI agent performing \textbf{multi-step LLM reasoning} and root-cause
+        analysis, autonomously raising PRs and triggering Terraform-based infrastructure
+        remediation on Azure.
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Natural language IaC provisioning: plain-English commands parsed via
+        \textbf{LLM function-calling}, converted to HCL, validated, planned, and applied
+        with auto-revert logic via Prometheus alerting.
+    \end{cvbullets}%
+  }
+
+\projentry%
+  {RAG Production Chatbot — Local Ollama + Vector DB Pipeline}%
+  {Zero external API dependency · FastAPI REST · ChromaDB · Full audit logging}%
+  {%
+    \begin{cvbullets}
+      \item[\textcolor{bulletCol}{\scriptsize$\blacktriangleright$}]
+        Shipped production RAG chatbot on fully local \textbf{Ollama inference} with a
+        \textbf{ChromaDB vector pipeline} (chunking, indexing, semantic search, top-k
+        retrieval) and FastAPI REST layer — ensuring data-privacy compliance at zero
+        external API dependency.
+    \end{cvbullets}%
+  }
+
+\end{minipage}
+
+\end{paracol}
+\end{document}
