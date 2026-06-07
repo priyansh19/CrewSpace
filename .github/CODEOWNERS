@@ -1,0 +1,17 @@
+# Global fallback — repository owner
+* @priyansh19
+
+# Release infrastructure owned by the DevOps / release team
+.github/** @priyansh19
+scripts/release*.sh @priyansh19
+scripts/release-*.mjs @priyansh19
+scripts/create-github-release.sh @priyansh19
+scripts/rollback-latest.sh @priyansh19
+doc/RELEASING.md @priyansh19
+doc/PUBLISHING.md @priyansh19
+doc/RELEASE-AUTOMATION-SETUP.md @priyansh19
+
+# Docker and deployment infrastructure
+docker/** @priyansh19
+scripts/docker-*.sh @priyansh19
+scripts/docker-*.mjs @priyansh19

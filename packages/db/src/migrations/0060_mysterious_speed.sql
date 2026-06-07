@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "project_repo_permissions_project_agent_idx" ON "project_repo_permissions" USING btree ("project_id","agent_id");

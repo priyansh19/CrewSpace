@@ -1,0 +1,37 @@
+{
+  "name": "crewspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @crewspaceai/server exec tsx ../scripts/dev-runner.ts watch",
+    "dev:watch": "pnpm --filter @crewspaceai/server exec tsx ../scripts/dev-runner.ts watch",
+    "dev:once": "pnpm --filter @crewspaceai/server exec tsx ../scripts/dev-runner.ts dev",
+    "dev:list": "pnpm --filter @crewspaceai/server exec tsx ../scripts/dev-service.ts list",
+    "dev:stop": "pnpm --filter @crewspaceai/server exec tsx ../scripts/dev-service.ts stop",
+    "dev:server": "pnpm --filter @crewspaceai/server dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @crewspaceai/db generate",
+    "db:migrate": "pnpm --filter @crewspaceai/db migrate",
+    "build:desktop": "pnpm -r build && cd desktop-electron && pnpm run build:win",
+    "build:installer": "pnpm --filter crewspace-installer build",
+    "build:desktop:with-installer": "pnpm build:desktop && pnpm package:payload && pnpm build:installer",
+    "package:payload": "node scripts/zip-installer-payload.mjs"
+  },
+  "devDependencies": {
+    "archiver": "^8.0.0",
+    "cross-env": "^10.1.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "pnpm": {
+    "patchedDependencies": {
+      "embedded-postgres@18.1.0-beta.16": "patches/embedded-postgres@18.1.0-beta.16.patch"
+    }
+  }
+}

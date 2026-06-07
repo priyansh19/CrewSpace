@@ -1,0 +1,188 @@
+import { useMemo } from "react";
+import { createAvatar } from "@dicebear/core";
+import { adventurer } from "@dicebear/collection";
+import { cn } from "@/lib/utils";
+import { getAgentIcon } from "../lib/agent-icons";
+
+export type AgentAvatarSize = "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
+
+interface AgentLike {
+  id: string;
+  name?: string;
+  icon?: string | null;
+}
+
+interface AgentAvatarProps {
+  agent: AgentLike | null | undefined;
+  size?: AgentAvatarSize;
+  animate?: boolean;
+  className?: string;
+  fallbackIcon?: string | null;
+  variant?: "circle" | "square";
+}
+
+const SIZE_PX: Record<AgentAvatarSize, number> = {
+  xs: 64,
+  sm: 96,
+  md: 128,
+  lg: 192,
+  xl: 256,
+  xxl: 320,
+};
+
+const CONTAINER_SIZE: Record<AgentAvatarSize, string> = {
+  xs: "h-6 w-6",
+  sm: "h-8 w-8",
+  md: "h-11 w-11",
+  lg: "h-14 w-14",
+  xl: "h-20 w-20",
+  xxl: "h-24 w-24",
+};
+
+const TEXT_SIZE: Record<AgentAvatarSize, string> = {
+  xs: "text-[10px]",
+  sm: "text-xs",
+  md: "text-sm",
+  lg: "text-base",
+  xl: "text-lg",
+  xxl: "text-xl",
+};
+
+/** Deterministic HSL color from a string seed. */
+function seedToHsl(seed: string): { h: number; s: number; l: number } {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const h = (hash >>> 0) % 360;
+  const s = 55 + ((hash >>> 8) % 20);
+  const l = 45 + ((hash >>> 16) % 15);
+  return { h, s, l };
+}
+
+function svgToBase64DataUri(svg: string): string {
+  // Modern replacement for deprecated btoa(unescape(encodeURIComponent(...)))
+  const bytes = new TextEncoder().encode(svg);
+  const bin = Array.from(bytes, (b) => String.fromCharCode(b)).join("");
+  const base64 = btoa(bin);
+  return `data:image/svg+xml;base64,${base64}`;
+}
+
+/** Generate a dicebear avatar as a base64 data URI. Returns null on failure. */
+export function tryDicebearDataUri(seed: string, sizePx: number): string | null {
+  try {
+    const avatar = createAvatar(adventurer, {
+      seed,
+      size: sizePx,
+      backgroundColor: ["b6e3f4", "c0aede", "d1d4f9", "ffd5dc", "ffdfbf"],
+    });
+    const svg = avatar.toString();
+    return svgToBase64DataUri(svg);
+  } catch {
+    return null;
+  }
+}
+
+export function AgentAvatar({
+  agent,
+  size = "sm",
+  animate = true,
+  className,
+  fallbackIcon,
+  variant = "circle",
+}: AgentAvatarProps) {
+  const seed = agent?.icon || agent?.id || agent?.name || "unknown";
+  const initial = (agent?.name?.trim()?.charAt(0) || "?").toUpperCase();
+  const hsl = useMemo(() => seedToHsl(seed), [seed]);
+
+  const dataUri = useMemo(() => {
+    if (!agent) return null;
+    return tryDicebearDataUri(seed, SIZE_PX[size]);
+  }, [agent, seed, size]);
+
+  if (!agent) {
+    const FallbackIcon = getAgentIcon(fallbackIcon);
+    return (
+      <div
+        className={cn(
+          "bg-muted flex items-center justify-center overflow-hidden",
+          variant === "circle" ? "rounded-full" : "rounded-xl",
+          CONTAINER_SIZE[size],
+          className,
+        )}
+      >
+        <FallbackIcon className="h-1/2 w-1/2 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (dataUri) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center overflow-hidden shrink-0",
+          "bg-background/60 border border-border/50",
+          variant === "circle" ? "rounded-full" : "rounded-xl",
+          CONTAINER_SIZE[size],
+          animate && "agent-avatar-animated",
+          className,
+        )}
+        title={agent.name}
+      >
+        <img
+          src={dataUri}
+          alt={agent.name || "Agent"}
+          className="h-full w-full object-cover"
+          draggable={false}
+          loading="eager"
+        />
+      </div>
+    );
+  }
+
+  // Fallback: show the agent's chosen Lucide icon if available,
+  // otherwise a deterministic colored initial circle.
+  const FallbackIcon = getAgentIcon(agent.icon);
+  if (agent.icon && FallbackIcon) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center overflow-hidden shrink-0",
+          "border border-border/50",
+          variant === "circle" ? "rounded-full" : "rounded-xl",
+          CONTAINER_SIZE[size],
+          animate && "agent-avatar-animated",
+          className,
+        )}
+        title={agent.name}
+        style={{ backgroundColor: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)` }}
+      >
+        <FallbackIcon className="h-1/2 w-1/2 text-primary-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-center overflow-hidden shrink-0",
+        "border border-border/50",
+        variant === "circle" ? "rounded-full" : "rounded-xl",
+        CONTAINER_SIZE[size],
+        animate && "agent-avatar-animated",
+        className,
+      )}
+      title={agent.name}
+      style={{ backgroundColor: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)` }}
+    >
+      <span
+        className={cn("font-bold text-primary-foreground select-none", TEXT_SIZE[size])}
+        style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+      >
+        {initial}
+      </span>
+    </div>
+  );
+}
+

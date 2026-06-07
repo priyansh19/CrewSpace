@@ -1,0 +1,7 @@
+packages:
+  - packages/*
+  - packages/adapters/*
+  - packages/plugins/sdk
+  - server
+  - desktop-electron
+  - desktop-electron/installer

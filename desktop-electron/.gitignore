@@ -1,0 +1,10 @@
+node_modules/
+dist/
+renderer-dist/
+.vite/
+*.tsbuildinfo
+.DS_Store
+dist3/
+dist-new/
+dist-v2/
+dist-v2/

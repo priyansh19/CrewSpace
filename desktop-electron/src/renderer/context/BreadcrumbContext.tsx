@@ -1,0 +1,50 @@
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "@/lib/router";
+
+export interface Breadcrumb {
+  label: string;
+  href?: string;
+}
+
+interface BreadcrumbContextValue {
+  breadcrumbs: Breadcrumb[];
+  setBreadcrumbs: (crumbs: Breadcrumb[]) => void;
+}
+
+const BreadcrumbContext = createContext<BreadcrumbContextValue | null>(null);
+
+export function BreadcrumbProvider({ children }: { children: ReactNode }) {
+  const [breadcrumbs, setBreadcrumbsState] = useState<Breadcrumb[]>([]);
+  const location = useLocation();
+
+  const setBreadcrumbs = useCallback((crumbs: Breadcrumb[]) => {
+    setBreadcrumbsState(crumbs);
+  }, []);
+
+  useEffect(() => {
+    setBreadcrumbsState([]);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (breadcrumbs.length === 0) {
+      document.title = "CrewSpace";
+    } else {
+      const parts = [...breadcrumbs].reverse().map((b) => b.label);
+      document.title = `${parts.join(" · ")} · CrewSpace`;
+    }
+  }, [breadcrumbs]);
+
+  return (
+    <BreadcrumbContext.Provider value={{ breadcrumbs, setBreadcrumbs }}>
+      {children}
+    </BreadcrumbContext.Provider>
+  );
+}
+
+export function useBreadcrumbs() {
+  const ctx = useContext(BreadcrumbContext);
+  if (!ctx) {
+    throw new Error("useBreadcrumbs must be used within BreadcrumbProvider");
+  }
+  return ctx;
+}

@@ -1,0 +1,73 @@
+node_modules/
+dist/
+# Exception: vendored hermes adapter dist must be committed (no build step, copied from npm)
+!packages/adapters/hermes-crewspace-adapter/dist/
+.env
+*.tsbuildinfo
+drizzle/meta/
+.vite/
+coverage/
+.DS_Store
+data/
+.crewspace/
+.pnpm-store/
+tmp-*
+cli/tmp/
+
+# Scratch/seed scripts (but not scripts/ dir)
+check-*.mjs
+!scripts/check-*.mjs
+new-agent*.json
+newcompany.json
+seed-*.mjs
+server/check-*.mjs
+server/seed-*.mjs
+packages/db/seed-*.mjs
+
+# npm publish build artifacts
+cli/package.dev.json
+
+# Build artifacts in src directories
+server/src/**/*.js
+server/src/**/*.js.map
+server/src/**/*.d.ts
+server/src/**/*.d.ts.map
+tmp/
+
+# Editor / tool temp files
+*.tmp
+.vscode/
+.claude/settings.local.json
+
+# Desktop app dev logs
+desktop-app-dev-err.log
+desktop-app-dev-out.log
+desktop-app-restart-err.log
+desktop-app-restart-out.log
+.crewspace-local/
+/.idea/
+/.agents/
+
+# Doc maintenance cursor
+.doc-review-cursor
+
+# Playwright
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+
+# Desktop build artifacts
+desktop-electron/server-exe/
+desktop-electron/server-prod/
+desktop-electron/dev-out.log
+server/ui-dist/
+target/
+
+# Experimental Tauri desktop app (superseded by desktop-electron)
+desktop/
+
+# Design reference images
+temporary-img/
+tests/release-smoke/test-results/
+tests/release-smoke/playwright-report/
+.superset/
+.claude/worktrees/

@@ -1,0 +1,50 @@
+{
+  "name": "@crewspaceai/create-crewspace-plugin",
+  "version": "0.0.1",
+  "license": "MIT",
+  "homepage": "https://github.com/crewspaceai/crewspace",
+  "bugs": {
+    "url": "https://github.com/crewspaceai/crewspace/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/crewspaceai/crewspace",
+    "directory": "packages/plugins/create-crewspace-plugin"
+  },
+  "type": "module",
+  "bin": {
+    "create-crewspace-plugin": "./dist/index.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "bin": {
+      "create-crewspace-plugin": "./dist/index.js"
+    },
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crewspaceai/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "typescript": "^5.7.3"
+  }
+}

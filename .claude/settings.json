@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm dev *)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm --filter @crewspaceai/ui build)",
+      "Bash(pnpm --filter @crewspaceai/ui typecheck)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}
