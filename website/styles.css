@@ -1,0 +1,57 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0a;
+  --surface: #111;
+  --border: #222;
+  --text: #f0f0f0;
+  --muted: #888;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+nav {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.25rem 2rem; border-bottom: 1px solid var(--border);
+}
+.logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; }
+nav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+nav a:hover { color: var(--text); }
+
+main { max-width: 720px; margin: 0 auto; padding: 4rem 2rem; }
+
+.hero { text-align: center; padding-bottom: 4rem; border-bottom: 1px solid var(--border); }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; line-height: 1.15; letter-spacing: -0.03em; margin-bottom: 1rem; }
+.subtitle { color: var(--muted); font-size: 1.1rem; line-height: 1.6; max-width: 500px; margin: 0 auto 2rem; }
+
+.install-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.5rem; display: inline-block;
+  margin-bottom: 2rem;
+}
+.install-box code { font-size: 0.95rem; color: var(--accent-hover); }
+
+.downloads p { color: var(--muted); font-size: 0.875rem; margin-bottom: 0.75rem; }
+.download-buttons { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+
+.btn {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); text-decoration: none; padding: 0.5rem 1.25rem;
+  border-radius: 6px; font-size: 0.875rem; transition: border-color 0.15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent-hover); }
+
+.steps, .features { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; }
+
+ol, ul { padding-left: 1.5rem; }
+li { margin-bottom: 0.75rem; line-height: 1.6; color: var(--muted); }
+li strong, li code { color: var(--text); }
+code { font-size: 0.875rem; background: var(--surface); padding: 0.1em 0.4em; border-radius: 4px; }
+
+footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.875rem; }
+footer a { color: var(--muted); }
+footer a:hover { color: var(--text); }
