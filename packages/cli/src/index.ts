@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 const command = process.argv[2]?.toLowerCase();
 
-const commands: Record<string, () => Promise<void>> = {};
+const commands: Record<string, () => Promise<void>> = {
+  start: async () => {
+    const { startCommand } = await import("./commands/start.js");
+    await startCommand();
+  },
+};
 
 async function main() {
   if (command === "--version" || command === "-v") {
