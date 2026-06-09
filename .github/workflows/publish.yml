@@ -97,14 +97,14 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
 
       - name: Publish to npm
-        if: ${{ github.event.inputs.skip_npm != 'true' && secrets.NPM_TOKEN != '' }}
+        if: github.event.inputs.skip_npm != 'true'
         run: pnpm --filter crewspace publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Skip npm publish notice
-        if: ${{ github.event.inputs.skip_npm == 'true' || secrets.NPM_TOKEN == '' }}
-        run: echo "npm publish skipped (skip_npm=${{ github.event.inputs.skip_npm }}, NPM_TOKEN set=${{ secrets.NPM_TOKEN != '' }})"
+        if: github.event.inputs.skip_npm == 'true'
+        run: echo "npm publish skipped (skip_npm=true)"
 
   build-binaries:
     runs-on: ${{ matrix.os }}
