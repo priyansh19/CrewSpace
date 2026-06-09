@@ -4,11 +4,48 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.0.0) — used when triggered manually'
+        required: true
+        default: '1.0.0'
+      skip_npm:
+        description: 'Skip npm publish (for binary-only test runs)'
+        required: false
+        default: 'false'
 
 jobs:
+  # Run CLI tests before publishing anything
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Run CLI unit tests
+        run: pnpm --filter crewspace test
+
   publish-npm:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: test
     permissions:
       contents: write
       id-token: write
@@ -32,32 +69,52 @@ jobs:
       - name: Build all packages
         run: pnpm build
 
-      - name: Sync CLI version with tag
+      - name: Resolve version
+        id: version
+        shell: bash
         run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${{ github.ref_name }}"
+            echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync CLI package version
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
           cd packages/cli
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
-            pkg.version = '$VERSION';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-          "
-          echo "CLI version set to $VERSION"
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'fs';
+          const VERSION = process.env.VERSION;
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          pkg.version = VERSION;
+          writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          console.log('CLI version set to', VERSION);
+          EOF
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
 
       - name: Publish to npm
+        if: ${{ github.event.inputs.skip_npm != 'true' && secrets.NPM_TOKEN != '' }}
         run: pnpm --filter crewspace publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Skip npm publish notice
+        if: ${{ github.event.inputs.skip_npm == 'true' || secrets.NPM_TOKEN == '' }}
+        run: echo "npm publish skipped (skip_npm=${{ github.event.inputs.skip_npm }}, NPM_TOKEN set=${{ secrets.NPM_TOKEN != '' }})"
+
   build-binaries:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    needs: publish-npm
+    timeout-minutes: 45
+    needs: test
     permissions:
       contents: write
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -91,20 +148,42 @@ jobs:
       - name: Install caxa
         run: npm install -g caxa
 
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${{ github.ref_name }}"
+            echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build binary
         shell: bash
         run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"
           OUT="crewspace-${{ matrix.target }}${{ matrix.ext }}"
           caxa --input . --output "$OUT" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/packages/cli/dist/index.js"
-          echo "Binary built: $OUT"
+          echo "Built: $OUT ($(du -sh "$OUT" | cut -f1))"
 
-      - name: Upload binary to release
+      - name: Upload binary to GitHub Release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           TAG="${{ github.ref_name }}"
           OUT="crewspace-${{ matrix.target }}${{ matrix.ext }}"
-          gh release upload "$TAG" "$OUT" --clobber || gh release create "$TAG" "$OUT" --title "CrewSpace $TAG" --latest
+          gh release upload "$TAG" "$OUT" --clobber \
+            || gh release create "$TAG" "$OUT" \
+                 --title "CrewSpace $TAG" \
+                 --notes "CLI release $TAG — npm: \`npm install -g crewspace\`" \
+                 --latest
+
+      - name: Upload binary artifact (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: crewspace-${{ matrix.target }}
+          path: crewspace-${{ matrix.target }}${{ matrix.ext }}
+          retention-days: 7
