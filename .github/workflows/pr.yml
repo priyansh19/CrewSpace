@@ -86,8 +86,5 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-  e2e:
-    needs: [policy]
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "e2e tests removed; check passes by default"
+      - name: CLI unit tests
+        run: pnpm --filter crewspace test
