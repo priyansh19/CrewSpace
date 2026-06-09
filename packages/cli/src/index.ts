@@ -1,9 +1,19 @@
 #!/usr/bin/env node
-const command = process.argv[2];
+const command = process.argv[2]?.toLowerCase();
 
 const commands: Record<string, () => Promise<void>> = {};
 
 async function main() {
+  if (command === "--version" || command === "-v") {
+    const { readFileSync } = await import("node:fs");
+    const { join, dirname } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "../package.json");
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    console.log(`crewspace v${pkg.version}`);
+    process.exit(0);
+  }
+
   if (!command || command === "--help" || command === "-h") {
     console.log(`
 CrewSpace — AI agent company control plane
