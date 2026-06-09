@@ -7,16 +7,16 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g. 1.0.0) — used when triggered manually'
+        description: 'Version to publish (e.g. 1.0.0)'
         required: true
         default: '1.0.0'
       skip_npm:
-        description: 'Skip npm publish (for binary-only test runs)'
+        description: 'Skip npm publish (true = binary-only test run)'
         required: false
         default: 'false'
 
 jobs:
-  # Run CLI tests before publishing anything
+  # Gate: run CLI tests before publishing anything
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -82,19 +82,17 @@ jobs:
 
       - name: Sync CLI package version
         shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          cd packages/cli
-          node --input-type=module <<'EOF'
-          import { readFileSync, writeFileSync } from 'fs';
-          const VERSION = process.env.VERSION;
-          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-          pkg.version = VERSION;
-          writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          console.log('CLI version set to', VERSION);
-          EOF
         env:
           VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'fs';
+          const v = process.env.VERSION;
+          const p = JSON.parse(readFileSync('packages/cli/package.json', 'utf8'));
+          p.version = v;
+          writeFileSync('packages/cli/package.json', JSON.stringify(p, null, 2) + '\n');
+          console.log('CLI version →', v);
+          EOF
 
       - name: Publish to npm
         if: github.event.inputs.skip_npm != 'true'
@@ -108,7 +106,7 @@ jobs:
 
   build-binaries:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 30
     needs: test
     permissions:
       contents: write
@@ -120,12 +118,15 @@ jobs:
           - os: ubuntu-latest
             target: linux-x64
             ext: ''
+            sea_platform: linux
           - os: windows-latest
             target: windows-x64
             ext: '.exe'
+            sea_platform: win32
           - os: macos-latest
             target: macos-universal
             ext: ''
+            sea_platform: darwin
 
     steps:
       - uses: actions/checkout@v4
@@ -145,26 +146,56 @@ jobs:
       - name: Build all packages
         run: pnpm build
 
-      - name: Install caxa
-        run: npm install -g caxa
-
-      - name: Resolve version
-        id: version
+      - name: Bundle CLI with esbuild
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            TAG="${{ github.ref_name }}"
-            echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-          fi
+          npx --yes esbuild packages/cli/src/index.ts \
+            --bundle \
+            --platform=node \
+            --format=cjs \
+            --outfile=cli-bundle.cjs \
+            --target=node22 \
+            --banner:js="#!/usr/bin/env node"
 
-      - name: Build binary
+      - name: Create Node SEA binary (Linux)
+        if: matrix.sea_platform == 'linux'
         shell: bash
         run: |
-          OUT="crewspace-${{ matrix.target }}${{ matrix.ext }}"
-          caxa --input . --output "$OUT" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/packages/cli/dist/index.js"
+          OUT="crewspace-${{ matrix.target }}"
+          echo '{"main":"cli-bundle.cjs","output":"sea-prep.blob","disableExperimentalSEAWarning":true}' > sea-config.json
+          node --experimental-sea-config sea-config.json
+          cp "$(which node)" "$OUT"
+          npx --yes postject "$OUT" NODE_SEA_BLOB sea-prep.blob \
+            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+          chmod +x "$OUT"
           echo "Built: $OUT ($(du -sh "$OUT" | cut -f1))"
+
+      - name: Create Node SEA binary (macOS)
+        if: matrix.sea_platform == 'darwin'
+        shell: bash
+        run: |
+          OUT="crewspace-${{ matrix.target }}"
+          echo '{"main":"cli-bundle.cjs","output":"sea-prep.blob","disableExperimentalSEAWarning":true}' > sea-config.json
+          node --experimental-sea-config sea-config.json
+          cp "$(which node)" "$OUT"
+          codesign --remove-signature "$OUT"
+          npx --yes postject "$OUT" NODE_SEA_BLOB sea-prep.blob \
+            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
+            --macho-segment-name NODE_SEA
+          codesign --sign - "$OUT"
+          chmod +x "$OUT"
+          echo "Built: $OUT ($(du -sh "$OUT" | cut -f1))"
+
+      - name: Create Node SEA binary (Windows)
+        if: matrix.sea_platform == 'win32'
+        shell: pwsh
+        run: |
+          $OUT = "crewspace-${{ matrix.target }}.exe"
+          '{"main":"cli-bundle.cjs","output":"sea-prep.blob","disableExperimentalSEAWarning":true}' | Out-File sea-config.json -Encoding utf8
+          node --experimental-sea-config sea-config.json
+          Copy-Item (Get-Command node).Source $OUT
+          npx --yes postject $OUT NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+          Write-Host "Built: $OUT ($([math]::Round((Get-Item $OUT).Length / 1MB, 1)) MB)"
 
       - name: Upload binary to GitHub Release
         if: github.event_name == 'push'
@@ -177,7 +208,7 @@ jobs:
           gh release upload "$TAG" "$OUT" --clobber \
             || gh release create "$TAG" "$OUT" \
                  --title "CrewSpace $TAG" \
-                 --notes "CLI release $TAG — npm: \`npm install -g crewspace\`" \
+                 --notes "CLI release — install with: \`npm install -g crewspace\`" \
                  --latest
 
       - name: Upload binary artifact (manual run)
