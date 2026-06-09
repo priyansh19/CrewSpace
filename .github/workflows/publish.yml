@@ -1,0 +1,110 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Sync CLI version with tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          cd packages/cli
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
+            pkg.version = '$VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          "
+          echo "CLI version set to $VERSION"
+
+      - name: Publish to npm
+        run: pnpm --filter crewspace publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build-binaries:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    needs: publish-npm
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            ext: ''
+          - os: windows-latest
+            target: windows-x64
+            ext: '.exe'
+          - os: macos-latest
+            target: macos-universal
+            ext: ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Install caxa
+        run: npm install -g caxa
+
+      - name: Build binary
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          OUT="crewspace-${{ matrix.target }}${{ matrix.ext }}"
+          caxa --input . --output "$OUT" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/packages/cli/dist/index.js"
+          echo "Binary built: $OUT"
+
+      - name: Upload binary to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          OUT="crewspace-${{ matrix.target }}${{ matrix.ext }}"
+          gh release upload "$TAG" "$OUT" --clobber || gh release create "$TAG" "$OUT" --title "CrewSpace $TAG" --latest
