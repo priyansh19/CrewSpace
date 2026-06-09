@@ -38,7 +38,14 @@
       "src/main.cjs",
       "src/preload.cjs",
       "renderer-dist/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "!assets/payload/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/payload",
+        "to": "assets/payload"
+      }
     ],
     "asar": false,
     "win": {
