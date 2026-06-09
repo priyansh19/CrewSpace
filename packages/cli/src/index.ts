@@ -6,6 +6,22 @@ const commands: Record<string, () => Promise<void>> = {
     const { startCommand } = await import("./commands/start.js");
     await startCommand();
   },
+  stop: async () => {
+    const { stopCommand } = await import("./commands/stop.js");
+    await stopCommand();
+  },
+  status: async () => {
+    const { statusCommand } = await import("./commands/status.js");
+    await statusCommand();
+  },
+  doctor: async () => {
+    const { doctorCommand } = await import("./commands/doctor.js");
+    await doctorCommand();
+  },
+  update: async () => {
+    const { updateCommand } = await import("./commands/update.js");
+    await updateCommand();
+  },
 };
 
 async function main() {
