@@ -4,24 +4,20 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  root: path.resolve(__dirname, "src/renderer"),
-  base: "/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src/renderer"),
+      "@": path.resolve(__dirname, "src"),
       lexical: path.resolve(__dirname, "node_modules/lexical/Lexical.mjs"),
     },
   },
   server: {
-    port: 5285,
+    port: 5173,
     proxy: {
       "/api": {
-        // In dev, proxy to the embedded server. Defaults to 3150 (Electron embedded server).
-        target: process.env.VITE_API_TARGET ?? "http://localhost:3150",
+        target: process.env.VITE_API_TARGET ?? "http://localhost:3100",
         ws: true,
         bypass: (req) => {
-          // Don't proxy Vite source-module requests — only real API calls
           if (req.url && /\.(ts|tsx|js|jsx|css|json|vue|svelte)(\?|$)/.test(req.url)) {
             return req.url;
           }
@@ -31,7 +27,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: path.resolve(__dirname, "renderer-dist"),
+    outDir: "dist",
     emptyOutDir: true,
     rollupOptions: {
       output: {

@@ -4,16 +4,19 @@ export const DEFAULT_CODEX_LOCAL_MODEL = "gpt-5.3-codex";
 export const DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX = true;
 
 export const models = [
-  { id: "gpt-5.4", label: "gpt-5.4" },
-  { id: DEFAULT_CODEX_LOCAL_MODEL, label: DEFAULT_CODEX_LOCAL_MODEL },
-  { id: "gpt-5.3-codex-spark", label: "gpt-5.3-codex-spark" },
-  { id: "gpt-5", label: "gpt-5" },
-  { id: "o3", label: "o3" },
-  { id: "o4-mini", label: "o4-mini" },
-  { id: "gpt-5-mini", label: "gpt-5-mini" },
-  { id: "gpt-5-nano", label: "gpt-5-nano" },
-  { id: "o3-mini", label: "o3-mini" },
-  { id: "codex-mini-latest", label: "Codex Mini" },
+  // GPT-5 Codex family
+  { id: "gpt-5.4",                  label: "gpt-5.4" },
+  { id: DEFAULT_CODEX_LOCAL_MODEL,  label: "gpt-5.3-codex (default)" },
+  { id: "gpt-5.3-codex-spark",      label: "gpt-5.3-codex-spark" },
+  { id: "gpt-5",                    label: "gpt-5" },
+  { id: "gpt-5-mini",               label: "gpt-5-mini" },
+  { id: "gpt-5-nano",               label: "gpt-5-nano" },
+  // Reasoning models
+  { id: "o4-mini",                  label: "o4-mini" },
+  { id: "o3",                       label: "o3" },
+  { id: "o3-mini",                  label: "o3-mini" },
+  // Codex Mini
+  { id: "codex-mini-latest",        label: "codex-mini-latest" },
 ];
 
 export const agentConfigurationDoc = `# codex_local agent configuration

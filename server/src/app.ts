@@ -285,11 +285,11 @@ export async function createApp(
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   if (opts.uiMode === "static") {
-    // Try published location first (server/ui-dist/), then monorepo dev location (../../ui/dist)
+    // Try published location first (server/ui-dist/), then monorepo dev build (../../ui/dist)
     const candidates = [
       ...(process.env.CREWSPACE_RENDERER_DIST ? [process.env.CREWSPACE_RENDERER_DIST] : []),
       path.resolve(__dirname, "../ui-dist"),
-      path.resolve(__dirname, "../../desktop-electron/renderer-dist"),
+      path.resolve(__dirname, "../../ui/dist"),
     ];
     const uiDist = candidates.find((p) => fs.existsSync(path.join(p, "index.html")));
     if (uiDist) {
@@ -304,8 +304,8 @@ export async function createApp(
   }
 
   if (opts.uiMode === "vite-dev") {
-    const uiRoot = path.resolve(__dirname, "../../desktop-electron/src/renderer");
-    const rendererConfigFile = path.resolve(__dirname, "../../desktop-electron/vite.renderer.config.ts");
+    const uiRoot = path.resolve(__dirname, "../../ui");
+    const rendererConfigFile = path.resolve(__dirname, "../../ui/vite.config.ts");
     const hmrPort = resolveViteHmrPort(opts.serverPort);
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
