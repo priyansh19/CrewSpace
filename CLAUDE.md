@@ -10,13 +10,17 @@
 crewspace/
 ├── server/          @crewspaceai/server   — Express 5 API (port 3100)
 ├── ui/              @crewspaceai/ui       — React 19 + Vite (port 5173)
-├── cli/             @crewspaceai/cli      — Agent orchestration CLI
+│   ├── src/         — all React source (components, pages, hooks, context, api…)
+│   ├── index.html   — Vite entry
+│   └── vite.config.ts
 ├── packages/
 │   ├── db/          @crewspaceai/db       — Drizzle ORM + migrations (62 tables)
 │   ├── shared/      @crewspaceai/shared   — Zod types shared by all packages
+│   ├── cli/         crewspace             — CLI (npm bin, Node SEA binaries)
 │   └── adapters/    (claude, gemini, cursor, codex, opencode, pi, openclaw)
-├── docker/          — docker-compose.yml + .env for containerised stack
-└── scripts/         — dev-runner.ts, backup-db.sh, release.sh, …
+├── desktop-electron/ crewspace-desktop    — Electron wrapper (uses ui/src)
+├── website/         — Static marketing landing page
+└── scripts/         — dev-runner.ts, prepare-server-ui-dist.sh, release.sh, …
 ```
 
 **Package manager:** pnpm 9.15.4 with workspaces  

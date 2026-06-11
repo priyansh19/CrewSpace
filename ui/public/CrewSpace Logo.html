@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CrewSpace — Logo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #07091a; font-family: 'Space Grotesk', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 48px; padding: 60px 40px; }
+
+h2 { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 4px; color: #7b5ff5; text-transform: uppercase; margin-bottom: 20px; }
+
+/* ── Icon-only showcase ── */
+.showcase { display: flex; flex-direction: column; align-items: center; gap: 32px; }
+.sizes { display: flex; align-items: center; gap: 40px; }
+.size-item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.size-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 2px; color: #444a7a; }
+
+/* ── Context mockups ── */
+.contexts { display: flex; gap: 24px; align-items: flex-start; }
+
+/* Sidebar mockup */
+.sidebar-mock {
+  width: 200px;
+  background: #0d0f20;
+  border: 1px solid #1e2248;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #1e2248;
+}
+.sidebar-brand { font-size: 13px; font-weight: 700; color: #e8e4ff; letter-spacing: -0.3px; }
+.sidebar-nav { padding: 10px 10px; display: flex; flex-direction: column; gap: 2px; }
+.nav-item { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #6b7099; display: flex; align-items: center; gap: 8px; }
+.nav-item.active { background: rgba(123,95,245,0.12); color: #a08ef8; }
+.nav-dot { width: 8px; height: 8px; border-radius: 2px; background: currentColor; opacity: 0.5; }
+
+/* Rail mockup */
+.rail-mock {
+  width: 60px;
+  background: #0d0f20;
+  border: 1px solid #1e2248;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 12px;
+}
+.rail-header { display: flex; align-items: center; justify-content: center; }
+.company-dot { width: 36px; height: 36px; border-radius: 10px; background: #1e2248; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #7b5ff5; }
+
+/* Light bg context */
+.light-mock {
+  width: 200px;
+  background: #f4f3ff;
+  border: 1px solid #ddd8ff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.light-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #ddd8ff;
+}
+.light-brand { font-size: 13px; font-weight: 700; color: #0e0a2a; letter-spacing: -0.3px; }
+.light-nav { padding: 10px 10px; display: flex; flex-direction: column; gap: 2px; }
+.light-item { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #9998bb; display: flex; align-items: center; gap: 8px; }
+.light-item.active { background: rgba(123,95,245,0.1); color: #7b5ff5; }
+
+/* divider */
+.divider { width: 1px; height: 200px; background: #1e2248; }
+.section-title { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 3px; color: #444a7a; text-align: center; margin-bottom: 8px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<!-- ICON MARK SIZES -->
+<div class="showcase">
+  <h2>CS Grid Mark — All Sizes</h2>
+  <div class="sizes">
+
+    <!-- 16px -->
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+        <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+      </svg>
+      <span class="size-label">16</span>
+    </div>
+
+    <!-- 24px -->
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+        <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+      </svg>
+      <span class="size-label">24</span>
+    </div>
+
+    <!-- 32px -->
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none">
+        <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+      </svg>
+      <span class="size-label">32</span>
+    </div>
+
+    <!-- 48px -->
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none">
+        <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+      </svg>
+      <span class="size-label">48</span>
+    </div>
+
+    <!-- 64px -->
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="64" height="64" fill="none">
+        <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+      </svg>
+      <span class="size-label">64</span>
+    </div>
+
+    <!-- 96px -->
+    <div class="size-item">
+      <svg viewBox="0 0 24 24" width="96" height="96" fill="none">
+        <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+        <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+        <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+      </svg>
+      <span class="size-label">96</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- IN-CONTEXT MOCKUPS -->
+<div class="showcase">
+  <h2>In Context</h2>
+  <div class="contexts">
+
+    <!-- Dark sidebar -->
+    <div>
+      <p class="section-title">Sidebar · Dark</p>
+      <div class="sidebar-mock">
+        <div class="sidebar-header">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" style="flex-shrink:0">
+            <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+          </svg>
+          <span class="sidebar-brand">CrewSpace</span>
+        </div>
+        <div class="sidebar-nav">
+          <div class="nav-item active"><span class="nav-dot"></span> Dashboard</div>
+          <div class="nav-item"><span class="nav-dot"></span> Inbox</div>
+          <div class="nav-item"><span class="nav-dot"></span> Issues</div>
+          <div class="nav-item"><span class="nav-dot"></span> Agents</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Company rail -->
+    <div>
+      <p class="section-title">Company Rail</p>
+      <div class="rail-mock">
+        <div class="rail-header">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+          </svg>
+        </div>
+        <div style="width:1px;background:#1e2248;margin:0 auto;height:8px"></div>
+        <div class="company-dot">A</div>
+        <div class="company-dot" style="background:#1a3028;color:#2ecfc1">B</div>
+        <div class="company-dot" style="opacity:.4">+</div>
+      </div>
+    </div>
+
+    <!-- Light sidebar -->
+    <div>
+      <p class="section-title">Sidebar · Light</p>
+      <div class="light-mock">
+        <div class="light-header">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" style="flex-shrink:0">
+            <rect x="2.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="5.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="8.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="2.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="5.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="8.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#7b5ff5"/>
+            <rect x="12.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="4.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="7.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="10.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="13.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="12.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="15.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+            <rect x="18.75" y="16.75" width="2.5" height="2.5" rx=".6" fill="#2ecfc1"/>
+          </svg>
+          <span class="light-brand">CrewSpace</span>
+        </div>
+        <div class="light-nav">
+          <div class="light-item active"><span class="nav-dot"></span> Dashboard</div>
+          <div class="light-item"><span class="nav-dot"></span> Inbox</div>
+          <div class="light-item"><span class="nav-dot"></span> Issues</div>
+          <div class="light-item"><span class="nav-dot"></span> Agents</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

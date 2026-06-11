@@ -3,13 +3,17 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+// The renderer source now lives in ui/src (shared with the web distribution).
+const UI_SRC = path.resolve(__dirname, "../ui/src");
+const UI_ROOT = path.resolve(__dirname, "../ui");
+
 export default defineConfig({
-  root: path.resolve(__dirname, "src/renderer"),
+  root: UI_ROOT,
   base: "/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src/renderer"),
+      "@": UI_SRC,
       lexical: path.resolve(__dirname, "node_modules/lexical/Lexical.mjs"),
     },
   },
@@ -17,11 +21,10 @@ export default defineConfig({
     port: 5285,
     proxy: {
       "/api": {
-        // In dev, proxy to the embedded server. Defaults to 3150 (Electron embedded server).
+        // In Electron dev mode proxy to the embedded server (default 3150).
         target: process.env.VITE_API_TARGET ?? "http://localhost:3150",
         ws: true,
         bypass: (req) => {
-          // Don't proxy Vite source-module requests — only real API calls
           if (req.url && /\.(ts|tsx|js|jsx|css|json|vue|svelte)(\?|$)/.test(req.url)) {
             return req.url;
           }
@@ -34,6 +37,7 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "renderer-dist"),
     emptyOutDir: true,
     rollupOptions: {
+      input: path.resolve(UI_ROOT, "index.html"),
       output: {
         manualChunks: {
           "vendor-react":  ["react", "react-dom", "react-router-dom"],

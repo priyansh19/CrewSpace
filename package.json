@@ -9,6 +9,7 @@
     "dev:list": "pnpm --filter @crewspaceai/server exec tsx ../scripts/dev-service.ts list",
     "dev:stop": "pnpm --filter @crewspaceai/server exec tsx ../scripts/dev-service.ts stop",
     "dev:server": "pnpm --filter @crewspaceai/server dev",
+    "dev:ui": "pnpm --filter @crewspaceai/ui dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @crewspaceai/db generate",

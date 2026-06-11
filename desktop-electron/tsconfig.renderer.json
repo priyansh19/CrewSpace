@@ -13,7 +13,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/renderer/*"],
+      "@/*": ["../ui/src/*"],
       "lexical": ["./node_modules/lexical/index.d.ts"],
       "hermes-crewspace-adapter": ["../packages/adapters/hermes-crewspace-adapter/dist/index.d.ts"],
       "hermes-crewspace-adapter/server": ["../packages/adapters/hermes-crewspace-adapter/dist/server/index.d.ts"],
@@ -21,5 +21,5 @@
       "hermes-crewspace-adapter/cli": ["../packages/adapters/hermes-crewspace-adapter/dist/cli/index.d.ts"]
     }
   },
-  "include": ["src/renderer"]
+  "include": ["../ui/src"]
 }
