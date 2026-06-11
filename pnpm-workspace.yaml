@@ -4,6 +4,4 @@ packages:
   - packages/plugins/sdk
   - server
   - ui
-  - desktop-electron
-  - desktop-electron/installer
   - packages/cli
