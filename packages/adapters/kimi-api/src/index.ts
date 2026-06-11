@@ -3,10 +3,16 @@ export const label = "Kimi (API)";
 export const DEFAULT_KIMI_API_MODEL = "kimi-k2";
 
 export const models = [
-  { id: DEFAULT_KIMI_API_MODEL, label: DEFAULT_KIMI_API_MODEL },
-  { id: "kimi-k2-coder", label: "kimi-k2-coder" },
-  { id: "kimi-k2-mini", label: "kimi-k2-mini" },
-  { id: "kimi-k1.6", label: "kimi-k1.6" },
+  // Kimi K2 family (agentic coding)
+  { id: DEFAULT_KIMI_API_MODEL, label: "kimi-k2 (default)" },
+  { id: "kimi-k2-coder",        label: "kimi-k2-coder" },
+  { id: "kimi-k2-mini",         label: "kimi-k2-mini" },
+  // Moonshot API models (long-context chat)
+  { id: "moonshot-v1-128k",     label: "moonshot-v1-128k" },
+  { id: "moonshot-v1-32k",      label: "moonshot-v1-32k" },
+  { id: "moonshot-v1-8k",       label: "moonshot-v1-8k" },
+  // Legacy
+  { id: "kimi-k1.6",            label: "kimi-k1.6 (legacy)" },
 ];
 
 export const agentConfigurationDoc = `# kimi_api agent configuration

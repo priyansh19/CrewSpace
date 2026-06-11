@@ -1,14 +1,29 @@
 export const type = "opencode_local";
 export const label = "OpenCode (local)";
 
-export const DEFAULT_OPENCODE_LOCAL_MODEL = "openai/gpt-5.2-codex";
+export const DEFAULT_OPENCODE_LOCAL_MODEL = "anthropic/claude-sonnet-4-6";
 
-export const models: Array<{ id: string; label: string }> = [
-  { id: DEFAULT_OPENCODE_LOCAL_MODEL, label: DEFAULT_OPENCODE_LOCAL_MODEL },
-  { id: "openai/gpt-5.4", label: "openai/gpt-5.4" },
-  { id: "openai/gpt-5.2", label: "openai/gpt-5.2" },
-  { id: "openai/gpt-5.1-codex-max", label: "openai/gpt-5.1-codex-max" },
-  { id: "openai/gpt-5.1-codex-mini", label: "openai/gpt-5.1-codex-mini" },
+export const models: Array<{ id: string; label: string; group?: string }> = [
+  // Anthropic
+  { id: "anthropic/claude-fable-5",        label: "anthropic/claude-fable-5",        group: "Anthropic" },
+  { id: "anthropic/claude-opus-4-8",       label: "anthropic/claude-opus-4-8",       group: "Anthropic" },
+  { id: "anthropic/claude-opus-4-6",       label: "anthropic/claude-opus-4-6",       group: "Anthropic" },
+  { id: DEFAULT_OPENCODE_LOCAL_MODEL,       label: "anthropic/claude-sonnet-4-6 (default)", group: "Anthropic" },
+  { id: "anthropic/claude-sonnet-4-5",     label: "anthropic/claude-sonnet-4-5",     group: "Anthropic" },
+  { id: "anthropic/claude-haiku-4-5",      label: "anthropic/claude-haiku-4-5",      group: "Anthropic" },
+  // OpenAI / Codex
+  { id: "openai/gpt-5.4",                  label: "openai/gpt-5.4",                  group: "OpenAI" },
+  { id: "openai/gpt-5.3-codex",            label: "openai/gpt-5.3-codex",            group: "OpenAI" },
+  { id: "openai/gpt-5.2-codex",            label: "openai/gpt-5.2-codex",            group: "OpenAI" },
+  { id: "openai/gpt-5.2",                  label: "openai/gpt-5.2",                  group: "OpenAI" },
+  { id: "openai/gpt-5.1-codex-max",        label: "openai/gpt-5.1-codex-max",        group: "OpenAI" },
+  { id: "openai/gpt-5.1-codex-mini",       label: "openai/gpt-5.1-codex-mini",       group: "OpenAI" },
+  { id: "openai/o3",                        label: "openai/o3",                        group: "OpenAI" },
+  { id: "openai/o4-mini",                   label: "openai/o4-mini",                   group: "OpenAI" },
+  // Google
+  { id: "google/gemini-2.5-pro",           label: "google/gemini-2.5-pro",           group: "Google" },
+  { id: "google/gemini-2.5-flash",         label: "google/gemini-2.5-flash",         group: "Google" },
+  { id: "google/gemini-2.0-flash",         label: "google/gemini-2.0-flash",         group: "Google" },
 ];
 
 export const agentConfigurationDoc = `# opencode_local agent configuration
