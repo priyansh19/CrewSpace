@@ -71,9 +71,9 @@ export function BreadcrumbBar() {
       <div className="border-b border-border px-4 md:px-6 h-10 shrink-0 flex items-center bg-background">
         {menuButton}
         <div className="min-w-0 overflow-hidden flex-1">
-          <h1 className="text-sm font-semibold text-foreground truncate">
+          <span className="text-sm font-semibold text-foreground truncate block">
             {breadcrumbs[0].label}
-          </h1>
+          </span>
         </div>
         {globalToolbarSlots}
       </div>
