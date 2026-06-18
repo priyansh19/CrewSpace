@@ -47,7 +47,7 @@ export function BreadcrumbBar() {
 
   if (breadcrumbs.length === 0) {
     return (
-      <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center justify-end">
+      <div className="border-b border-border px-4 md:px-6 h-10 shrink-0 flex items-center justify-end bg-background">
         {globalToolbarSlots}
       </div>
     );
@@ -65,13 +65,13 @@ export function BreadcrumbBar() {
     </Button>
   );
 
-  // Single breadcrumb = page title (uppercase)
+  // Single breadcrumb = page title
   if (breadcrumbs.length === 1) {
     return (
-      <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center">
+      <div className="border-b border-border px-4 md:px-6 h-10 shrink-0 flex items-center bg-background">
         {menuButton}
         <div className="min-w-0 overflow-hidden flex-1">
-          <h1 className="text-sm font-semibold uppercase tracking-wider truncate">
+          <h1 className="text-sm font-semibold text-foreground truncate">
             {breadcrumbs[0].label}
           </h1>
         </div>
@@ -82,7 +82,7 @@ export function BreadcrumbBar() {
 
   // Multiple breadcrumbs = breadcrumb trail
   return (
-    <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center">
+    <div className="border-b border-border px-4 md:px-6 h-10 shrink-0 flex items-center bg-background">
       {menuButton}
       <div className="min-w-0 overflow-hidden flex-1">
         <Breadcrumb className="min-w-0 overflow-hidden">
@@ -94,10 +94,10 @@ export function BreadcrumbBar() {
                   {i > 0 && <BreadcrumbSeparator />}
                   <BreadcrumbItem className={isLast ? "min-w-0" : "shrink-0"}>
                     {isLast || !crumb.href ? (
-                      <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
+                      <BreadcrumbPage className="truncate text-foreground">{crumb.label}</BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink asChild>
-                        <Link to={crumb.href}>{crumb.label}</Link>
+                        <Link to={crumb.href} className="text-muted-foreground hover:text-foreground">{crumb.label}</Link>
                       </BreadcrumbLink>
                     )}
                   </BreadcrumbItem>

@@ -426,7 +426,7 @@ export function Layout() {
                 "flex-1 min-w-0",
                 isFullPageRoute(location.pathname)
                   ? "relative min-h-0 overflow-hidden"
-                  : cn("px-16 pt-8 pb-16 md:px-20 md:pt-10 md:pb-24", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
+                  : cn("px-6 pt-6 pb-12 md:px-8 md:pt-8 md:pb-16", isMobile ? "overflow-visible pb-[calc(5rem+env(safe-area-inset-bottom))]" : "overflow-auto"),
               )}
             >
               {hasUnknownCompanyPrefix ? (
