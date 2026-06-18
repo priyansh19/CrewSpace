@@ -68,14 +68,14 @@ import {
 
 function tokens(isDark: boolean) {
   return {
-    cardBg: isDark ? "rgba(24,23,21,0.88)" : "rgba(250,249,245,0.92)",
-    cardBorder: isDark ? "rgba(255,255,255,0.07)" : "rgba(230,223,216,0.6)",
-    cardBorderStrong: isDark ? "rgba(255,255,255,0.11)" : "rgba(204,120,92,0.25)",
-    text: isDark ? "#faf9f5" : "#141413",
-    textMuted: isDark ? "#a09d96" : "#6c6a64",
-    textDim: isDark ? "#6c6a64" : "#8e8b82",
+    cardBg: isDark ? "rgba(22,27,34,0.95)" : "rgba(246,248,250,0.95)",
+    cardBorder: isDark ? "rgba(48,54,61,0.9)" : "rgba(208,215,222,0.8)",
+    cardBorderStrong: isDark ? "rgba(88,166,255,0.2)" : "rgba(9,105,218,0.2)",
+    text: isDark ? "#e6edf3" : "#1f2328",
+    textMuted: isDark ? "#8b949e" : "#656d76",
+    textDim: isDark ? "#656d76" : "#8c959f",
     barBg: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-    divider: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+    divider: isDark ? "rgba(48,54,61,0.8)" : "rgba(208,215,222,0.8)",
   };
 }
 

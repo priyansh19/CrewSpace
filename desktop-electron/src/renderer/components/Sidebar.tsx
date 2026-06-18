@@ -74,9 +74,9 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-60 h-full min-h-0 border-r border-border bg-background flex flex-col">
+    <aside className="w-60 h-full min-h-0 border-r border-sidebar-border bg-sidebar flex flex-col">
       {/* Brand header */}
-      <div className="flex items-center gap-2 px-4 h-13 shrink-0 border-b border-border/50">
+      <div className="flex items-center gap-2 px-3 h-10 shrink-0 border-b border-sidebar-border">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {/* Company avatar */}
           {selectedCompany ? (
@@ -84,44 +84,41 @@ export function Sidebar() {
               companyName={selectedCompany.name}
               logoUrl={selectedCompany.logoUrl}
               size="sm"
-              className="rounded-md shrink-0"
+              className="rounded shrink-0"
             />
           ) : (
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
+            <div className="w-5 h-5 rounded bg-primary flex items-center justify-center shrink-0">
               <span className="text-[10px] font-bold text-primary-foreground">C</span>
             </div>
           )}
-          <span className="text-sm font-bold text-foreground tracking-tight">CrewSpace</span>
+          <span className="text-sm font-semibold text-foreground truncate">
+            {selectedCompany ? selectedCompany.name : "CrewSpace"}
+          </span>
           {selectedCompany?.brandColor && (
             <div
-              className="w-1.5 h-1.5 rounded-full shrink-0 ml-0.5"
+              className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ backgroundColor: selectedCompany.brandColor }}
             />
-          )}
-          {selectedCompany && (
-            <span className="text-xs text-muted-foreground truncate font-normal">
-              {selectedCompany.name}
-            </span>
           )}
         </div>
         <Button
           variant="ghost"
           size="icon-sm"
-          className="text-muted-foreground shrink-0"
+          className="text-muted-foreground shrink-0 h-7 w-7"
           onClick={openSearch}
         >
           <Search className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-3 px-3 py-3">
+      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-auto-hide flex flex-col gap-1 px-2 py-2">
         {/* Quick actions */}
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 mb-1">
           <button
             onClick={() => openNewIssue()}
-            className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/15 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium rounded-md border border-border text-foreground hover:bg-accent/60 transition-colors"
           >
-            <SquarePen className="h-3.5 w-3.5 shrink-0" />
+            <SquarePen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">New Task</span>
           </button>
         </div>
