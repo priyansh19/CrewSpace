@@ -51,7 +51,7 @@ describe("GET /api/companies/:companyId/dashboard", () => {
     expect(res.status).toBe(200);
     expect(res.body.agents.total).toBe(5);
     expect(res.body.costs.monthUtilizationPercent).toBe(42);
-    expect(mockDashboardService.summary).toHaveBeenCalledWith(companyId);
+    expect(mockDashboardService.summary).toHaveBeenCalledWith(companyId, undefined);
   });
 
   it("returns 401 for unauthenticated actor", async () => {

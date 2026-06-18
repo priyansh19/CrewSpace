@@ -60,6 +60,7 @@ desktop-electron/server-exe/
 desktop-electron/server-prod/
 desktop-electron/dev-out.log
 server/ui-dist/
+desktop-electron/renderer-dist/
 target/
 
 # Experimental Tauri desktop app (superseded by desktop-electron)
