@@ -23,6 +23,7 @@ import {
 import type { WorkspaceOperationRecorder } from "./workspace-operations.js";
 import { readExecutionWorkspaceConfig } from "./execution-workspaces.js";
 import { readProjectWorkspaceRuntimeConfig } from "./project-workspace-runtime-config.js";
+import { initializeWorktreeEnvAndConfig } from "../worktree-config.js";
 
 export interface ExecutionWorkspaceInput {
   baseCwd: string;
@@ -720,6 +721,7 @@ export async function realizeExecutionWorkspace(input: {
       failureLabel: `git worktree add ${worktreePath}`,
     });
   }
+  initializeWorktreeEnvAndConfig({ worktreePath, branchName });
   await provisionExecutionWorktree({
     strategy: rawStrategy,
     base: input.base,
