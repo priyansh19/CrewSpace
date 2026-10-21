@@ -23,6 +23,7 @@ import {
   sanitizeCwd,
 } from "@crewspaceai/adapter-utils/server-utils";
 import { parseCodexJsonl, isCodexUnknownSessionError } from "./parse.js";
+import { normalizeCodexModel } from "../index.js";
 import { pathExists, prepareManagedCodexHome, resolveManagedCodexHomeDir, resolveSharedCodexHomeDir } from "./codex-home.js";
 import { resolveCodexDesiredSkillNames } from "./skills.js";
 
@@ -221,7 +222,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     "You are agent {{agent.id}} ({{agent.name}}). Continue your CrewSpace work.",
   );
   const command = asString(config.command, "codex");
-  const model = asString(config.model, "");
+  const model = normalizeCodexModel(config.model);
   const modelReasoningEffort = asString(
     config.modelReasoningEffort,
     asString(config.reasoningEffort, ""),

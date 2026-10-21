@@ -36,6 +36,8 @@ const baseAgent = {
 const mockAgentService = vi.hoisted(() => ({
   getById: vi.fn(),
   create: vi.fn(),
+  update: vi.fn(),
+  list: vi.fn(),
   updatePermissions: vi.fn(),
   getChainOfCommand: vi.fn(),
   resolveByReference: vi.fn(),
@@ -86,6 +88,11 @@ const mockCompanySkillService = vi.hoisted(() => ({
 }));
 const mockWorkspaceOperationService = vi.hoisted(() => ({}));
 const mockLogActivity = vi.hoisted(() => vi.fn());
+
+vi.mock("../services/filesystem-users.js", () => ({
+  provisionAgentUser: vi.fn(async () => undefined),
+  deprovisionAgentUser: vi.fn(async () => undefined),
+}));
 
 vi.mock("../services/index.js", () => ({
   agentService: () => mockAgentService,
@@ -138,6 +145,8 @@ describe("agent permission routes", () => {
     mockAgentService.getChainOfCommand.mockResolvedValue([]);
     mockAgentService.resolveByReference.mockResolvedValue({ ambiguous: false, agent: baseAgent });
     mockAgentService.create.mockResolvedValue(baseAgent);
+    mockAgentService.update.mockResolvedValue(baseAgent);
+    mockAgentService.list.mockResolvedValue([baseAgent]);
     mockAgentService.updatePermissions.mockResolvedValue(baseAgent);
     mockAccessService.getMembership.mockResolvedValue({
       id: "membership-1",
@@ -210,6 +219,95 @@ describe("agent permission routes", () => {
       "tasks:assign",
       true,
       "board-user",
+    );
+  });
+
+  describe.each(["agents", "agent-hires"])("Codex model defaults for %s", (endpoint) => {
+    it.each([
+      [undefined, ""],
+      ["", ""],
+      ["  ", ""],
+      ["default", ""],
+      [" Default ", ""],
+      ["gpt-5.3-codex", "gpt-5.3-codex"],
+      [" custom-model ", "custom-model"],
+    ])("persists model %j as %j", async (model, expected) => {
+      const app = createApp({
+        type: "board",
+        userId: "board-user",
+        source: "local_implicit",
+        isInstanceAdmin: true,
+        companyIds: [companyId],
+      });
+
+      const res = await request(app)
+        .post(`/api/companies/${companyId}/${endpoint}`)
+        .send({
+          name: "Builder",
+          role: "engineer",
+          adapterType: "codex_local",
+          adapterConfig: model === undefined ? {} : { model },
+        });
+
+      expect(res.status).toBe(201);
+      expect(mockAgentService.create).toHaveBeenCalledWith(
+        companyId,
+        expect.objectContaining({
+          adapterConfig: expect.objectContaining({ model: expected }),
+        }),
+      );
+    });
+  });
+
+  it.each(["", "  ", " Default "])("clears an explicit Codex model when updated to %j", async (model) => {
+    mockAgentService.getById.mockResolvedValue({
+      ...baseAgent,
+      adapterType: "codex_local",
+      adapterConfig: { model: "gpt-5.3-codex", cwd: "/workspace" },
+    });
+    const app = createApp({
+      type: "board",
+      userId: "board-user",
+      source: "local_implicit",
+      isInstanceAdmin: true,
+      companyIds: [companyId],
+    });
+
+    const res = await request(app)
+      .patch(`/api/agents/${agentId}`)
+      .send({ adapterConfig: { model } });
+
+    expect(res.status).toBe(200);
+    expect(mockAgentService.update).toHaveBeenCalledWith(
+      agentId,
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({ model: "", cwd: "/workspace" }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("keeps Codex default model empty when applying an adapter to all agents", async () => {
+    const app = createApp({
+      type: "board",
+      userId: "board-user",
+      source: "local_implicit",
+      isInstanceAdmin: true,
+      companyIds: [companyId],
+    });
+
+    const res = await request(app)
+      .patch(`/api/companies/${companyId}/agents/bulk-adapter`)
+      .send({ adapterType: "codex_local", adapterConfig: { model: " Default " } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.updated).toBe(1);
+    expect(mockAgentService.update).toHaveBeenCalledWith(
+      agentId,
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({ model: "" }),
+      }),
+      expect.any(Object),
     );
   });
 

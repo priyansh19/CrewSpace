@@ -7,6 +7,8 @@ import { listAdapterModels } from "../adapters/index.js";
 import { resetCodexModelsCacheForTests } from "../adapters/codex-models.js";
 import { resetCursorModelsCacheForTests, setCursorModelsRunnerForTests } from "../adapters/cursor-models.js";
 
+vi.mock("../config-file.js", () => ({ readConfigFile: () => null }));
+
 describe("adapter model listing", () => {
   beforeEach(() => {
     delete process.env.OPENAI_API_KEY;
@@ -28,6 +30,12 @@ describe("adapter model listing", () => {
     const models = await listAdapterModels("codex_local");
 
     expect(models).toEqual(codexFallbackModels);
+    expect(models.map((model) => model.id)).toEqual([
+      "gpt-6.1-sol",
+      "gpt-6-astra",
+      "gpt-6-sol",
+      "gpt-6-luna",
+    ]);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -49,7 +57,7 @@ describe("adapter model listing", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(first).toEqual(second);
     expect(first.some((model) => model.id === "gpt-5-pro")).toBe(true);
-    expect(first.some((model) => model.id === "codex-mini-latest")).toBe(true);
+    expect(first.some((model) => model.id === "gpt-6.1-sol")).toBe(true);
   });
 
   it("falls back to static codex models when OpenAI model discovery fails", async () => {
@@ -75,6 +83,8 @@ describe("adapter model listing", () => {
 
     const models = await listAdapterModels("cursor");
     expect(models).toEqual(cursorFallbackModels);
+    expect(models.map((model) => model.id)).toEqual(expect.arrayContaining(["gpt-5.5", "gpt-5.4"]));
+    expect(models.some((model) => model.id.startsWith("gpt-6-astra"))).toBe(false);
   });
 
   it("returns opencode fallback models including gpt-5.4", async () => {

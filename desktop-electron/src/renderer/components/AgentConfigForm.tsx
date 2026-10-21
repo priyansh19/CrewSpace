@@ -15,6 +15,7 @@ import { assetsApi } from "../api/assets";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
   DEFAULT_CODEX_LOCAL_MODEL,
+  normalizeCodexModel,
 } from "@crewspaceai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@crewspaceai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@crewspaceai/adapter-gemini-local";
@@ -445,9 +446,12 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   });
 
   // Current model for display
-  const currentModelId = isCreate
+  const configuredModelId = isCreate
     ? val!.model
     : eff("adapterConfig", "model", String(config.model ?? ""));
+  const currentModelId = adapterType === "codex_local"
+    ? normalizeCodexModel(configuredModelId)
+    : configuredModelId;
 
   const thinkingEffortKey =
     adapterType === "codex_local"
@@ -804,7 +808,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 onChange={(v) =>
                   isCreate
                     ? set!({ model: v })
-                    : mark("adapterConfig", "model", v || undefined)
+                    : mark(
+                        "adapterConfig",
+                        "model",
+                        adapterType === "codex_local" ? normalizeCodexModel(v) : v || undefined,
+                      )
                 }
                 open={modelOpen}
                 onOpenChange={setModelOpen}

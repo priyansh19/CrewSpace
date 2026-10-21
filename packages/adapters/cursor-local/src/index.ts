@@ -4,6 +4,8 @@ export const DEFAULT_CURSOR_LOCAL_MODEL = "auto";
 
 const CURSOR_FALLBACK_MODEL_IDS = [
   "auto",
+  "gpt-5.5",
+  "gpt-5.4",
   "composer-1.5",
   "composer-1",
   "gpt-5.3-codex-low",

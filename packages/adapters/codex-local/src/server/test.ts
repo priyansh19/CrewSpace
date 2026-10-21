@@ -14,6 +14,7 @@ import {
   runChildProcess,
 } from "@crewspaceai/adapter-utils/server-utils";
 import path from "node:path";
+import { normalizeCodexModel } from "../index.js";
 import { parseCodexJsonl } from "./parse.js";
 import { codexHomeDir, readCodexAuthInfo } from "./quota.js";
 
@@ -140,7 +141,7 @@ export async function testEnvironment(
         hint: "Use the `codex` CLI command to run the automatic login and installation probe.",
       });
     } else {
-      const model = asString(config.model, "").trim();
+      const model = normalizeCodexModel(config.model);
       const modelReasoningEffort = asString(
         config.modelReasoningEffort,
         asString(config.reasoningEffort, ""),
