@@ -8,6 +8,7 @@ import type { StorageService } from "./storage/types.js";
 import { httpLogger, errorHandler } from "./middleware/index.js";
 import { actorMiddleware } from "./middleware/auth.js";
 import { boardMutationGuard } from "./middleware/board-mutation-guard.js";
+import { apiNotFound } from "./middleware/api-not-found.js";
 import { privateHostnameGuard, resolvePrivateHostnameAllowSet } from "./middleware/private-hostname-guard.js";
 import { healthRoutes } from "./routes/health.js";
 import { companyRoutes } from "./routes/companies.js";
@@ -85,6 +86,8 @@ export async function createApp(
   },
 ) {
   const app = express();
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const uiRoot = path.resolve(__dirname, "../../desktop-electron/src/renderer");
 
   app.use(express.json({
     // Company import/export payloads can inline full portable packages.
@@ -276,14 +279,11 @@ export async function createApp(
     }),
   );
   app.use("/api", api);
-  app.use("/api", (_req, res) => {
-    res.status(404).json({ error: "API route not found" });
-  });
+  app.use("/api", apiNotFound(opts.uiMode === "vite-dev" ? path.join(uiRoot, "api") : undefined));
   app.use(pluginUiStaticRoutes(db, {
     localPluginDir: opts.localPluginDir ?? DEFAULT_LOCAL_PLUGIN_DIR,
   }));
 
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
   if (opts.uiMode === "static") {
     // Try published location first (server/ui-dist/), then monorepo dev location (../../ui/dist)
     const candidates = [
@@ -304,7 +304,6 @@ export async function createApp(
   }
 
   if (opts.uiMode === "vite-dev") {
-    const uiRoot = path.resolve(__dirname, "../../desktop-electron/src/renderer");
     const rendererConfigFile = path.resolve(__dirname, "../../desktop-electron/vite.renderer.config.ts");
     const hmrPort = resolveViteHmrPort(opts.serverPort);
     const { createServer: createViteServer } = await import("vite");
